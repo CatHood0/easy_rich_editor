@@ -1,0 +1,2 @@
+# flutter_quill_delta_easy_parser_visualizer
+Show your documents from flutter_quill_delta_easy_parser using text widgets
