@@ -5,7 +5,7 @@ import 'package:meta/meta.dart';
 
 @internal
 @immutable
-class DocumentToVilNodesParser {
+class DocumentToNodesParser {
   static List<Node> parse(
     Document doc, {
     String Function(Paragraph pr)? onDetectCustom,
@@ -30,7 +30,7 @@ class DocumentToVilNodesParser {
     for (Paragraph pr in doc.paragraphs) {
       root.insertNode(
         pr.isEmbed
-            ? Node.fromParagraph(type: EmbedKeys.key, paragraph: pr)
+            ? Node.fromParagraphEmbed(paragraph: pr)
             : Node.fromParagraph(paragraph: pr),
       );
     }
