@@ -1,7 +1,7 @@
 import 'package:flutter/widgets.dart';
-import 'package:flutter_quill_delta_easy_parser_visualizer/src/limiters/limiter_base.dart';
-import 'package:flutter_quill_delta_easy_parser_visualizer/src/nodes/node.dart';
-import 'package:flutter_quill_delta_easy_parser_visualizer/src/tree/tree.dart';
+import 'package:easy_rich_editor/easy_rich_editor.dart';
+
+import '../../internal.dart';
 
 /// This controller manages all the complex internal operations
 /// like: text modifications
@@ -28,15 +28,4 @@ class TreeController extends ValueNotifier<Tree> {
     }
     return limiter;
   }
-
-  void insertText(EasyVilNode node, TextSelection selection) {
-    // first get the root of this node
-    final parent = node.jumpToParent();
-    // get the limiter
-    final limiter = _getLimiter(parent.type);
-  }
-
-  void updateText(EasyVilNode node) {}
-
-  void deleteText(EasyVilNode node) {}
 }

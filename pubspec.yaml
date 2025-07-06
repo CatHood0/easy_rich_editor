@@ -1,4 +1,4 @@
-name: flutter_quill_delta_easy_parser_visualizer
+name: easy_rich_editor 
 description: "Show your documents using widgets easily"
 version: 1.0.0
 homepage:
@@ -14,6 +14,7 @@ dependencies:
   meta: ^1.16.0
   collection: ^1.19.1
   flutter_quill_delta_easy_parser: ^1.1.6
+  isolate_manager: ^6.0.1 
 
 dev_dependencies:
   flutter_test:

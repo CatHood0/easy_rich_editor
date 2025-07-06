@@ -1,5 +1,5 @@
 import 'package:flutter/widgets.dart';
-import 'package:flutter_quill_delta_easy_parser_visualizer/src/nodes/node.dart';
+import 'package:easy_rich_editor/internal.dart';
 
 @immutable
 abstract class BaseComponentBuilder {
@@ -9,7 +9,7 @@ abstract class BaseComponentBuilder {
 }
 
 class ComponentContext {
-  final EasyVilNode node;
+  final Node node;
   // The context associated to this Component
   final BuildContext context;
   /// The exact path where this node is

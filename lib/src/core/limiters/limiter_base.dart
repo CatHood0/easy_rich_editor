@@ -1,4 +1,4 @@
-import 'package:flutter_quill_delta_easy_parser_visualizer/src/nodes/node.dart';
+import 'package:easy_rich_editor/internal.dart';
 
 abstract class Limiter {
   /// Get the algorithm that should we use to resolve traversing into this
@@ -23,10 +23,12 @@ abstract class Limiter {
   ///
   /// Can be represented by this simple diagram
   ///
-  /// ```console
-  /// paragraph
-  /// |__________Line
-  ///            |________Text
+  /// ```bash
+  /// Paragraph
+  /// │  Line 1
+  /// │  └─── Text
+  /// └─ Line 2
+  ///    └─── Text
   /// ```
   List<String> get depthLimit;
 
@@ -35,10 +37,10 @@ abstract class Limiter {
   /// The root node what is based this limiter
   String get limiterParentOf;
 
-  int maxDepthLevelToGetData(EasyVilNode root) {
+  int maxDepthLevelToGetData(Node root) {
     int depthCount = 0;
 
-    void depth(EasyVilNode child) {
+    void depth(Node child) {
       final firstChild = child.firstWhere((node) => node.isNotEmpty);
       if (firstChild == null) {
         /// treelogger.warn(treelogger.warn, "there is no node to get depth info")
@@ -61,5 +63,5 @@ abstract class Limiter {
   }
 
   /// Determines if we can go more deeper than where we are
-  bool shouldAvoidTraverseInto(EasyVilNode node);
+  bool shouldAvoidTraverseInto(Node node);
 }
