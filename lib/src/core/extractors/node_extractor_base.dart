@@ -7,9 +7,11 @@ import 'package:easy_rich_editor/internal.dart';
 /// 1. the Node passed is the root.
 /// 2. the Node passed is the exact point with the value
 ///
-/// We only need to know, if need to traverse into the Tree of
-/// the Nodes, and the subclasses of this base, will implement the
-/// logic that they need to make correct extracting operations
+/// We only need to know, if we need to traverse into the Tree of
+/// the Nodes, and the subclasses of this base. 
+///
+/// The implementation of this class will implement the logic that 
+/// they need to make correct extracting operations
 abstract class NodeExtractor {
   /// Get the value from the Node passed
   ///
