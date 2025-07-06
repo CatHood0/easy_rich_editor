@@ -1,12 +1,12 @@
 import 'package:easy_rich_editor/internal.dart';
-import 'package:easy_rich_editor/easy_rich_editor.dart';
+import 'package:easy_rich_editor/src/core/extractors/node_extractor_base.dart';
 
-class ParagraphNodeExtractor extends NodeExtractor {
-  static final ParagraphNodeExtractor _instance = ParagraphNodeExtractor._();
+class EmbedNodeExtractor extends NodeExtractor {
+  static final EmbedNodeExtractor _instance = EmbedNodeExtractor._();
 
-  ParagraphNodeExtractor._();
+  EmbedNodeExtractor._();
 
-  static ParagraphNodeExtractor get instance => _instance;
+  static EmbedNodeExtractor get instance => _instance;
 
   @override
   T getValueFromNode<T>(

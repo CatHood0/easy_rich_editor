@@ -25,6 +25,24 @@ final class Node extends LinkedListEntry<Node> {
   /// put them into a `NodeChange` class
   static String get changeBoxKey => 'changed';
 
+  Node.root({
+    String? id,
+    List<Node> children = const [],
+    Map<String, dynamic> attributes = const <String, dynamic>{},
+  })  : type = Node.rootId,
+        parent = null,
+        value = null {
+    this.id = id ?? nanoid(8);
+    this.attributes = {...attributes};
+    for (Node child in children) {
+      if (child.parent != null) {
+        child.unlink();
+      }
+      child.parent = this;
+      children.add(child);
+    }
+  }
+
   Node({
     required this.type,
     required this.value,
@@ -41,6 +59,35 @@ final class Node extends LinkedListEntry<Node> {
       }
       child.parent = this;
       children.add(child);
+    }
+  }
+
+  Node.fromParagraphEmbed({
+    String? id,
+    this.value,
+    this.parent,
+    required Paragraph paragraph,
+  }) : type = EmbedKeys.key {
+    assert(type.trim().isNotEmpty, 'type cannot be empty');
+    assert(paragraph.isEmbed, 'the type of the Paragraph must be an Embed');
+    this.id = id ?? paragraph.id;
+    for (Line child in paragraph.lines) {
+      // normally, the `EmbedNodes` must have always
+      // just a line and one fragment. But, since
+      // we can also add our custom Embed with several
+      // customizations, its better just allow saving them
+      final Node line = Node(
+        type: EmbedKeys.childrenKey,
+        value: child.fragments
+            .map<Object>(
+              (TextFragment e) => e.data,
+            )
+            .toList(),
+        children: [],
+        parent: this,
+        id: child.id,
+      );
+      insertNode(line);
     }
   }
 

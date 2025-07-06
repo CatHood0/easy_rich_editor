@@ -1,14 +1,25 @@
-import 'dart:collection';
-
-import 'package:flutter/material.dart' show TextRange, TextSelection;
+import 'package:easy_rich_editor/src/core/limiters/embed_limiter.dart';
+import 'package:flutter/cupertino.dart';
 import 'package:easy_rich_editor/easy_rich_editor.dart';
 import 'package:meta/meta.dart';
 
 import '../../internal.dart';
 
 @internal
-class Tree implements TreeOperations {
-  final LinkedList<Node> nodes = LinkedList<Node>();
+class Tree extends ValueNotifier<Node> implements TreeOperations {
+  Tree(this.node) : super(node);
+
+  factory Tree.root({
+    required List<Node> nodes,
+  }) {
+    return Tree(
+      Node.root(
+        children: nodes,
+      ),
+    );
+  }
+
+  final Node node;
 
   /// A simple register with all the limiters.
   ///
@@ -16,13 +27,26 @@ class Tree implements TreeOperations {
   /// to get text info, and we need the specifications
   /// of how works that node type
   static final Map<String, Limiter> _limiters = {
+    EmbedKeys.key: EmbedLimiter.instance(),
     ParagraphKeys.key: ParagraphLimiter.instance(),
   };
 
-  final Map<String, Limiter> _customLimiters = const {};
+  /// A simple register with all the extractors.
+  ///
+  /// Typically, this is used when we need to get values
+  /// from a Node, since every Node has a different way to save
+  /// its content, we need implement it's own extractor
+  static final Map<String, NodeExtractor> _extractors = {
+    ParagraphKeys.key: ParagraphNodeExtractor.instance,
+    EmbedKeys.key: EmbedNodeExtractor.instance,
+  };
 
   static Limiter? getLimiter(String key) {
     return _limiters[key];
+  }
+
+  static NodeExtractor? getExtractor(String key) {
+    return _extractors[key];
   }
 
   @override
@@ -38,7 +62,8 @@ class Tree implements TreeOperations {
   }
 
   @override
-  List<Node> queryNodes(List<String> ids, {Map<String, dynamic> args = const {}}) {
+  List<Node> queryNodes(List<String> ids,
+      {Map<String, dynamic> args = const {}}) {
     throw UnimplementedError();
   }
 

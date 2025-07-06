@@ -30,6 +30,7 @@ abstract class Limiter {
   /// └─ Line 2
   ///    └─── Text
   /// ```
+  //TODO: should we change this to a Map for a improve the access?
   List<String> get depthLimit;
 
   int get maxDepth => depthLimit.length;

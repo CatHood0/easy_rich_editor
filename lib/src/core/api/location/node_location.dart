@@ -1,5 +1,6 @@
 import 'package:easy_rich_editor/internal.dart';
 
+/// The location of the current Node
 class NodeLocation {
   final List<int> path;
   final Node node;

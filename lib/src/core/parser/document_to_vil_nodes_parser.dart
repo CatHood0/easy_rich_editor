@@ -1,3 +1,4 @@
+import 'package:easy_rich_editor/easy_rich_editor.dart';
 import 'package:flutter_quill_delta_easy_parser/flutter_quill_delta_easy_parser.dart';
 import 'package:easy_rich_editor/internal.dart';
 import 'package:meta/meta.dart';
@@ -27,8 +28,11 @@ class DocumentToVilNodesParser {
       children: [],
     );
     for (Paragraph pr in doc.paragraphs) {
-      //TODO: add parsing for specific nodes here
-      root.insertNode(Node.fromParagraph(paragraph: pr));
+      root.insertNode(
+        pr.isEmbed
+            ? Node.fromParagraph(type: EmbedKeys.key, paragraph: pr)
+            : Node.fromParagraph(paragraph: pr),
+      );
     }
 
     return root;

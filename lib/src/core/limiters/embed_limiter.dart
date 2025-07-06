@@ -1,20 +1,19 @@
 import 'package:easy_rich_editor/easy_rich_editor.dart';
 import 'package:easy_rich_editor/internal.dart';
 
-class ParagraphLimiter extends Limiter {
-  static final ParagraphLimiter _instance = ParagraphLimiter._();
+class EmbedLimiter extends Limiter {
+  static final EmbedLimiter _instance = EmbedLimiter._();
 
-  ParagraphLimiter._();
+  EmbedLimiter._();
 
-  factory ParagraphLimiter.instance() {
+  factory EmbedLimiter.instance() {
     return _instance;
   }
 
   @override
   List<String> get depthLimit => [
-        ParagraphKeys.key,
-        ParagraphKeys.childrenKey,
-        ParagraphKeys.textKey,
+        EmbedKeys.key,
+        EmbedKeys.childrenKey,
       ];
 
   @override
@@ -28,6 +27,7 @@ class ParagraphLimiter extends Limiter {
     final String limit = depthLimit.last;
 
     if (child.type == limit) return true;
+
     return false;
   }
 
