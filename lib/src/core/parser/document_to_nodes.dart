@@ -1,4 +1,4 @@
-import 'package:easy_rich_editor/easy_rich_editor.dart';
+import 'package:dart_quill_delta/dart_quill_delta.dart';
 import 'package:flutter_quill_delta_easy_parser/flutter_quill_delta_easy_parser.dart';
 import 'package:easy_rich_editor/internal.dart';
 import 'package:meta/meta.dart';
@@ -6,18 +6,15 @@ import 'package:meta/meta.dart';
 @internal
 @immutable
 class DocumentToNodesParser {
-  static List<Node> parse(
-    Document doc, {
-    String Function(Paragraph pr)? onDetectCustom,
-  }) {
-    final List<Node> nodes = <Node>[];
-    for (Paragraph pr in doc.paragraphs) {
-      nodes.add(Node.fromParagraph(paragraph: pr));
-    }
-    return <Node>[...nodes];
+  static Node markdownParse(String markdown) {
+    throw UnimplementedError("Not implemented markdownParse");
   }
 
-  static Node parseForRoot(
+  static Node deltaParse(Delta delta) {
+    throw UnimplementedError("Not implemented deltaParse");
+  }
+
+  static Node documentParse(
     Document doc, {
     String Function(Paragraph pr)? onDetectCustom,
   }) {

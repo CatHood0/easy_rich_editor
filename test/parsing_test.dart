@@ -9,12 +9,12 @@ import 'resources/doc_rs.dart';
 void main() {
   test('', () {
     final Document doc = commonDoc;
-    final Node root = DocumentToVilNodesParser.parseForRoot(doc);
+    final Node root = DocumentToNodesParser.documentParse(doc);
     final Node paragraph = root.firstChild!;
 
     paragraph.firstChild!.insertNode(
       Node(
-        type: ParagraphKeys.textKey,
+       type: ParagraphKeys.textKey,
         value: "Hello daddy",
         id: 'Test id',
       ),

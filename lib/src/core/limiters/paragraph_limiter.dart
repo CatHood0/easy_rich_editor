@@ -32,7 +32,7 @@ class ParagraphLimiter extends Limiter {
   }
 
   @override
-  String get limiterParentOf => EmbedKeys.key;
+  String get limiterParentOf => ParagraphKeys.key;
 
   @override
   int maxDepthLevelToGetData(Node root) {

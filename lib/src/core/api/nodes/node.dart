@@ -328,39 +328,77 @@ final class Node extends LinkedListEntry<Node> {
     };
   }
 
-  String toTreeString({int tab = 0}) {
-    final StringBuffer buffer = StringBuffer("");
-    buffer.write(" " * tab);
-    buffer.writeln("$type: ");
-    final int effectiveTab = tab + 1;
-    for (var child in children) {
-      buffer.write(" " * effectiveTab);
-      buffer.writeln(child.toTreeString(tab: effectiveTab + 1));
-    }
-    return buffer.toString();
+  /// Determines if this Node has a direct value
+  ///
+  /// You can see this like the following diagram
+  ///
+  /// ```bash
+  /// Line
+  ///  └─── Text
+  ///
+  /// # or
+  ///
+  /// EmbedLine
+  ///  └─── Value
+  /// ```
+  bool hasDirectValue() {
+    return value != null || length == 1 && firstChild!.value != null;
   }
 
   @visibleForTesting
-  String dumpTreeStr({int tab = 0, List<int>? paths}) {
+  String dumpTreeStr({
+    int tab = 0,
+    List<int>? paths,
+    bool applyJustIndents = false,
+    int applyJustBefore = 0,
+  }) {
     paths ??= [];
+
+    void writeSubPath(StringBuffer buffer, List<int> paths,
+        {bool allowRootIndent = false}) {
+      for (int subPath in paths) {
+        final int effectiveSubIndent = subPath * 2;
+        final String indent = !allowRootIndent
+            ? subPath == 0
+                ? ""
+                : " " * effectiveSubIndent
+            : " " * effectiveSubIndent;
+        buffer.write(indent);
+        if (!applyJustIndents ||
+            applyJustIndents && subPath < applyJustBefore) {
+          buffer.write("│");
+        }
+      }
+    }
+
     final Limiter? limiter = Tree.getLimiter(type);
     final StringBuffer buffer = StringBuffer("");
     buffer.writeln("$type(${id.substring(0, 4).trim()}-[$path]):");
+    final int effectiveIndent = tab * 2;
+
     if (limiter == null || !limiter.shouldAvoidTraverseInto(this)) {
       for (int i = 0; i < length; i++) {
-        // We need a way to add the other levels knowing
-        // if them need a line (parent with more children
-        // that the current one, must pass its level)
-        for (int subPath in paths) {
-          buffer.write(subPath == 0 ? "" : " " * (subPath));
-          buffer.write("|");
-        }
+        final bool isEndChil = i + 1 >= length;
+        final bool isNotRootIndent = tab > 0;
+        writeSubPath(buffer, paths);
         // adding indenting for the
-        buffer.write(" " * tab);
-        buffer.write("|");
+        if (isNotRootIndent) buffer.write(" " * effectiveIndent);
+
         final Node child = children.elementAt(i);
-        if (i + 1 >= length) {
-          buffer.write("_");
+        if (isEndChil) {
+          // if, is the first child, and the same time
+          // the last one, just add an intersection
+          //
+          // This just add the intersection
+          // moves to a new lines and makes the same process
+          if (i == 0) {
+            buffer.writeln("│");
+            writeSubPath(buffer, paths);
+            if (isNotRootIndent) buffer.write(" " * effectiveIndent);
+          }
+          buffer.write("└─");
+        } else {
+          buffer.write("│");
         }
         // add a separation between the guide lines
         // and the node
@@ -369,6 +407,8 @@ final class Node extends LinkedListEntry<Node> {
           child.dumpTreeStr(
             tab: tab + 1,
             paths: i + 1 < length ? [...paths, tab] : paths,
+            applyJustIndents: i + 1 >= length,
+            applyJustBefore: tab,
           ),
         );
       }
@@ -377,16 +417,12 @@ final class Node extends LinkedListEntry<Node> {
       // We need a way to add the other levels knowing
       // if them need a line (parent with more children
       // that the current one, must pass its level)
-      for (int subPath in paths) {
-        buffer.write(subPath == 0 ? "" : " " * (subPath));
-        buffer.write("|");
-      }
-      buffer.write(" " * tab);
+      writeSubPath(buffer, paths, allowRootIndent: true);
+      // we add some extra indentation for the values
+      buffer.write(" " * (effectiveIndent + 3));
       buffer.write("'");
       buffer.write(value.toString().replaceAll(RegExp('\n'), '\\n'));
       buffer.writeln("'");
-    } else {
-      buffer.writeln("");
     }
     return buffer.toString();
   }

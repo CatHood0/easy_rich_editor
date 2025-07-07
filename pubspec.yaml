@@ -15,6 +15,7 @@ dependencies:
   collection: ^1.19.1
   flutter_quill_delta_easy_parser: ^1.1.6
   isolate_manager: ^6.0.1 
+  dart_quill_delta: ^10.8.3
 
 dev_dependencies:
   flutter_test:
