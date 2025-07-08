@@ -1,6 +1,7 @@
 import 'dart:collection';
 
 import 'package:collection/collection.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_quill_delta_easy_parser/flutter_quill_delta_easy_parser.dart';
 import 'package:easy_rich_editor/internal.dart';
@@ -124,6 +125,14 @@ final class Node extends LinkedListEntry<Node> {
     }
   }
 
+  Node elementAt(int index) {
+    return children.elementAt(index);
+  }
+
+  Node? elementAtOrNull(int index) {
+    return children.elementAtOrNull(index);
+  }
+
   Node jumpToParent({bool Function(Node)? stopAt}) {
     if (parent == null || stopAt != null && stopAt(this)) {
       return this;
@@ -133,11 +142,10 @@ final class Node extends LinkedListEntry<Node> {
   }
 
   int? _cachedLength;
-  int? _cachedGlobalOffset;
 
   void invalidateCache() {
     _cachedLength = null;
-    _cachedGlobalOffset = null;
+    needsComputePath = true;
   }
 
   int get length => _cachedLength ??= children.length;
@@ -222,6 +230,30 @@ final class Node extends LinkedListEntry<Node> {
     return _path;
   }
 
+  set path(int path) {
+    _path = path;
+  }
+
+  /// Get a normalized list of paths where this Node is
+  List<int> get deepPath {
+    if (parent == null) return [-1];
+
+    final List<int> path = [this.path];
+
+    Node? curParent = parent!;
+
+    while (curParent != null) {
+      // we ignore always the root
+      if (curParent.id == Node.rootId) {
+        break;
+      }
+      path.add(curParent.path);
+      curParent = curParent.parent;
+    }
+
+    return <int>[...path.reversed];
+  }
+
   Node deepCopy() {
     return Node(
       type: type,
@@ -297,27 +329,6 @@ final class Node extends LinkedListEntry<Node> {
     );
   }
 
-  set path(int path) {
-    _path = path;
-  }
-
-  /// get a list reversed where the first element, is the root parent
-  /// that contains this node
-  List<int> get deepPath {
-    if (parent == null) return [-1];
-
-    final List<int> path = [this.path];
-
-    Node? curParent = parent!;
-
-    while (curParent != null) {
-      path.add(curParent.path);
-      curParent = curParent.parent;
-    }
-
-    return <int>[...path.reversed];
-  }
-
   Map<String, dynamic> toJson() {
     return {
       "type": type,
@@ -351,8 +362,9 @@ final class Node extends LinkedListEntry<Node> {
     List<int>? paths,
     bool applyJustIndents = false,
     int applyJustBefore = 0,
+    List<int> currentPath = const <int>[],
   }) {
-    paths ??= [];
+    paths ??= <int>[];
 
     void writeSubPath(StringBuffer buffer, List<int> paths,
         {bool allowRootIndent = false}) {
@@ -373,7 +385,11 @@ final class Node extends LinkedListEntry<Node> {
 
     final Limiter? limiter = Tree.getLimiter(type);
     final StringBuffer buffer = StringBuffer("");
-    buffer.writeln("$type(${id.substring(0, 4).trim()}-[$path]):");
+    buffer.write("$type(${id.substring(0, 4).trim()}-[$path]):");
+    if (listEquals(currentPath, deepPath)) {
+      buffer.write(" < Cursor position");
+    }
+    buffer.writeln("");
     final int effectiveIndent = tab * 2;
 
     if (limiter == null || !limiter.shouldAvoidTraverseInto(this)) {
@@ -409,6 +425,7 @@ final class Node extends LinkedListEntry<Node> {
             paths: i + 1 < length ? [...paths, tab] : paths,
             applyJustIndents: i + 1 >= length,
             applyJustBefore: tab,
+            currentPath: currentPath,
           ),
         );
       }

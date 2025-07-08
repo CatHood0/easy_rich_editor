@@ -1,3 +1,5 @@
+import 'package:flutter/cupertino.dart';
+import 'package:flutter/foundation.dart';
 import 'package:isolate_manager/isolate_manager.dart';
 import 'package:meta/meta.dart';
 
@@ -9,9 +11,15 @@ class IsolateRunner<Req, Res> {
   final String name;
   late bool _closed;
 
+  bool isRunning = false;
+  final bool restartIfAlreadyIsRunning;
   late IsolateManager<Res, Req>? _isolateManager;
 
-  IsolateRunner(this.name, IsolateRunnable<Req, Res> runnable) {
+  IsolateRunner(
+    this.name,
+    IsolateRunnable<Req, Res> runnable, {
+    this.restartIfAlreadyIsRunning = false,
+  }) {
     _closed = false;
     _isolateManager = IsolateManager.create(
       runnable,
@@ -19,15 +27,28 @@ class IsolateRunner<Req, Res> {
     );
   }
 
-  void run(Req req, IsolateCallback<Res> callback) async {
+  void run(Req req, {IsolateCallback<Res>? callback}) async {
     if (_closed) {
       return;
     }
+    if (isRunning && restartIfAlreadyIsRunning) {
+      await _isolateManager?.restart();
+      if (kDebugMode) {
+        debugPrint(
+          "Restarting "
+          "computation since can't"
+          " run the same "
+          "function several times",
+        );
+      }
+    }
+    isRunning = true;
     _isolateManager?.compute(req, callback: (message) async {
       if (_closed) {
         return false;
       }
-      callback(message);
+      callback?.call(message);
+      isRunning = false;
       return true;
     });
   }
