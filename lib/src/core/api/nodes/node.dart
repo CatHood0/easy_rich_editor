@@ -133,6 +133,20 @@ final class Node extends LinkedListEntry<Node> {
     return children.elementAtOrNull(index);
   }
 
+  Node? findById(String id, {bool deep = true}) {
+    if (this.id == id) return this;
+
+    for (Node child in children) {
+      if (child.id == id) return child;
+      if (deep) {
+        final node = child.findById(id);
+        if (node != null) return node;
+      }
+    }
+
+    return null;
+  }
+
   Node jumpToParent({bool Function(Node)? stopAt}) {
     if (parent == null || stopAt != null && stopAt(this)) {
       return this;

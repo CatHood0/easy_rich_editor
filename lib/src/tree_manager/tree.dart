@@ -5,6 +5,7 @@ import 'package:easy_rich_editor/src/tree_manager/core/cache_invalidator/tree_ca
 import 'package:easy_rich_editor/src/utils/background_isolate_runner/isolate_runner.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:easy_rich_editor/easy_rich_editor.dart';
+import 'package:flutter/foundation.dart';
 import 'package:meta/meta.dart';
 
 import '../../internal.dart';
@@ -13,9 +14,9 @@ import '../../internal.dart';
 class Tree extends ValueNotifier<Node> implements TreeOperations {
   Tree(this.root) : super(root) {
     _isolateTreeIndexer.run(
-      TreeIndexerPayload(root: root),
+      TreeIndexerPayload(root: root, curIndexTree: <String, Node>{}),
       callback: (TreeIndexerResult result) {
-        _indexedTree.addAll(result.indexes);
+        _indexedTree = result.indexes;
       },
     );
   }
@@ -30,7 +31,7 @@ class Tree extends ValueNotifier<Node> implements TreeOperations {
     );
   }
 
-  late final Map<String, Node> _indexedTree = <String, Node>{};
+  late Map<String, Node> _indexedTree = <String, Node>{};
 
   @visibleForTesting
   Map<String, Node> get indexTree => <String, Node>{..._indexedTree};
@@ -49,6 +50,9 @@ class Tree extends ValueNotifier<Node> implements TreeOperations {
   );
 
   final Node root;
+
+  /// updated externally for the editor, to cache the current position
+  NodeLocation? lastKnowedLocation;
 
   /// A simple register with all the limiters.
   ///
@@ -78,17 +82,66 @@ class Tree extends ValueNotifier<Node> implements TreeOperations {
     return _extractors[key];
   }
 
+  void _updateIndexedTreeIfNeeded(Node node) {
+    final Node? original = _indexedTree[node.id];
+    if (original == null) return;
+
+    if (original.path != node.path) {
+      _indexedTree[node.id] = node;
+    }
+  }
+
+  //TODO: while querying for nodes, we can set the cache of every path
+  // why?
+  // Just making that, avoid making recomputation of the paths
+  // since, how we are traversing, we can just store the path
+  // until the element, and setting to the node its own path
+  // and putting needsPathComputation to false
   @override
-  Node? query(String id, {Map<String, dynamic> args = const {}}) {
+  Node? query(String id, {bool deep = true, String? targetId}) {
     Node? node;
-    final bool deep = args['traverse'] as bool? ?? false;
+
+    if (!deep && targetId == null) {
+      return root.findById(id, deep: false);
+    }
+
+    // normally the root parent of the node to search
+    if (targetId != null) {
+      Node? targetNode = _indexedTree[targetId]!;
+
+      final bool outdatedState =
+          targetNode.id != root.elementAtOrNull(targetNode.path)?.id;
+      // this means that the _indexedTree is outdated and requires a reindexation
+      if (outdatedState) {
+        targetNode = root.findById(targetId, deep: false);
+        _isolateTreeIndexer.run(
+          TreeIndexerPayload(root: root, curIndexTree: _indexedTree),
+          callback: (TreeIndexerResult result) {
+            if (kDebugMode) {
+              debugPrint("Updated state of index tree "
+                  "since was detected an outdated state");
+            }
+            _indexedTree = result.indexes;
+          },
+        );
+      }
+
+      if (targetNode != null) {
+        node = targetNode.findById(id, deep: deep);
+      }
+    } else if (deep) {
+      node = root.findById(id);
+    }
 
     return node;
   }
 
   @override
-  List<Node> queryNodes(List<String> ids,
-      {Map<String, dynamic> args = const {}}) {
+  List<Node> queryNodes(
+    List<String> ids, {
+    bool deep = true,
+    String? targetId,
+  }) {
     throw UnimplementedError();
   }
 

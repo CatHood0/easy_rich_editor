@@ -1,15 +1,24 @@
 import 'package:easy_rich_editor/internal.dart';
+import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
 
+import '../benchmarks/simple_benchmark.dart';
 import '../resources/doc_rs.dart';
 
 void main() {
-  final Node root = DocumentToNodesParser.documentParse(commonDoc);
+  final Node root = DocumentToNodesParser.documentParse(largeDoc);
   final Tree tree = Tree(root);
 
   group('Queries', () {
     test('Query text', () {
-      final Node? s = tree.query("new line 1");
+      SimpleBenchmark.main(() {
+        final Node? node = tree.query("new line 1 [loop - 8000]");
+        expect(node, isNotNull);
+      });
+      SimpleBenchmark.main(() {
+        final Node? node = tree.queryPath([3, 0, 0]);
+        expect(node, isNotNull);
+      });
     });
     test('Query Node', () {});
     test('Query List of Nodes', () {});

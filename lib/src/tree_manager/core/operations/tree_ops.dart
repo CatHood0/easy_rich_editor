@@ -8,12 +8,14 @@ abstract interface class TreeOperations {
 
   List<Node> queryNodes(
     List<String> ids, {
-    Map<String, dynamic> args = const {},
+    bool deep = true,
+    String? targetId,
   });
 
   Node? query(
     String id, {
-    Map<String, dynamic> args = const {},
+    bool deep = true,
+    String? targetId,
   });
 
   bool insertNode(Node node, {List<int> path = const <int>[]});

@@ -1,4 +1,4 @@
-# Flutter Quill Delta Easy Parser Visualizer 
+# Easy Rich Editor 
 
 Show your documents from **`flutter_quill_delta_easy_parser`** using text widgets
 
