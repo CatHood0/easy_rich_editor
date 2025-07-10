@@ -1,5 +1,11 @@
-import 'package:easy_rich_editor/internal.dart';
+import 'package:easy_rich_editor/easy_rich_editor.dart';
 
+/// Limiters are our way to know how are composed every Node
+///
+/// Normally, every Limiter is defined by the Node type, to
+/// optimize all the queries into the Nodes. Them tells to you
+/// if is convenient traversing into a particular node, or what
+/// is level where we can found the text values (or objects for the embeds)
 abstract class Limiter {
   /// Get the algorithm that should we use to resolve traversing into this
   /// limit
@@ -33,10 +39,19 @@ abstract class Limiter {
   //TODO: should we change this to a Map for a improve the access?
   List<String> get depthLimit;
 
+  Type get typeValueAccepted;
+
   int get maxDepth => depthLimit.length;
 
   /// The root node what is based this limiter
   String get limiterParentOf;
+
+  /// Determine if the type of the Node can have
+  /// a value
+  bool typeCanContainValue(String type);
+
+  /// Determine if the the Node can have a value
+  bool ignoreByEmptyValueOrInvalid(Node node);
 
   int maxDepthLevelToGetData(Node root) {
     int depthCount = 0;

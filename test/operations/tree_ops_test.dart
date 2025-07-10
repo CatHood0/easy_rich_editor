@@ -1,27 +1,35 @@
 import 'package:easy_rich_editor/internal.dart';
-import 'package:flutter/widgets.dart';
+import 'package:easy_rich_editor/easy_rich_editor.dart';
 import 'package:flutter_test/flutter_test.dart';
-
-import '../benchmarks/simple_benchmark.dart';
 import '../resources/doc_rs.dart';
 
 void main() {
-  final Node root = DocumentToNodesParser.documentParse(largeDoc);
+  final Node root = DocumentToNodesParser.documentParse(commonDoc);
   final Tree tree = Tree(root);
 
   group('Queries', () {
-    test('Query text', () {
-      SimpleBenchmark.main(() {
-        final Node? node = tree.query("new line 1 [loop - 8000]");
-        expect(node, isNotNull);
-      });
-      SimpleBenchmark.main(() {
-        final Node? node = tree.queryPath([3, 0, 0]);
-        expect(node, isNotNull);
-      });
+    test('Query Node by id', () {
+      final Node? node = tree.query("new line 1");
+      expect(node, isNotNull);
     });
-    test('Query Node', () {});
-    test('Query List of Nodes', () {});
+    test('Query Node by full path', () {
+      final Node? node = tree.queryPath([3, 0, 0]);
+      expect(node, isNotNull);
+    });
+    test('Query List of locations by the given text', () {
+      final List<NodeValueLocation> locations =
+          tree.queryValue("take", caseSensitive: false);
+      expect(locations, isNotNull);
+      expect(locations, isNotEmpty);
+      expect(
+        locations.first.location.path,
+        <int>[2, 2, 0],
+      );
+      expect(
+        locations.last.location.path,
+        <int>[5, 2, 0],
+      );
+    });
   });
 
   group('Insert', () {

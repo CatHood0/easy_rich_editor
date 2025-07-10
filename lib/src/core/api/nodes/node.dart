@@ -1,14 +1,16 @@
 import 'dart:collection';
 
 import 'package:collection/collection.dart';
+import 'package:easy_rich_editor/src/tree_manager/core/indexer/tree_indexer.dart';
+import 'package:easy_rich_editor/src/utils/background_isolate_runner/isolate_runner.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_quill_delta_easy_parser/flutter_quill_delta_easy_parser.dart';
 import 'package:easy_rich_editor/internal.dart';
 import 'package:easy_rich_editor/easy_rich_editor.dart';
-import 'package:meta/meta.dart';
 
-@internal
+import '../../../tree_manager/utils/isolate_tree_indexer.dart';
+
 final class Node extends LinkedListEntry<Node> {
   String type;
   Node? parent;
@@ -17,7 +19,8 @@ final class Node extends LinkedListEntry<Node> {
   late final String id;
 
   final LinkedList<Node> children = LinkedList<Node>();
-  final GlobalKey<State> key = GlobalKey<State>();
+  final GlobalKey<State<StatefulWidget>> key =
+      GlobalKey<State<StatefulWidget>>();
 
   static String get rootId => 'root';
 
@@ -25,6 +28,10 @@ final class Node extends LinkedListEntry<Node> {
   /// directly at this "box". This is cleaned automatically after
   /// put them into a `NodeChange` class
   static String get changeBoxKey => 'changed';
+
+  /// A indexed version of the tree and must be updated
+  /// always, never can lost a update, insert or delete operation
+  Map<String, int> _indexedNodes = <String, int>{};
 
   Node.root({
     String? id,
@@ -35,11 +42,13 @@ final class Node extends LinkedListEntry<Node> {
         value = null {
     this.id = id ?? nanoid(8);
     this.attributes = {...attributes};
-    for (Node child in children) {
+    for (int i = 0; i < children.length; i++) {
+      Node child = children[i];
       if (child.parent != null) {
         child.unlink();
       }
       child.parent = this;
+      _indexedNodes[child.id] = i;
       children.add(child);
     }
   }
@@ -54,11 +63,13 @@ final class Node extends LinkedListEntry<Node> {
   }) {
     this.id = id ?? nanoid(8);
     this.attributes = {...attributes};
-    for (Node child in children) {
+    for (int i = 0; i < children.length; i++) {
+      Node child = children[i];
       if (child.parent != null) {
         child.unlink();
       }
       child.parent = this;
+      _indexedNodes[child.id] = i;
       children.add(child);
     }
   }
@@ -72,7 +83,9 @@ final class Node extends LinkedListEntry<Node> {
     assert(type.trim().isNotEmpty, 'type cannot be empty');
     assert(paragraph.isEmbed, 'the type of the Paragraph must be an Embed');
     this.id = id ?? paragraph.id;
-    for (Line child in paragraph.lines) {
+    final List<Line> lines = paragraph.unsafeLines();
+    for (int i = 0; i < lines.length; i++) {
+      final Line child = lines[i];
       // normally, the `EmbedNodes` must have always
       // just a line and one fragment. But, since
       // we can also add our custom Embed with several
@@ -89,6 +102,7 @@ final class Node extends LinkedListEntry<Node> {
         id: child.id,
       );
       insertNode(line);
+      _indexedNodes[line.id] = i;
     }
   }
 
@@ -101,8 +115,10 @@ final class Node extends LinkedListEntry<Node> {
   }) {
     assert(type.trim().isNotEmpty, 'type cannot be empty');
     this.id = id ?? paragraph.id;
-    for (Line child in paragraph.lines) {
-      final Node line = Node(
+    final List<Line> lines = paragraph.unsafeLines();
+    for (int i = 0; i < lines.length; i++) {
+      final Line child = lines[i];
+      final Node lineNode = Node(
         type: ParagraphKeys.childrenKey,
         value: null,
         children: [],
@@ -111,17 +127,18 @@ final class Node extends LinkedListEntry<Node> {
       );
       if (child.isNotEmpty) {
         for (TextFragment frag in child.fragments) {
-          line.insertNode(
+          lineNode.insertNode(
             Node(
               type: ParagraphKeys.textKey,
               value: frag.data,
               attributes: frag.attributes ?? {},
-              parent: line,
+              parent: lineNode,
             ),
           );
         }
       }
-      insertNode(line);
+      insertNode(lineNode);
+      _indexedNodes[lineNode.id] = i;
     }
   }
 
@@ -190,24 +207,84 @@ final class Node extends LinkedListEntry<Node> {
     child.parent = this;
 
     if (path == null) {
+      _indexedNodes[child.id] = length == 0 ? 0 : length - 1;
       children.add(child);
       return;
     }
 
+    int loadAfter = path;
+    int newValueAfter = path + 1;
     final Node entry = children.elementAt(path);
 
-    if (after && entry.next != null) {
-      entry.next!.insertBefore(child);
-      return;
+    if (after) {
+      loadAfter++;
+      newValueAfter++;
+      entry.insertAfter(child);
     }
 
-    entry.insertBefore(child);
+    if (!after) {
+      entry.insertBefore(child);
+    }
+
+    final IsolateRunner<TreeIndexerPayload, TreeIndexerResult> isolate =
+        IsolateTreeIndexer.getSafeIsolate(
+      id: id,
+      forceReturningFromIdAlways: true,
+    );
+    isolate.run(
+        TreeIndexerPayload(
+          root: this,
+          loadAfter: loadAfter,
+          newValueAfter: newValueAfter,
+          curIndexTree: _indexedNodes,
+        ), callback: (TreeIndexerResult result) {
+      _indexedNodes = result.indexes;
+    });
+  }
+
+  void removeNode(Node node) {
+    assert(
+      node.parent == this,
+      "The node passed must be at the same Parent of $id",
+    );
+    final int path = node.path;
+
+    node.unlink();
+    node.parent = null;
+
+    final IsolateRunner<TreeIndexerPayload, TreeIndexerResult> isolate =
+        IsolateTreeIndexer.getSafeIsolate(
+      id: id,
+      forceReturningFromIdAlways: true,
+    );
+    isolate.run(
+        TreeIndexerPayload(
+          root: this,
+          loadAfter: path == 0 ? path : path - 1,
+          newValueAfter: path,
+          curIndexTree: _indexedNodes,
+        ), callback: (TreeIndexerResult result) {
+      _indexedNodes = result.indexes;
+    });
   }
 
   // current path of this node
   int _path = -1;
 
+  // current full path of this node
+  List<int> _deepPath = <int>[-1];
+
   bool needsComputePath = true;
+  bool needsComputeFullPath = true;
+
+  void updatePathsIfNeeded(int path, List<int> fullPath) {
+    if (needsComputePath && path != -1) {
+      path = path;
+    }
+    if (needsComputeFullPath && fullPath.isNotEmpty) {
+      deepPath = fullPath;
+    }
+  }
 
   /// Get the relative path to this node from its parent
   int get path {
@@ -246,10 +323,17 @@ final class Node extends LinkedListEntry<Node> {
 
   set path(int path) {
     _path = path;
+    needsComputePath = false;
+  }
+
+  set deepPath(List<int> path) {
+    _deepPath = path;
+    needsComputeFullPath = false;
   }
 
   /// Get a normalized list of paths where this Node is
   List<int> get deepPath {
+    if (!needsComputeFullPath) return _deepPath;
     if (parent == null) return [-1];
 
     final List<int> path = [this.path];
@@ -265,7 +349,9 @@ final class Node extends LinkedListEntry<Node> {
       curParent = curParent.parent;
     }
 
-    return <int>[...path.reversed];
+    _deepPath = <int>[...path.reversed];
+
+    return _deepPath;
   }
 
   Node deepCopy() {

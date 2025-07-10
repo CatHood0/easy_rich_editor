@@ -1,5 +1,4 @@
 import 'package:easy_rich_editor/easy_rich_editor.dart';
-import 'package:easy_rich_editor/internal.dart';
 
 class ParagraphLimiter extends Limiter {
   static final ParagraphLimiter _instance = ParagraphLimiter._();
@@ -16,6 +15,45 @@ class ParagraphLimiter extends Limiter {
         ParagraphKeys.childrenKey,
         ParagraphKeys.textKey,
       ];
+
+  @override
+  bool typeCanContainValue(String type) {
+    return type == depthLimit.last;
+  }
+
+  @override
+  Type get typeValueAccepted => String;
+
+  @override
+  bool ignoreByEmptyValueOrInvalid(Node node) {
+    if (node.isEmpty) return true;
+    // if is the paragraph node
+    if (node.type == limiterParentOf) {
+      if (node.length == 1) {
+        final Node line = node.firstChild!;
+        assert(
+          line.type == depthLimit[1],
+          'the node into $limiterParentOf is invalid. Node '
+          'of type ${line.type} was founded, when we '
+          'are expecting a ${ParagraphKeys.childrenKey}',
+        );
+        if (line.isEmpty) return true;
+        if (line.length == 1 && line.firstChild.runtimeType != typeValueAccepted) {
+          return true;
+        }
+        if (line.length == 2) {
+          final bool firstIsInvalid = line.firstChild!.runtimeType != typeValueAccepted ||
+              line.firstChild!.value == null;
+          final bool lastIsInvalid =
+              line.lastChild!.runtimeType != typeValueAccepted || line.lastChild!.value == null;
+          if (firstIsInvalid && lastIsInvalid) {
+            return true;
+          }
+        }
+      }
+    }
+    return false;
+  }
 
   @override
   bool shouldAvoidTraverseInto(Node child) {

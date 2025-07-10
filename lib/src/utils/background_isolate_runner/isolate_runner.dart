@@ -19,11 +19,12 @@ class IsolateRunner<Req, Res> {
     this.name,
     IsolateRunnable<Req, Res> runnable, {
     this.restartIfAlreadyIsRunning = false,
+    int concurrent = 1,
   }) {
     _closed = false;
     _isolateManager = IsolateManager.create(
       runnable,
-      concurrent: 1,
+      concurrent: concurrent,
     );
   }
 
@@ -45,6 +46,7 @@ class IsolateRunner<Req, Res> {
     isRunning = true;
     _isolateManager?.compute(req, callback: (message) async {
       if (_closed) {
+        isRunning = false;
         return false;
       }
       callback?.call(message);
@@ -52,6 +54,8 @@ class IsolateRunner<Req, Res> {
       return true;
     });
   }
+
+  bool get isClosed => _closed;
 
   void close() {
     _closed = true;

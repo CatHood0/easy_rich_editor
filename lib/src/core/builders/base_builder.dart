@@ -1,5 +1,5 @@
 import 'package:flutter/widgets.dart';
-import 'package:easy_rich_editor/internal.dart';
+import '../../../easy_rich_editor.dart';
 
 @immutable
 abstract class BaseComponentBuilder {

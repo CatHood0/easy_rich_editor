@@ -1,4 +1,4 @@
-import 'package:easy_rich_editor/internal.dart';
+import 'package:easy_rich_editor/easy_rich_editor.dart';
 
 /// The location of the current Node
 class NodeLocation {
@@ -14,4 +14,9 @@ class NodeLocation {
     required this.node,
     this.rootOwner,
   });
+
+  @override
+  String toString() {
+    return 'NodeLocation(path: $path, node: $node, rootOwner: $rootOwner)';
+  }
 }

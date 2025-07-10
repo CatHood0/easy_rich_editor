@@ -1,5 +1,4 @@
 import 'package:easy_rich_editor/easy_rich_editor.dart';
-import 'package:easy_rich_editor/internal.dart';
 
 class EmbedLimiter extends Limiter {
   static final EmbedLimiter _instance = EmbedLimiter._();
@@ -15,6 +14,33 @@ class EmbedLimiter extends Limiter {
         EmbedKeys.key,
         EmbedKeys.childrenKey,
       ];
+
+  @override
+  bool typeCanContainValue(String type) {
+    return type == depthLimit.last;
+  }
+
+  @override
+  Type get typeValueAccepted => Map<String, dynamic>;
+
+  @override
+  bool ignoreByEmptyValueOrInvalid(Node node) {
+    if (node.isEmpty) return true;
+    if (node.type == limiterParentOf) {
+      if (node.length == 1) {
+        final Node embedLine = node.firstChild!;
+        assert(
+          embedLine.type == depthLimit.last,
+          'the node into $limiterParentOf is invalid. Node '
+          'of type ${embedLine.type} was founded, when we '
+          'are expecting a ${ParagraphKeys.childrenKey}',
+        );
+        if (embedLine.value == null) return true;
+        if (embedLine.value.runtimeType != typeValueAccepted) return true;
+      }
+    }
+    return false;
+  }
 
   @override
   bool shouldAvoidTraverseInto(Node child) {

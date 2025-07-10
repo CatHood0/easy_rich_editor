@@ -149,21 +149,20 @@ class NodeChange {
         return _stateStorage.values.toList() as List<Node>;
       case SnapshotLevel.partial:
         if (repo == null) {
-          throw ArgumentError(
-              'Se necesita NodeRepository para restauración parcial');
+          throw ArgumentError('We need Tree for partial undo states');
         }
         return _restorePartialNodes(repo);
       case SnapshotLevel.none:
         if (repo == null) {
-          throw ArgumentError(
-              'Se necesita NodeRepository para restauración sin snapshots');
+          throw ArgumentError('We need Tree for undo states');
         }
         return repo.queryNodes(nodeIds);
     }
   }
 
   List<Node> _restorePartialNodes(Tree repo) {
-    final partialData = _stateStorage as Map<String, Map<String, dynamic>>;
+    final Map<String, Map<String, dynamic>> partialData =
+        _stateStorage as Map<String, Map<String, dynamic>>;
     final nodes = repo.queryNodes(nodeIds);
     return nodes.map((n) {
       final changes = partialData[n.id];

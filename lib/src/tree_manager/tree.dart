@@ -1,7 +1,7 @@
-import 'package:easy_rich_editor/src/core/api/location/node_text_location.dart';
 import 'package:easy_rich_editor/src/core/limiters/embed_limiter.dart';
 import 'package:easy_rich_editor/src/tree_manager/core/indexer/tree_indexer.dart';
 import 'package:easy_rich_editor/src/tree_manager/core/cache_invalidator/tree_cache_invalidator.dart';
+import 'package:easy_rich_editor/src/tree_manager/utils/isolate_tree_indexer.dart';
 import 'package:easy_rich_editor/src/utils/background_isolate_runner/isolate_runner.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:easy_rich_editor/easy_rich_editor.dart';
@@ -12,9 +12,18 @@ import '../../internal.dart';
 
 @internal
 class Tree extends ValueNotifier<Node> implements TreeOperations {
+  static final String id = 'Tree';
   Tree(this.root) : super(root) {
-    _isolateTreeIndexer.run(
-      TreeIndexerPayload(root: root, curIndexTree: <String, Node>{}),
+    IsolateTreeIndexer.getSafeIsolate(
+      id: id,
+      forceReturningFromIdAlways: true,
+    ).run(
+      TreeIndexerPayload(
+        root: root,
+        loadAfter: 0,
+        newValueAfter: 1,
+        curIndexTree: <String, int>{},
+      ),
       callback: (TreeIndexerResult result) {
         _indexedTree = result.indexes;
       },
@@ -31,17 +40,13 @@ class Tree extends ValueNotifier<Node> implements TreeOperations {
     );
   }
 
-  late Map<String, Node> _indexedTree = <String, Node>{};
+  /// A indexed version of the tree and must be updated
+  /// always, never can lost a update, insert or delete operation
+  late Map<String, int> _indexedTree = <String, int>{};
 
   @visibleForTesting
-  Map<String, Node> get indexTree => <String, Node>{..._indexedTree};
+  Map<String, int> get indexTree => <String, int>{..._indexedTree};
 
-  late final _isolateTreeIndexer =
-      IsolateRunner<TreeIndexerPayload, TreeIndexerResult>(
-    'tree indexer',
-    _indexTree,
-    restartIfAlreadyIsRunning: true,
-  );
   late final _isolateCacheInvalidator =
       IsolateRunner<TreeCacheInvalidatorPayload, TreeCacheInvalidatorResult>(
     'cache invalidator',
@@ -49,6 +54,9 @@ class Tree extends ValueNotifier<Node> implements TreeOperations {
     restartIfAlreadyIsRunning: true,
   );
 
+  //TODO: build a indexedTree for every node (into the Node class)
+  // to cache these and make more fast the queries
+  /// The root source of every Node used into the Tree
   final Node root;
 
   /// updated externally for the editor, to cache the current position
@@ -59,7 +67,7 @@ class Tree extends ValueNotifier<Node> implements TreeOperations {
   /// Typically, this is used when we need to traverse
   /// to get text info, and we need the specifications
   /// of how works that node type
-  static final Map<String, Limiter> _limiters = {
+  static final Map<String, Limiter> _limiters = <String, Limiter>{
     EmbedKeys.key: EmbedLimiter.instance(),
     ParagraphKeys.key: ParagraphLimiter.instance(),
   };
@@ -69,11 +77,12 @@ class Tree extends ValueNotifier<Node> implements TreeOperations {
   /// Typically, this is used when we need to get values
   /// from a Node, since every Node has a different way to save
   /// its content, we need implement it's own extractor
-  static final Map<String, NodeExtractor> _extractors = {
+  static final Map<String, NodeExtractor> _extractors = <String, NodeExtractor>{
     ParagraphKeys.key: ParagraphNodeExtractor.instance,
     EmbedKeys.key: EmbedNodeExtractor.instance,
   };
 
+  /// TODO: verify that the key exist
   static Limiter? getLimiter(String key) {
     return _limiters[key];
   }
@@ -82,39 +91,46 @@ class Tree extends ValueNotifier<Node> implements TreeOperations {
     return _extractors[key];
   }
 
+  // ignore: unused_element
   void _updateIndexedTreeIfNeeded(Node node) {
-    final Node? original = _indexedTree[node.id];
+    final int? original = _indexedTree[node.id];
     if (original == null) return;
 
-    if (original.path != node.path) {
-      _indexedTree[node.id] = node;
+    if (original != node.path) {
+      _indexedTree[node.id] = node.path;
     }
   }
 
-  //TODO: while querying for nodes, we can set the cache of every path
-  // why?
-  // Just making that, avoid making recomputation of the paths
-  // since, how we are traversing, we can just store the path
-  // until the element, and setting to the node its own path
-  // and putting needsPathComputation to false
   @override
   Node? query(String id, {bool deep = true, String? targetId}) {
     Node? node;
 
     if (!deep && targetId == null) {
-      return root.findById(id, deep: false);
+      final int? path = _indexedTree[id];
+      if (path == null) {
+        return null;
+      }
+      return root.elementAtOrNull(path);
     }
 
     // normally the root parent of the node to search
     if (targetId != null) {
-      Node? targetNode = _indexedTree[targetId]!;
+      final int? path = _indexedTree[targetId];
+      if (path == null) {
+        return null;
+      }
+
+      Node? targetNode = root.elementAtOrNull(path)!;
 
       final bool outdatedState =
           targetNode.id != root.elementAtOrNull(targetNode.path)?.id;
       // this means that the _indexedTree is outdated and requires a reindexation
       if (outdatedState) {
         targetNode = root.findById(targetId, deep: false);
-        _isolateTreeIndexer.run(
+        IsolateTreeIndexer.getSafeIsolate(
+          id: id,
+          forceReturningFromIdAlways: true,
+        ).run(
           TreeIndexerPayload(root: root, curIndexTree: _indexedTree),
           callback: (TreeIndexerResult result) {
             if (kDebugMode) {
@@ -134,15 +150,6 @@ class Tree extends ValueNotifier<Node> implements TreeOperations {
     }
 
     return node;
-  }
-
-  @override
-  List<Node> queryNodes(
-    List<String> ids, {
-    bool deep = true,
-    String? targetId,
-  }) {
-    throw UnimplementedError();
   }
 
   /// Find the Node at the full path passed
@@ -166,14 +173,68 @@ class Tree extends ValueNotifier<Node> implements TreeOperations {
   }
 
   @override
-  List<NodeTextLocation> queryValue(Object value,
-      {Map<String, dynamic> args = const {}}) {
-    throw UnimplementedError();
+  List<NodeValueLocation> queryValue(
+    Object value, {
+    bool caseSensitive = false,
+  }) {
+    assert(
+      value is String || value is Map,
+      "the unique values supported for queries are Strings and Maps",
+    );
+    final List<NodeValueLocation> locations = <NodeValueLocation>[];
+
+    int rootIndex = 0;
+    while (rootIndex < root.length) {
+      final Node rootNode = root.elementAt(rootIndex);
+      // since we are searching the nodes based on the path
+      // we can just redefining its path if them required
+      //
+      // Never should happen this, but, it's for safety
+      rootNode.updatePathsIfNeeded(rootIndex, <int>[]);
+      final NodeExtractor? extractor = _extractors[rootNode.type];
+      if (extractor == null) {
+        throw UnsupportedError(
+          "The extractor for ${rootNode.type}"
+          " is not registered. Contact to the "
+          "maintainer or report the "
+          "issue in the official repository",
+        );
+      }
+      final List<NodeValueLocation> location = extractor.getLocationsOfValue(
+        rootNode,
+        value,
+        getLimiter(rootNode.type)!,
+        path: <int>[rootIndex],
+        caseSensitive: caseSensitive,
+      );
+      locations.addAll(location);
+      rootIndex++;
+    }
+
+    return <NodeValueLocation>[...locations];
+  }
+
+  List<Node> queryNodes(
+    List<String> ids, {
+    bool deep = true,
+    String? targetId,
+  }) {
+    final List<Node> nodes = [];
+    for (String id in ids) {
+      final Node? node = query(
+        id,
+        deep: deep,
+        targetId: targetId,
+      );
+      if (node != null) {
+        nodes.add(node);
+      }
+    }
+    return nodes;
   }
 
   @override
   bool addNode(Node node, {List<int>? paths}) {
-    // TODO: implement addNode
     throw UnimplementedError();
   }
 
@@ -283,15 +344,6 @@ class Tree extends ValueNotifier<Node> implements TreeOperations {
   bool updateValue(Object value, Node target, {String? id}) {
     // TODO: implement updateValue
     throw UnimplementedError();
-  }
-
-  @pragma('vm:entry-point')
-  static TreeIndexerResult _indexTree(TreeIndexerPayload payload) {
-    final Map<String, Node> nodes = {};
-    for (Node node in payload.root.children) {
-      nodes[node.id] = node;
-    }
-    return TreeIndexerResult(nodes);
   }
 
   @pragma('vm:entry-point')

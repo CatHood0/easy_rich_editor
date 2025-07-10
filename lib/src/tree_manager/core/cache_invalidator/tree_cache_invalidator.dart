@@ -1,4 +1,4 @@
-import 'package:easy_rich_editor/internal.dart';
+import 'package:easy_rich_editor/easy_rich_editor.dart';
 
 class TreeCacheInvalidatorPayload {
   final Node root;

@@ -26,7 +26,7 @@ Document get commonDoc => Document(paragraphs: [
               attributes: {"underline": true}),
           Line.fromData(
             id: 'line of normal pr (3)',
-            data: "to take as an example how work this visualizer. ",
+            data: "to take as an example how work this visualizer (1). ",
           ),
         ],
       ),
@@ -57,7 +57,7 @@ Document get commonDoc => Document(paragraphs: [
           ),
           Line.fromData(
             id: 'line of normal pr 2-(3)',
-            data: "to take as an example how work this visualizer. ",
+            data: "to take as an example how work this visualizer (2). ",
           ),
         ],
       ),

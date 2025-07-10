@@ -1,16 +1,10 @@
-import 'package:easy_rich_editor/src/core/api/location/node_text_location.dart';
 import 'package:flutter/material.dart' show TextRange, TextSelection;
-import 'package:easy_rich_editor/internal.dart';
+
+import '../../../../easy_rich_editor.dart';
 
 abstract interface class TreeOperations {
-  List<NodeTextLocation> queryValue(Object value);
+  List<NodeValueLocation> queryValue(Object value);
   Node? queryPath(List<int> path);
-
-  List<Node> queryNodes(
-    List<String> ids, {
-    bool deep = true,
-    String? targetId,
-  });
 
   Node? query(
     String id, {
