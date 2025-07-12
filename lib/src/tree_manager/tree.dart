@@ -82,6 +82,15 @@ class Tree extends ValueNotifier<Node> implements TreeOperations {
     EmbedKeys.key: EmbedNodeExtractor.instance,
   };
 
+  bool canNodeAcceptTypeValue(Node rootOwner, Node node, Type t) {
+    final NodeExtractor? extractor = _extractors[rootOwner.type];
+    if (extractor == null) {
+      throwUnsupportedType(rootOwner.type);
+    }
+
+    return extractor!.canNodeHaveValueType(node, t);
+  }
+
   /// TODO: verify that the key exist
   static Limiter? getLimiter(String key) {
     return _limiters[key];
@@ -193,20 +202,16 @@ class Tree extends ValueNotifier<Node> implements TreeOperations {
       rootNode.updatePathsIfNeeded(rootIndex, <int>[]);
       final NodeExtractor? extractor = _extractors[rootNode.type];
       if (extractor == null) {
-        throw UnsupportedError(
-          "The extractor for ${rootNode.type}"
-          " is not registered. Contact to the "
-          "maintainer or report the "
-          "issue in the official repository",
-        );
+        throwUnsupportedType(rootNode.type);
       }
-      final List<NodeValueLocation> location = extractor.getLocationsOfValue(
+      final List<NodeValueLocation> location = extractor!.getLocationsOfValue(
         rootNode,
         value,
         getLimiter(rootNode.type)!,
         path: <int>[rootIndex],
         caseSensitive: caseSensitive,
       );
+
       locations.addAll(location);
       rootIndex++;
     }
@@ -234,7 +239,46 @@ class Tree extends ValueNotifier<Node> implements TreeOperations {
   }
 
   @override
-  bool addNode(Node node, {List<int>? paths}) {
+  bool addNode(
+    Node node, {
+    List<int>? paths,
+    bool after = false,
+  }) {
+    if (paths != null) {
+      final Node? node = queryPath(paths);
+      if (node == null) return false;
+      if (after) {
+        node.insertAfter(node);
+        return true;
+      }
+      node.insertBefore(node);
+      return true;
+    }
+    root.insertNode(node);
+    return false;
+  }
+
+  @override
+  bool insertNode(Node node, {List<int> path = const <int>[]}) {
+    // TODO: implement insertNode
+    throw UnimplementedError();
+  }
+
+  @override
+  bool insertNodeAtRoot(Node node, {int path = -1}) {
+    // TODO: implement insertNodeAtRoot
+    throw UnimplementedError();
+  }
+
+  @override
+  bool insertText(TextSelection selection) {
+    // TODO: implement insertText
+    throw UnimplementedError();
+  }
+
+  @override
+  bool insertTextAtNode(Node target, String text, List<int> path) {
+    // TODO: implement insertTextAtNode
     throw UnimplementedError();
   }
 
@@ -293,30 +337,6 @@ class Tree extends ValueNotifier<Node> implements TreeOperations {
   }
 
   @override
-  bool insertNode(Node node, {List<int> path = const <int>[]}) {
-    // TODO: implement insertNode
-    throw UnimplementedError();
-  }
-
-  @override
-  bool insertNodeAtRoot(Node node, {int path = -1}) {
-    // TODO: implement insertNodeAtRoot
-    throw UnimplementedError();
-  }
-
-  @override
-  bool insertText(TextSelection selection) {
-    // TODO: implement insertText
-    throw UnimplementedError();
-  }
-
-  @override
-  bool insertTextAtNode(Node target, String text, List<int> path) {
-    // TODO: implement insertTextAtNode
-    throw UnimplementedError();
-  }
-
-  @override
   bool moveNodeTo(Node node, int path, {bool internally = true}) {
     // TODO: implement moveNodeTo
     throw UnimplementedError();
@@ -353,6 +373,15 @@ class Tree extends ValueNotifier<Node> implements TreeOperations {
     return TreeCacheInvalidatorResult(
       true,
       lastUnresolvedPath: -1,
+    );
+  }
+
+  void throwUnsupportedType(Object arg) {
+    throw UnsupportedError(
+      "The extractor for $arg"
+      " is not registered. Contact to the "
+      "maintainer or report the "
+      "issue in the official repository",
     );
   }
 }

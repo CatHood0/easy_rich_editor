@@ -166,7 +166,33 @@ class NodeChange {
     final nodes = repo.queryNodes(nodeIds);
     return nodes.map((n) {
       final changes = partialData[n.id];
-      return changes != null ? n.updateValues(changes) : n;
+      return changes != null
+          ? changes['text_change'] != null
+              ? n.updateValues(
+                  changes,
+                  repo.canNodeAcceptTypeValue(n.jumpToParent(stopAt: (node) {
+                    // if the father of my father is null
+                    // means that we are currently at the root
+                    //
+                    // is something like this:
+                    //
+                    // To_here <-
+                    // Paragraph(new-[3]):
+                    // │
+                    // └─ Line(6931-[0]):
+                    //   │
+                    //   └─ Text(Test-[1]): <- we start jumping from here
+                    //        'Hello developer'
+                    //
+                    // This can be possible, because we have a root owner
+                    // that all the root nodes share between
+                    if (node.parent?.parent == null) {
+                      return true;
+                    }
+                    return false;
+                  }), n, changes['text_change']))
+              : n.updateValues(changes, false)
+          : n;
     }).toList();
   }
 

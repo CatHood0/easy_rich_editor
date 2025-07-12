@@ -13,6 +13,7 @@ import 'package:easy_rich_editor/easy_rich_editor.dart';
 /// The implementation of this class will implement the logic that
 /// they need to make correct extracting operations
 abstract class NodeExtractor {
+  bool canNodeHaveValueType(Node node, Type t);
   /// Get the value from the Node passed
   ///
   /// The node passed, usually is the root owner

@@ -10,6 +10,14 @@ class EmbedNodeExtractor extends NodeExtractor {
   static EmbedNodeExtractor get instance => _instance;
 
   @override
+  bool canNodeHaveValueType(Node node, Type t) {
+    if (node.type == EmbedKeys.childrenKey && t == Map) {
+      return true;
+    }
+    return false;
+  }
+
+  @override
   T getValueFromNode<T>(
     Node node,
     bool Function(T value) filter, {

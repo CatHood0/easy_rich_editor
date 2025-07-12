@@ -8,6 +8,7 @@ import 'package:flutter/widgets.dart';
 import 'package:flutter_quill_delta_easy_parser/flutter_quill_delta_easy_parser.dart';
 import 'package:easy_rich_editor/internal.dart';
 import 'package:easy_rich_editor/easy_rich_editor.dart';
+import 'package:meta/meta.dart';
 
 import '../../../tree_manager/utils/isolate_tree_indexer.dart';
 
@@ -22,11 +23,13 @@ final class Node extends LinkedListEntry<Node> {
   final GlobalKey<State<StatefulWidget>> key =
       GlobalKey<State<StatefulWidget>>();
 
+  @internal
   static String get rootId => 'root';
 
   /// We cache partially some things while we are processing them
   /// directly at this "box". This is cleaned automatically after
   /// put them into a `NodeChange` class
+  @internal
   static String get changeBoxKey => 'changed';
 
   /// A indexed version of the tree and must be updated
@@ -150,13 +153,21 @@ final class Node extends LinkedListEntry<Node> {
     return children.elementAtOrNull(index);
   }
 
+  bool contains(String id) {
+    return _indexedNodes[id] != null;
+  }
+
   Node? findById(String id, {bool deep = true}) {
     if (this.id == id) return this;
 
+    if (contains(id)) {
+      return elementAt(_indexedNodes[id]!);
+    }
+
     for (Node child in children) {
       if (child.id == id) return child;
-      if (deep) {
-        final node = child.findById(id);
+      if (deep || child.contains(id)) {
+        final Node? node = child.findById(id, deep: deep);
         if (node != null) return node;
       }
     }
@@ -174,9 +185,19 @@ final class Node extends LinkedListEntry<Node> {
 
   int? _cachedLength;
 
-  void invalidateCache() {
+  /// When a node is added, moved, or deleted
+  /// this function is called to avoid have an
+  /// outdated cache. 
+  ///
+  /// Normally, invalidates also the path
+  /// but, since the path is just the current position
+  /// into the list of its owner, then in some cases
+  /// we don't need recompute the path really
+  void invalidateCache({bool justCache = false}) {
     _cachedLength = null;
-    needsComputePath = true;
+    if (!justCache) {
+      needsComputePath = true;
+    }
   }
 
   int get length => _cachedLength ??= children.length;
@@ -209,6 +230,7 @@ final class Node extends LinkedListEntry<Node> {
     if (path == null) {
       _indexedNodes[child.id] = length == 0 ? 0 : length - 1;
       children.add(child);
+      invalidateCache(justCache: true);
       return;
     }
 
@@ -220,11 +242,10 @@ final class Node extends LinkedListEntry<Node> {
       loadAfter++;
       newValueAfter++;
       entry.insertAfter(child);
-    }
-
-    if (!after) {
+    } else {
       entry.insertBefore(child);
     }
+    invalidateCache(justCache: true);
 
     final IsolateRunner<TreeIndexerPayload, TreeIndexerResult> isolate =
         IsolateTreeIndexer.getSafeIsolate(
@@ -251,6 +272,7 @@ final class Node extends LinkedListEntry<Node> {
 
     node.unlink();
     node.parent = null;
+    invalidateCache(justCache: true);
 
     final IsolateRunner<TreeIndexerPayload, TreeIndexerResult> isolate =
         IsolateTreeIndexer.getSafeIsolate(
@@ -390,26 +412,27 @@ final class Node extends LinkedListEntry<Node> {
     };
   }
 
-  Node updateValues(Map<String, dynamic> values) {
-    String? text;
-    Object? value;
+  @internal
+  Node updateValues(Map<String, dynamic> values, bool isText) {
     if (values["text_change"] != null) {
-      text = values["text_change"] as String;
+      final String text = values["text_change"] as String;
       assert(
-        type == ParagraphKeys.textKey,
+        !isText,
         "Tree is trying to "
-        "apply changes into for ${ParagraphKeys.textKey} type "
+        "apply changes into for valid text types "
         "into a $type type",
       );
+      value = text;
     }
     if (values["value"] != null) {
       value = values["value"];
     }
     if (values["attributes_change"] != null) {
       final newAttributes = values["attributes_change"] as Map<String, dynamic>;
+      attributes = {...attributes, ...newAttributes};
     }
     // here we need to take a look to verify some things
-    return copyWith();
+    return this;
   }
 
   Node copyWith({

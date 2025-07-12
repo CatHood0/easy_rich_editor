@@ -9,6 +9,14 @@ class ParagraphNodeExtractor extends NodeExtractor {
   static ParagraphNodeExtractor get instance => _instance;
 
   @override
+  bool canNodeHaveValueType(Node node, Type t) {
+    if (node.type == ParagraphKeys.textKey && t == String) {
+      return true;
+    }
+    return false;
+  }
+
+  @override
   T getValueFromNode<T>(
     Node node,
     bool Function(T value) filter, {

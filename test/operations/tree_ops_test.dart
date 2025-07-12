@@ -1,6 +1,7 @@
 import 'package:easy_rich_editor/internal.dart';
 import 'package:easy_rich_editor/easy_rich_editor.dart';
 import 'package:flutter_test/flutter_test.dart';
+import '../benchmarks/simple_benchmark.dart';
 import '../resources/doc_rs.dart';
 
 void main() {
@@ -9,8 +10,10 @@ void main() {
 
   group('Queries', () {
     test('Query Node by id', () {
-      final Node? node = tree.query("new line 1");
-      expect(node, isNotNull);
+      SimpleBenchmark(() {
+        final Node? node = tree.query("normal pr 2");
+        expect(node, isNotNull);
+      }).report();
     });
     test('Query Node by full path', () {
       final Node? node = tree.queryPath([3, 0, 0]);
