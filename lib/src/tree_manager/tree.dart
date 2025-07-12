@@ -245,13 +245,13 @@ class Tree extends ValueNotifier<Node> implements TreeOperations {
     bool after = false,
   }) {
     if (paths != null) {
-      final Node? node = queryPath(paths);
-      if (node == null) return false;
+      final Node? queryNode = queryPath(paths);
+      if (queryNode == null) return false;
       if (after) {
-        node.insertAfter(node);
+        queryNode.insertAfter(node);
         return true;
       }
-      node.insertBefore(node);
+      queryNode.insertBefore(node);
       return true;
     }
     root.insertNode(node);
