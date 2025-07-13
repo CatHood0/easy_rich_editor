@@ -1,4 +1,11 @@
+import 'package:easy_rich_editor/easy_rich_editor.dart';
 import 'package:flutter_quill_delta_easy_parser/flutter_quill_delta_easy_parser.dart';
+
+Node get randomNode => Node(
+      id: nanoid(8),
+      type: ParagraphKeys.key,
+      value: null,
+    );
 
 Document get commonDoc => Document(paragraphs: [
       Paragraph.newLine(id: 'new line 1'),

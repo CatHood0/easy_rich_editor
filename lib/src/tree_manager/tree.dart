@@ -127,32 +127,8 @@ class Tree extends ValueNotifier<Node> implements TreeOperations {
       if (path == null) {
         return null;
       }
-
-      Node? targetNode = root.elementAtOrNull(path)!;
-
-      final bool outdatedState =
-          targetNode.id != root.elementAtOrNull(targetNode.path)?.id;
-      // this means that the _indexedTree is outdated and requires a reindexation
-      if (outdatedState) {
-        targetNode = root.findById(targetId, deep: false);
-        IsolateTreeIndexer.getSafeIsolate(
-          id: id,
-          forceReturningFromIdAlways: true,
-        ).run(
-          TreeIndexerPayload(root: root, curIndexTree: _indexedTree),
-          callback: (TreeIndexerResult result) {
-            if (kDebugMode) {
-              debugPrint("Updated state of index tree "
-                  "since was detected an outdated state");
-            }
-            _indexedTree = result.indexes;
-          },
-        );
-      }
-
-      if (targetNode != null) {
-        node = targetNode.findById(id, deep: deep);
-      }
+      Node targetNode = root.elementAtOrNull(path)!;
+      node = targetNode.findById(id, deep: deep);
     } else if (deep) {
       node = root.findById(id);
     }
@@ -192,8 +168,8 @@ class Tree extends ValueNotifier<Node> implements TreeOperations {
     final List<NodeValueLocation> locations = <NodeValueLocation>[];
 
     int rootIndex = 0;
-    while (rootIndex < root.length) {
-      final Node rootNode = root.elementAt(rootIndex);
+    Node? rootNode = root.firstChild;
+    while (rootNode != null) {
       // since we are searching the nodes based on the path
       // we can just redefining its path if them required
       //
@@ -212,6 +188,7 @@ class Tree extends ValueNotifier<Node> implements TreeOperations {
       );
 
       locations.addAll(location);
+      rootNode = rootNode.next;
       rootIndex++;
     }
 
@@ -255,6 +232,14 @@ class Tree extends ValueNotifier<Node> implements TreeOperations {
     }
     root.insertNode(node);
     return false;
+  }
+
+  bool insertAtStart(Node node) {
+    return addNode(node, after: false, paths: [0]);
+  }
+
+  bool insertAtEnd(Node node) {
+    return addNode(node, after: true, paths: [root.length - 1]);
   }
 
   @override

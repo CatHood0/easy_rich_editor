@@ -10,10 +10,8 @@ void main() {
 
   group('Queries', () {
     test('Query Node by id', () {
-      SimpleBenchmark(() {
-        final Node? node = tree.query("normal pr 2");
-        expect(node, isNotNull);
-      }).report();
+      final Node? node = tree.query("normal pr 2");
+      expect(node, isNotNull);
     });
     test('Query Node by full path', () {
       final Node? node = tree.queryPath([3, 0, 0]);
@@ -33,6 +31,22 @@ void main() {
         <int>[5, 2, 0],
       );
     });
+  });
+
+  group('Add nodes', () {
+    test('insert node at start', () {
+      final node = randomNode;
+      tree.addNode(node, after: false, paths: [0]);
+
+      expect(node.parent, isNotNull);
+      expect(node.parent, tree.root);
+      expect(
+        tree.queryPath([0]),
+        node,
+      );
+    });
+    test('insert node at end', () {});
+    test('insert node at path', () {});
   });
 
   group('Insert', () {

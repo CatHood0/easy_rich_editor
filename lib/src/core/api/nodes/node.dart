@@ -155,6 +155,19 @@ final class Node extends LinkedListEntry<Node> {
     return _indexedNodes[id] != null;
   }
 
+  // TODO: Implement a more efficient search algorithm using previous/next node navigation
+  // instead of relying on LinkedList.elementAt() which can lead to O(n²) complexity
+  // when used improperly in loops (vs the desired O(n) complexity).
+  //
+  // Proposed approach:
+  // 1. Calculate the relative position of the target node based on its path index
+  // 2. Determine search direction based on comparison with current position:
+  //    - If target path < current index: search backward (using previous)
+  //    - If target path > current index: search forward (using next)
+  // 3. Implement bounded search within a calculated proximity area
+  //
+  // This should maintain O(n) complexity while avoiding elementAt performance penalties
+
   Node? findById(String id, {bool deep = true}) {
     if (this.id == id) return this;
 
@@ -224,6 +237,7 @@ final class Node extends LinkedListEntry<Node> {
     // the path changes, and we need a new reallocation
     int lastPathKnowed = _path;
     super.insertAfter(entry);
+    entry.parent = parent;
     // to avoid recomputing of a knowed path
     // just set it
     entry.path = lastPathKnowed++;
@@ -251,6 +265,7 @@ final class Node extends LinkedListEntry<Node> {
     // the path changes, and we need a new reallocation
     int lastPathKnowed = _path;
     super.insertBefore(entry);
+    entry.parent = parent;
     // to avoid recomputing of a knowed path
     // just set it
     entry.path = lastPathKnowed;
