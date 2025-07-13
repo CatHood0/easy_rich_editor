@@ -634,8 +634,6 @@ final class Node extends LinkedListEntry<Node> {
       id: id,
       forceReturningFromIdAlways: true,
     );
-    // should we implement also a Queue for these elements?
-    // i prefer having issue with race conditions
     isolate.run(
         TreeIndexerPayload(
           root: this,
