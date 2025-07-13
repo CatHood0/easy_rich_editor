@@ -229,14 +229,14 @@ final class Node extends LinkedListEntry<Node> {
     entry.path = lastPathKnowed++;
     //TODO: implement the same for _deepPath
     invalidateCache();
-    reindexTree(
-      // set a new path to after the entry
-      loadAfter: lastPathKnowed++,
-      // and set the correct value for the index
-      newValueAfter: lastPathKnowed++,
-    );
-    // reset the current path of the node
     if (entry.next != null) {
+      reindexTree(
+        // set a new path to after the entry
+        loadAfter: lastPathKnowed++,
+        // and set the correct value for the index
+        newValueAfter: lastPathKnowed++,
+      );
+      // reset the current path of the node
       invalidateCacheOfSiblings(
         node: entry,
         after: true,
@@ -256,14 +256,14 @@ final class Node extends LinkedListEntry<Node> {
     entry.path = lastPathKnowed;
     //TODO: implement the same for _deepPath
     invalidateCache();
-    reindexTree(
-      loadAfter: lastPathKnowed,
-      newValueAfter: lastPathKnowed + 1,
-    );
     lastPathKnowed++;
     path = lastPathKnowed;
-    // reset the current path of the node
     if (next != null) {
+      reindexTree(
+        loadAfter: lastPathKnowed,
+        newValueAfter: lastPathKnowed + 1,
+      );
+      // reset the current path of the node
       invalidateCacheOfSiblings(
         node: this,
         after: true,
