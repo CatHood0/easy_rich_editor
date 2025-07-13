@@ -1,8 +1,8 @@
 import 'package:easy_rich_editor/easy_rich_editor.dart';
 import 'package:flutter_quill_delta_easy_parser/utils/nano_id_generator.dart';
 
-import '../../utils/background_isolate_runner/isolate_runner.dart';
-import '../core/indexer/tree_indexer.dart';
+import '../../../utils/background_isolate_runner/isolate_runner.dart';
+import '../../core/indexer/tree_indexer.dart';
 
 class IsolateTreeIndexer {
   IsolateTreeIndexer._();
@@ -20,20 +20,7 @@ class IsolateTreeIndexer {
   static final Map<String, IsolateRunner<TreeIndexerPayload, TreeIndexerResult>>
       _queue = <String, IsolateRunner<TreeIndexerPayload, TreeIndexerResult>>{};
 
-  /// Since the `IsolateRunner` that we use, is restarted if it is already running
-  /// then we use this method to avoid closing an important operation:
-  ///
-  /// `getSafeIsolate` to get a new isolate instance if the main isolate is running already
-  ///
-  /// This method automatically make a cleanup of the isolates (close isolates
-  /// that are not running, avoiding memory leaks)
-  ///
-  /// Note: We use `id` to ensure in some cases, that we can restart an isolate that is
-  /// already updating a index tree at the same point that other one will start.
-  ///   For index trees, we need to avoid running two isolates to make
-  /// the same operation. With the `id` we can just pass the one from the Node,
-  /// and the get isolate and restart it (if required) to avoid concurrent
-  /// modifications of the index trees (and avoid ambiguous results)
+  //TODO: document the new working of this method
   static IsolateRunner<TreeIndexerPayload, TreeIndexerResult> getSafeIsolate({
     String? id,
     bool forceReturningFromIdAlways = false,
@@ -41,20 +28,17 @@ class IsolateTreeIndexer {
   }) {
     if (isolateTreeIndexer.isRunning && !forceMainAlways ||
         forceReturningFromIdAlways) {
+      cleanIsolateQueueIfNeeded();
       if (id != null && _queue[id] != null) {
         return _queue[id]!;
       }
       id ??= nanoid(4);
-      cleanIsolateQueueIfNeeded();
       final int index = _queue.length + 1;
       final IsolateRunner<TreeIndexerPayload, TreeIndexerResult> newIsolate =
           IsolateRunner<TreeIndexerPayload, TreeIndexerResult>(
-        'tree indexer ${nanoid(index)}',
+        'tree indexer for: $id',
         _indexTree,
         restartIfAlreadyIsRunning: true,
-        // since this isolate should never
-        // be called more than once time per re-index
-        // we prefer just a isolate
         concurrent: 1,
       );
       _queue[id] = newIsolate;
@@ -90,9 +74,12 @@ class IsolateTreeIndexer {
     if (payload.loadAfter < 0) {
       return TreeIndexerResult(nodes);
     }
-    for (int index = 0; index < payload.root.length; index++) {
-      final Node node = payload.root.children.elementAt(index);
+    Node? node = payload.root.firstChild;
+    int index = 0;
+    while (node != null) {
       nodes[node.id] = index;
+      node = node.next;
+      index++;
     }
     return TreeIndexerResult(nodes);
   }

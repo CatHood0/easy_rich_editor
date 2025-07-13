@@ -1,7 +1,6 @@
 import 'package:easy_rich_editor/src/core/limiters/embed_limiter.dart';
 import 'package:easy_rich_editor/src/tree_manager/core/indexer/tree_indexer.dart';
 import 'package:easy_rich_editor/src/tree_manager/core/cache_invalidator/tree_cache_invalidator.dart';
-import 'package:easy_rich_editor/src/tree_manager/utils/isolate_tree_indexer.dart';
 import 'package:easy_rich_editor/src/utils/background_isolate_runner/isolate_runner.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:easy_rich_editor/easy_rich_editor.dart';

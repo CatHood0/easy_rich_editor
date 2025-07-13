@@ -10,8 +10,6 @@ import 'package:easy_rich_editor/internal.dart';
 import 'package:easy_rich_editor/easy_rich_editor.dart';
 import 'package:meta/meta.dart';
 
-import '../../../tree_manager/utils/isolate_tree_indexer.dart';
-
 final class Node extends LinkedListEntry<Node> {
   String type;
   Node? parent;
@@ -187,7 +185,7 @@ final class Node extends LinkedListEntry<Node> {
 
   /// When a node is added, moved, or deleted
   /// this function is called to avoid have an
-  /// outdated cache. 
+  /// outdated cache.
   ///
   /// Normally, invalidates also the path
   /// but, since the path is just the current position
@@ -197,6 +195,7 @@ final class Node extends LinkedListEntry<Node> {
     _cachedLength = null;
     if (!justCache) {
       needsComputePath = true;
+      needsComputeFullPath = true;
     }
   }
 
@@ -219,10 +218,72 @@ final class Node extends LinkedListEntry<Node> {
   bool get isEmpty => length < 1;
   bool get isNotEmpty => !isEmpty;
 
+  @override
+  void insertAfter(Node entry) {
+    // since we insert an element after this
+    // the path changes, and we need a new reallocation
+    int lastPathKnowed = _path;
+    super.insertAfter(entry);
+    // to avoid recomputing of a knowed path
+    // just set it
+    entry.path = lastPathKnowed++;
+    //TODO: implement the same for _deepPath
+    invalidateCache();
+    reindexTree(
+      // set a new path to after the entry
+      loadAfter: lastPathKnowed++,
+      // and set the correct value for the index
+      newValueAfter: lastPathKnowed++,
+    );
+    // reset the current path of the node
+    if (entry.next != null) {
+      invalidateCacheOfSiblings(
+        node: entry,
+        after: true,
+        curPath: entry.path,
+      );
+    }
+  }
+
+  @override
+  void insertBefore(Node entry) {
+    // since we insert an element before this
+    // the path changes, and we need a new reallocation
+    int lastPathKnowed = _path;
+    super.insertBefore(entry);
+    // to avoid recomputing of a knowed path
+    // just set it
+    entry.path = lastPathKnowed;
+    //TODO: implement the same for _deepPath
+    invalidateCache();
+    reindexTree(
+      loadAfter: lastPathKnowed,
+      newValueAfter: lastPathKnowed + 1,
+    );
+    lastPathKnowed++;
+    path = lastPathKnowed;
+    // reset the current path of the node
+    if (next != null) {
+      invalidateCacheOfSiblings(
+        node: this,
+        after: true,
+        curPath: lastPathKnowed,
+      );
+    }
+  }
+
+  @override
+  void unlink() {
+    super.unlink();
+    if (parent != null) {
+      parent = null;
+      invalidateCache();
+    }
+  }
+
   void insertNode(Node child, {int? path, bool after = false}) {
     if (child.parent != null && child.parent != this) {
       child.unlink();
-      child.parent = null;
     }
 
     child.parent = this;
@@ -246,21 +307,10 @@ final class Node extends LinkedListEntry<Node> {
       entry.insertBefore(child);
     }
     invalidateCache(justCache: true);
-
-    final IsolateRunner<TreeIndexerPayload, TreeIndexerResult> isolate =
-        IsolateTreeIndexer.getSafeIsolate(
-      id: id,
-      forceReturningFromIdAlways: true,
+    reindexTree(
+      loadAfter: loadAfter,
+      newValueAfter: newValueAfter,
     );
-    isolate.run(
-        TreeIndexerPayload(
-          root: this,
-          loadAfter: loadAfter,
-          newValueAfter: newValueAfter,
-          curIndexTree: _indexedNodes,
-        ), callback: (TreeIndexerResult result) {
-      _indexedNodes = result.indexes;
-    });
   }
 
   void removeNode(Node node) {
@@ -273,22 +323,13 @@ final class Node extends LinkedListEntry<Node> {
     node.unlink();
     node.parent = null;
     invalidateCache(justCache: true);
-
-    final IsolateRunner<TreeIndexerPayload, TreeIndexerResult> isolate =
-        IsolateTreeIndexer.getSafeIsolate(
-      id: id,
-      forceReturningFromIdAlways: true,
+    reindexTree(
+      loadAfter: path == 0 ? path : path - 1,
+      newValueAfter: path,
     );
-    isolate.run(
-        TreeIndexerPayload(
-          root: this,
-          loadAfter: path == 0 ? path : path - 1,
-          newValueAfter: path,
-          curIndexTree: _indexedNodes,
-        ), callback: (TreeIndexerResult result) {
-      _indexedNodes = result.indexes;
-    });
   }
+
+  int get depthLevel => _deepPath.length - 1;
 
   // current path of this node
   int _path = -1;
@@ -356,7 +397,7 @@ final class Node extends LinkedListEntry<Node> {
   /// Get a normalized list of paths where this Node is
   List<int> get deepPath {
     if (!needsComputeFullPath) return _deepPath;
-    if (parent == null) return [-1];
+    if (parent == null) return [];
 
     final List<int> path = [this.path];
 
@@ -374,17 +415,6 @@ final class Node extends LinkedListEntry<Node> {
     _deepPath = <int>[...path.reversed];
 
     return _deepPath;
-  }
-
-  Node deepCopy() {
-    return Node(
-      type: type,
-      value: value,
-      id: id,
-      parent: parent,
-      children: [...children],
-      attributes: {...attributes},
-    );
   }
 
   Map<String, dynamic> getChangedValues() {
@@ -565,6 +595,70 @@ final class Node extends LinkedListEntry<Node> {
       buffer.writeln("'");
     }
     return buffer.toString();
+  }
+
+  Node deepCopy() {
+    return Node(
+      type: type,
+      value: value,
+      id: id,
+      parent: parent,
+      children: [...children],
+      attributes: {...attributes},
+    );
+  }
+
+  @internal
+  @pragma('vm:entry-point')
+  void reindexTree({
+    int loadAfter = -1,
+    int newValueAfter = -1,
+  }) {
+    final IsolateRunner<TreeIndexerPayload, TreeIndexerResult> isolate =
+        IsolateTreeIndexer.getSafeIsolate(
+      id: id,
+      forceReturningFromIdAlways: true,
+    );
+    // should we implement also a Queue for these elements?
+    // i prefer having issue with race conditions
+    isolate.run(
+        TreeIndexerPayload(
+          root: this,
+          loadAfter: loadAfter,
+          newValueAfter: newValueAfter,
+          curIndexTree: _indexedNodes,
+        ), callback: (TreeIndexerResult result) {
+      _indexedNodes = result.indexes;
+    });
+  }
+
+  @internal
+  @pragma('vm:entry-point')
+  void invalidateCacheOfSiblings({
+    required bool after,
+    required Node node,
+    int curPath = -1,
+  }) {
+    assert(
+        parent != null, "Must have a parent to invalidate cache of siblings");
+
+    final NodePathCachePayload payload = NodePathCachePayload(
+      root: parent!,
+      node: node,
+      path: curPath,
+      after: after,
+    );
+
+    final IsolateRunner<NodePathCachePayload, NodePathCacheResult> isolate =
+        IsolateNodeCacheInvalidator.getSafeIsolate(
+      id: id,
+      forceReturningFromIdAlways: true,
+    );
+
+    isolate.run(
+      payload,
+      callback: (NodePathCacheResult result) {},
+    );
   }
 
   @override
