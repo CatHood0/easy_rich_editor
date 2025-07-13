@@ -10,9 +10,6 @@ class IsolateNodeCacheInvalidator {
       IsolateRunner<NodePathCachePayload, NodePathCacheResult>(
     'main nodes invalidator',
     _invalidateCacheOrReset,
-    // since this isolate should never
-    // be called more than once time per re-index
-    // we prefer just a isolate
     concurrent: 1,
   );
 

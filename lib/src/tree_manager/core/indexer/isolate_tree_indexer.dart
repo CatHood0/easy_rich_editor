@@ -11,14 +11,17 @@ class IsolateTreeIndexer {
     'main tree indexer',
     _indexTree,
     restartIfAlreadyIsRunning: true,
-    // since this isolate should never
-    // be called more than once time per re-index
-    // we prefer just a isolate
     concurrent: 1,
   );
 
   static final Map<String, IsolateRunner<TreeIndexerPayload, TreeIndexerResult>>
       _queue = <String, IsolateRunner<TreeIndexerPayload, TreeIndexerResult>>{};
+
+  /// Close all the resources use by this class
+  static void release() {
+    isolateTreeIndexer.close();
+    cleanIsolateQueueIfNeeded();
+  }
 
   //TODO: document the new working of this method
   static IsolateRunner<TreeIndexerPayload, TreeIndexerResult> getSafeIsolate({
@@ -33,7 +36,6 @@ class IsolateTreeIndexer {
         return _queue[id]!;
       }
       id ??= nanoid(4);
-      final int index = _queue.length + 1;
       final IsolateRunner<TreeIndexerPayload, TreeIndexerResult> newIsolate =
           IsolateRunner<TreeIndexerPayload, TreeIndexerResult>(
         'tree indexer for: $id',
