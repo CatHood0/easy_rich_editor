@@ -10,19 +10,17 @@ void main() {
     final Node root = DocumentToNodesParser.documentParse(doc);
     final Node paragraph = root.elementAt(3);
     final Node node = Node(
-      type: ParagraphKeys.textKey,
-      value: "Hello daddy",
+      type: ParagraphKeys.lineKey,
+      value: [
+        TextFragment(data: "This is my example text bitch. "),
+        TextFragment(data: "So, i want to know "),
+        TextFragment(data: "why (2)", attributes: {'bold': true}),
+      ],
       id: 'Test id',
+      canModifyChildrenLength: false,
     );
 
-    final line = paragraph.elementAt(0);
-    expect(
-      line.type,
-      ParagraphKeys.childrenKey,
-      reason: "line must be of type 'Line'",
-    );
-
-    line.insertNode(node);
+    paragraph.insertNode(node, path: 0, after: false);
     final rootNode = node.jumpToParent(stopAt: (node) {
       // if the parent of the cur parent, is null
       // means that we are currently at the root
@@ -41,20 +39,17 @@ void main() {
     final Node root = DocumentToNodesParser.documentParse(doc);
     final Node paragraph = root.elementAt(3);
     final Node node = Node(
-      type: ParagraphKeys.textKey,
-      value: "Hello daddy",
+      type: ParagraphKeys.lineKey,
+      value: [
+        TextFragment(data: "This is my example text bitch. "),
+        TextFragment(data: "So, i want to know "),
+        TextFragment(data: "why", attributes: {'bold': true}),
+      ],
       id: 'Test id',
+      canModifyChildrenLength: false,
     );
 
-    final line = paragraph.elementAt(0);
-    expect(
-      line.type,
-      ParagraphKeys.childrenKey,
-      reason: "line must be of type 'Line'",
-    );
-
-    line.insertNode(node);
-
-    //print(root.dumpTreeStr(currentPath: node.deepPath));
+    paragraph.insertNode(node, path: 0, after: false);
+    // print(root.dumpTreeStr(currentPath: node.deepPath));
   });
 }

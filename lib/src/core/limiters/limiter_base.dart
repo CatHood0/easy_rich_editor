@@ -14,7 +14,7 @@ abstract class Limiter {
   /// and which is the key that is the most deeper child
   ///
   /// For example, for paragraph
-  /// we should just traversing 3 levels, no more, and no less
+  /// we should just traversing 2 levels, no more, and no less
   ///
   /// Defining a depth like:
   ///
@@ -23,7 +23,6 @@ abstract class Limiter {
   ///  List<String> get dephtLimit => [
   ///       ParagraphKeys.key,
   ///       ParagraphKeys.childrenKey,
-  ///       ParagraphKeys.textKey,
   ///  ];
   /// ```
   ///
@@ -31,10 +30,10 @@ abstract class Limiter {
   ///
   /// ```bash
   /// Paragraph
-  /// │  Line 1
-  /// │  └─── Text
-  /// └─ Line 2
-  ///    └─── Text
+  /// │  Line 1: [Text, Text]
+  /// │  
+  /// └─ Line 2: [Text]
+  ///    
   /// ```
   //TODO: should we change this to a Map for a improve the access?
   List<String> get depthLimit;

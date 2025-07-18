@@ -1,4 +1,5 @@
 import 'package:easy_rich_editor/easy_rich_editor.dart';
+import 'package:meta/meta.dart';
 
 /// Extractor implementations are used to get one or more values into the Node.
 ///
@@ -12,17 +13,25 @@ import 'package:easy_rich_editor/easy_rich_editor.dart';
 ///
 /// The implementation of this class will implement the logic that
 /// they need to make correct extracting operations
-abstract class NodeExtractor {
+abstract class NodeExtractor<T extends Object?> {
   bool canNodeHaveValueType(Node node, Type t);
+
   /// Get the value from the Node passed
   ///
-  /// The node passed, usually is the root owner
-  /// of the Node. Althrough, you can also pass the direct
-  /// value.
-  T getValueFromNode<T>(
-    Node node,
-    bool Function(T value) filter, {
+  /// The node passed, usually is direct Node that contains the value. 
+  List<T> getValueFromNode(
+    Node node, {
+    bool Function(Node value)? filter,
     bool needsTraverse = true,
+  });
+
+  /// Get all the lines into the Node passed
+  ///
+  /// The node passed, usually is the root node (direct parent)
+  /// of the Node.
+  List<Node> getLinesFromNode(
+    Node node, {
+    bool Function(Node value)? filter,
   });
 
   /// Get the value from the Node passed
@@ -55,4 +64,7 @@ abstract class NodeExtractor {
     List<int>? path,
     bool caseSensitive = true,
   });
+
+  @internal
+  List<String> formatObjectToStr(Object obj);
 }

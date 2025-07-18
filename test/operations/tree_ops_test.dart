@@ -1,7 +1,7 @@
 import 'package:easy_rich_editor/internal.dart';
 import 'package:easy_rich_editor/easy_rich_editor.dart';
+import 'package:flutter_quill_delta_easy_parser/blocks/text_fragment.dart';
 import 'package:flutter_test/flutter_test.dart';
-import '../benchmarks/simple_benchmark.dart';
 import '../resources/doc_rs.dart';
 
 void main() {
@@ -9,6 +9,24 @@ void main() {
   final Tree tree = Tree(root);
 
   group('Queries', () {
+    test('Just print', () {
+      final Node paragraph = tree.queryPath([3])!;
+      final Node node = Node(
+        type: ParagraphKeys.lineKey,
+        value: [
+          TextFragment(data: "This is my example text bitch. "),
+          TextFragment(data: "So, i want to know "),
+          TextFragment(data: "why (2)", attributes: {'bold': true}),
+        ],
+        id: 'Test id 2',
+        canModifyChildrenLength: false,
+      );
+
+      paragraph.insertNode(node, path: 0, after: false);
+      print(tree.printLines());
+      paragraph.parent?.removeNode(paragraph);
+      print(tree.printLines());
+    });
     test('Query Node by id', () {
       final Node? node = tree.query("normal pr 2");
       expect(node, isNotNull);

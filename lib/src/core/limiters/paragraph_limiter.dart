@@ -1,4 +1,5 @@
 import 'package:easy_rich_editor/easy_rich_editor.dart';
+import 'package:flutter_quill_delta_easy_parser/blocks/text_fragment.dart';
 
 class ParagraphLimiter extends Limiter {
   static final ParagraphLimiter _instance = ParagraphLimiter._();
@@ -12,8 +13,7 @@ class ParagraphLimiter extends Limiter {
   @override
   List<String> get depthLimit => [
         ParagraphKeys.key,
-        ParagraphKeys.childrenKey,
-        ParagraphKeys.textKey,
+        ParagraphKeys.lineKey,
       ];
 
   @override
@@ -22,7 +22,7 @@ class ParagraphLimiter extends Limiter {
   }
 
   @override
-  Type get typeValueAccepted => String;
+  Type get typeValueAccepted => TextFragment;
 
   @override
   bool ignoreByEmptyValueOrInvalid(Node node) {
@@ -35,17 +35,20 @@ class ParagraphLimiter extends Limiter {
           line.type == depthLimit[1],
           'the node into $limiterParentOf is invalid. Node '
           'of type ${line.type} was founded, when we '
-          'are expecting a ${ParagraphKeys.childrenKey}',
+          'are expecting a ${ParagraphKeys.lineKey}',
         );
         if (line.isEmpty) return true;
-        if (line.length == 1 && line.firstChild.runtimeType != typeValueAccepted) {
+        if (line.length == 1 &&
+            line.firstChild.runtimeType != typeValueAccepted) {
           return true;
         }
         if (line.length == 2) {
-          final bool firstIsInvalid = line.firstChild!.runtimeType != typeValueAccepted ||
-              line.firstChild!.value == null;
+          final bool firstIsInvalid =
+              line.firstChild!.runtimeType != typeValueAccepted ||
+                  line.firstChild!.value == null;
           final bool lastIsInvalid =
-              line.lastChild!.runtimeType != typeValueAccepted || line.lastChild!.value == null;
+              line.lastChild!.runtimeType != typeValueAccepted ||
+                  line.lastChild!.value == null;
           if (firstIsInvalid && lastIsInvalid) {
             return true;
           }
@@ -71,9 +74,4 @@ class ParagraphLimiter extends Limiter {
 
   @override
   String get limiterParentOf => ParagraphKeys.key;
-
-  @override
-  int maxDepthLevelToGetData(Node root) {
-    throw UnimplementedError();
-  }
 }

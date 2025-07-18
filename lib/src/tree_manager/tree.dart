@@ -1,10 +1,7 @@
 import 'package:easy_rich_editor/src/core/limiters/embed_limiter.dart';
 import 'package:easy_rich_editor/src/tree_manager/core/indexer/tree_indexer.dart';
-import 'package:easy_rich_editor/src/tree_manager/core/cache_invalidator/tree_cache_invalidator.dart';
-import 'package:easy_rich_editor/src/utils/background_isolate_runner/isolate_runner.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:easy_rich_editor/easy_rich_editor.dart';
-import 'package:flutter/foundation.dart';
 import 'package:meta/meta.dart';
 
 import '../../internal.dart';
@@ -46,13 +43,6 @@ class Tree extends ValueNotifier<Node> implements TreeOperations {
   @visibleForTesting
   Map<String, int> get indexTree => <String, int>{..._indexedTree};
 
-  late final _isolateCacheInvalidator =
-      IsolateRunner<TreeCacheInvalidatorPayload, TreeCacheInvalidatorResult>(
-    'cache invalidator',
-    _invalidateCachedPaths,
-    restartIfAlreadyIsRunning: true,
-  );
-
   //TODO: build a indexedTree for every node (into the Node class)
   // to cache these and make more fast the queries
   /// The root source of every Node used into the Tree
@@ -77,8 +67,12 @@ class Tree extends ValueNotifier<Node> implements TreeOperations {
   /// from a Node, since every Node has a different way to save
   /// its content, we need implement it's own extractor
   static final Map<String, NodeExtractor> _extractors = <String, NodeExtractor>{
+    // prs
     ParagraphKeys.key: ParagraphNodeExtractor.instance,
+    ParagraphKeys.lineKey: ParagraphNodeExtractor.instance,
+    // embeds
     EmbedKeys.key: EmbedNodeExtractor.instance,
+    EmbedKeys.childrenKey: EmbedNodeExtractor.instance,
   };
 
   bool canNodeAcceptTypeValue(Node rootOwner, Node node, Type t) {
@@ -350,14 +344,63 @@ class Tree extends ValueNotifier<Node> implements TreeOperations {
     throw UnimplementedError();
   }
 
-  @pragma('vm:entry-point')
-  static TreeCacheInvalidatorResult _invalidateCachedPaths(
-    TreeCacheInvalidatorPayload payload,
-  ) {
-    return TreeCacheInvalidatorResult(
-      true,
-      lastUnresolvedPath: -1,
-    );
+  //TODO: literal esto solo es para imprimir las lineas (texto)
+  // que tenemos en el tree. Algo como un "editor" en la consola
+  // que muestra el contenido con las lineas:
+  //
+  // tipo:
+  //
+  // De esto:
+  //
+  // Paragraph
+  // │  Line 1
+  // │  └─── Text: 'My tipo de texto'
+  // │
+  // └─ Line 2
+  //    └─── Text: 'Debe estart dentro de aqui'
+  //
+  // A esto:
+  //
+  // 1. My tipo de texto
+  // 2. Debe estart dentro de aqui
+  @visibleForTesting
+  String printLines({Node? original, Node? now}) {
+    int index = 1;
+    Node? rootNode = root.firstChild;
+    if (rootNode == null) return "1. ~\n";
+    final StringBuffer buffer = StringBuffer();
+
+    void writeSubNodes(Node node, Limiter limiter) {
+      if (limiter.shouldAvoidTraverseInto(node)) {
+        final NodeExtractor? extractor = getExtractor(node.type);
+        final String line = extractor!
+            .formatObjectToStr(extractor.getValueFromNode(node, needsTraverse: false))
+            .join("")
+            .replaceAll('\n', '\\n');
+        buffer.writeln("$index. $line");
+        index++;
+        return;
+      } else if (node.isEmpty) {
+        buffer.writeln("$index. ¶");
+        index++;
+        return;
+      }
+
+      Node? subNode = node.firstChild;
+
+      while (subNode != null) {
+        writeSubNodes(subNode, limiter);
+        subNode = subNode.next;
+      }
+    }
+
+    while (rootNode != null) {
+      final Limiter limiter = getLimiter(rootNode.type)!;
+      writeSubNodes(rootNode, limiter);
+      rootNode = rootNode.next;
+    }
+
+    return buffer.toString();
   }
 
   void throwUnsupportedType(Object arg) {

@@ -1,7 +1,11 @@
 import 'package:easy_rich_editor/easy_rich_editor.dart';
+import 'package:easy_rich_editor/src/core/extensions/object_ext.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter/widgets.dart';
+import 'package:flutter_quill_delta_easy_parser/flutter_quill_delta_easy_parser.dart';
+import 'package:meta/meta.dart';
 
-class ParagraphNodeExtractor extends NodeExtractor {
+class ParagraphNodeExtractor extends NodeExtractor<TextFragment> {
   static final ParagraphNodeExtractor _instance = ParagraphNodeExtractor._();
 
   ParagraphNodeExtractor._();
@@ -10,17 +14,78 @@ class ParagraphNodeExtractor extends NodeExtractor {
 
   @override
   bool canNodeHaveValueType(Node node, Type t) {
-    if (node.type == ParagraphKeys.textKey && t == String) {
+    if (node.type == ParagraphKeys.lineKey && t == TextFragment) {
       return true;
     }
     return false;
   }
 
+  @internal
   @override
-  T getValueFromNode<T>(
-    Node node,
-    bool Function(T value) filter, {
+  List<String> formatObjectToStr(Object obj) {
+    assert(obj is Iterable<TextFragment> || obj is TextFragment,
+        "The value passed must be a list of fragments or just TextFragment");
+    return [
+      if (obj is TextFragment) _formatFragment(obj),
+      if (obj is Iterable<TextFragment>)
+        ...obj.map<String>((TextFragment fr) {
+          return _formatFragment(fr);
+        }),
+    ];
+  }
+
+  String _formatFragment(TextFragment fragment) {
+    return fragment.attributes != null
+        ? "{${fragment.data.toString()} -> ${fragment.attributes.toString()}}"
+        : fragment.data.toString();
+  }
+
+  @override
+  List<TextFragment> getValueFromNode(
+    Node node, {
+    bool Function(Node value)? filter,
     bool needsTraverse = true,
+  }) {
+    final List<TextFragment> fragments = [];
+
+    if (needsTraverse) {
+      if (node.isEmpty) return fragments;
+      Node? subNode = node.firstChild;
+      while (subNode != null) {
+        if (filter != null && !filter(subNode)) {
+          subNode = subNode.next;
+          continue;
+        }
+        fragments.addAll(
+          getValueFromNode(
+            subNode,
+            filter: filter,
+            needsTraverse: needsTraverse,
+          ),
+        );
+        subNode = subNode.next;
+      }
+      return fragments;
+    }
+    if (node.type == ParagraphKeys.lineKey) {
+      if (node.value == null) return fragments;
+      if (node.value is! Iterable<TextFragment>) {
+        throw UnsupportedError(
+          "Expected "
+          "List<TextFragment> type, "
+          "founded: ${node.value.runtimeType} "
+          "in ${node.type}:${node.id}",
+        );
+      }
+      fragments.addAll(node.value!.cast());
+    }
+    return fragments;
+  }
+
+  @override
+  List<Node> getLinesFromNode(
+    Node node, {
+    bool Function(Node value)? filter,
   }) {
     throw UnimplementedError();
   }

@@ -5,12 +5,20 @@ import 'package:meta/meta.dart';
 
 @immutable
 class DocumentToNodesParser {
+  static final DocumentParser _docParser =
+      DocumentParser(mergerBuilder: BlockMergerBuilder());
+
   static Node markdownParse(String markdown) {
     throw UnimplementedError("Not implemented markdownParse");
   }
 
   static Node deltaParse(Delta delta) {
-    throw UnimplementedError("Not implemented deltaParse");
+    Document? doc = _docParser.parseDelta(
+          delta: delta,
+          returnNoSealedCopies: true,
+        ) ??
+        Document(paragraphs: <Paragraph>[]);
+    return documentParse(doc);
   }
 
   static Node documentParse(

@@ -1,8 +1,10 @@
 import 'dart:ui';
 
 import 'package:easy_rich_editor/easy_rich_editor.dart';
+import 'package:easy_rich_editor/src/core/extensions/object_ext.dart';
+import 'package:meta/meta.dart';
 
-class EmbedNodeExtractor extends NodeExtractor {
+class EmbedNodeExtractor extends NodeExtractor<Map<String, dynamic>> {
   static final EmbedNodeExtractor _instance = EmbedNodeExtractor._();
 
   EmbedNodeExtractor._();
@@ -17,13 +19,73 @@ class EmbedNodeExtractor extends NodeExtractor {
     return false;
   }
 
+  @internal
   @override
-  T getValueFromNode<T>(
-    Node node,
-    bool Function(T value) filter, {
+  List<String> formatObjectToStr(Object obj) {
+    assert(obj is List<Map<String, dynamic>> || obj is Map<String, dynamic>,
+        "The value passed must be a list of objects or just Map<String, dynamic>");
+    return [
+      if (obj is Map<String, dynamic>) _formatFragment(obj),
+      if (obj is Iterable<Map<String, dynamic>>)
+        ...obj.map<String>((Map<String, dynamic> fr) {
+          return _formatFragment(fr);
+        }),
+    ];
+  }
+
+  String _formatFragment(Map<String, dynamic> obj) {
+    return obj.toString();
+  }
+
+  @override
+  List<Node> getLinesFromNode(
+    Node node, {
+    bool Function(Node value)? filter,
+  }) {
+    // TODO: implement getLinesFromNode
+    throw UnimplementedError();
+  }
+
+  @override
+  List<Map<String, dynamic>> getValueFromNode(
+    Node node, {
+    bool Function(Node value)? filter,
     bool needsTraverse = true,
   }) {
-    throw UnimplementedError();
+    final List<Map<String, dynamic>> fragments = [];
+
+    if (needsTraverse) {
+      if (node.isEmpty) return fragments;
+      Node? subNode = node.firstChild;
+      while (subNode != null) {
+        if (filter != null && !filter(subNode)) {
+          subNode = subNode.next;
+          continue;
+        }
+        fragments.addAll(
+          getValueFromNode(
+            subNode,
+            filter: filter,
+            needsTraverse: needsTraverse,
+          ),
+        );
+        subNode = subNode.next;
+      }
+      return fragments;
+    }
+    if (node.type == ParagraphKeys.lineKey) {
+      if (node.value == null) return fragments;
+      if (node.value is! Iterable<Map<String, dynamic>>) {
+        throw UnsupportedError(
+          "Expected "
+          "List<Map<String, dynamic>> type, "
+          "founded: ${node.value.runtimeType} "
+          "in ${node.type}:${node.id}",
+        );
+      }
+      fragments.addAll(node.value!.cast());
+    }
+    return fragments;
   }
 
   @override

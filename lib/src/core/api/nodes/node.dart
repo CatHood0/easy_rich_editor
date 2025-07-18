@@ -1,8 +1,10 @@
 import 'dart:collection';
+import 'dart:convert';
 
 import 'package:collection/collection.dart';
 import 'package:easy_rich_editor/src/tree_manager/core/indexer/tree_indexer.dart';
 import 'package:easy_rich_editor/src/utils/background_isolate_runner/isolate_runner.dart';
+import 'package:easy_rich_editor/src/utils/utils.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_quill_delta_easy_parser/flutter_quill_delta_easy_parser.dart';
@@ -13,7 +15,7 @@ import 'package:meta/meta.dart';
 final class Node extends LinkedListEntry<Node> {
   String type;
   Node? parent;
-  late Map<String, dynamic> attributes = <String, dynamic>{};
+  late Map<String, dynamic> metadata = <String, dynamic>{};
   late final Object? value;
   late final String id;
 
@@ -37,42 +39,30 @@ final class Node extends LinkedListEntry<Node> {
   Node.root({
     String? id,
     List<Node> children = const [],
-    Map<String, dynamic> attributes = const <String, dynamic>{},
+    Map<String, dynamic>? metadata,
   })  : type = Node.rootId,
         parent = null,
         value = null {
+    metadata ??= <String, dynamic>{};
     this.id = id ?? nanoid(8);
-    this.attributes = {...attributes};
-    for (int i = 0; i < children.length; i++) {
-      Node child = children[i];
-      if (child.parent != null) {
-        child.unlink();
-      }
-      child.parent = this;
-      _indexedNodes[child.id] = i;
-      children.add(child);
-    }
+    this.metadata = {...metadata};
+    adoptChildren(children);
   }
 
   Node({
     required this.type,
     required this.value,
     this.parent,
-    Map<String, dynamic> attributes = const <String, dynamic>{},
+    Map<String, dynamic>? metadata,
     String? id,
+    bool canModifyChildrenLength = true,
     List<Node> children = const [],
   }) {
+    metadata ??= <String, dynamic>{};
     this.id = id ?? nanoid(8);
-    this.attributes = {...attributes};
-    for (int i = 0; i < children.length; i++) {
-      Node child = children[i];
-      if (child.parent != null) {
-        child.unlink();
-      }
-      child.parent = this;
-      _indexedNodes[child.id] = i;
-      children.add(child);
-    }
+    this.metadata = {...metadata};
+    metadata['can_modify_children_length'] = canModifyChildrenLength;
+    adoptChildren(children);
   }
 
   Node.fromParagraphEmbed({
@@ -101,6 +91,7 @@ final class Node extends LinkedListEntry<Node> {
         children: [],
         parent: this,
         id: child.id,
+        canModifyChildrenLength: false,
       );
       insertNode(line);
       _indexedNodes[line.id] = i;
@@ -118,41 +109,82 @@ final class Node extends LinkedListEntry<Node> {
     this.id = id ?? paragraph.id;
     final List<Line> lines = paragraph.unsafeLines();
     for (int i = 0; i < lines.length; i++) {
-      final Line child = lines[i];
+      final Line line = lines[i];
       final Node lineNode = Node(
-        type: ParagraphKeys.childrenKey,
-        value: null,
-        children: [],
+        type: ParagraphKeys.lineKey,
+        value: <TextFragment>[
+          ...line.fragments,
+        ],
+        children: <Node>[],
         parent: this,
-        id: child.id,
+        id: line.id,
+        canModifyChildrenLength: false,
       );
-      if (child.isNotEmpty) {
-        for (TextFragment frag in child.fragments) {
-          lineNode.insertNode(
-            Node(
-              type: ParagraphKeys.textKey,
-              value: frag.data,
-              attributes: frag.attributes ?? {},
-              parent: lineNode,
-            ),
-          );
-        }
-      }
       insertNode(lineNode);
       _indexedNodes[lineNode.id] = i;
     }
   }
 
-  Node elementAt(int index) {
-    return children.elementAt(index);
+  Node.text({
+    String? id,
+    this.type = ParagraphKeys.key,
+    this.value,
+    this.parent,
+    required String text,
+  }) {
+    assert(type.trim().isNotEmpty, 'type cannot be empty');
+    this.id = id ?? nanoid(8);
+    if (text.contains(Utils.CR)) {
+      final List<String> lines = LineSplitter().convert(text);
+      for (int i = 0; i < lines.length; i++) {
+        final String line = lines[i];
+        final Node lineNode = Node(
+          type: ParagraphKeys.lineKey,
+          value: <TextFragment>[TextFragment(data: line)],
+          children: <Node>[],
+          parent: this,
+          canModifyChildrenLength: false,
+        );
+        insertNode(lineNode);
+        _indexedNodes[lineNode.id] = i;
+      }
+      return;
+    }
+
+    final Node lineNode = Node(
+      type: ParagraphKeys.lineKey,
+      value: <TextFragment>[TextFragment(data: text)],
+      children: <Node>[],
+      parent: this,
+      canModifyChildrenLength: false,
+    );
+    insertNode(lineNode);
   }
 
-  Node? elementAtOrNull(int index) {
-    return children.elementAtOrNull(index);
+  bool get canAddOrRemovedChildren =>
+      metadata['can_modify_children_length'] ?? true;
+
+  bool get isReadOnly => metadata['read-only'] ?? false;
+
+  void setReadonly() => metadata['read-only'] = true;
+
+  void unSetReadonly() => metadata['read-only'] = false;
+
+  void adoptChild(Node child, int path) {
+    if (child.parent != null) child.unlink();
+    child
+      ..parent = this
+      ..path = path;
+    _indexedNodes[child.id] = path;
+    children.add(child);
   }
 
-  bool contains(String id) {
-    return _indexedNodes[id] != null;
+  void adoptChildren(List<Node> nodes) {
+    for (int i = 0; i < nodes.length; i++) {
+      final Node child = nodes[i];
+      _indexedNodes[child.id] = i;
+      adoptChild(child, i);
+    }
   }
 
   // TODO: Implement a more efficient search algorithm using previous/next node navigation
@@ -167,9 +199,19 @@ final class Node extends LinkedListEntry<Node> {
   // 3. Implement bounded search within a calculated proximity area
   //
   // This should maintain O(n) complexity while avoiding elementAt performance penalties
+  Node? searchInRange(int index, {bool into = true}) {
+    return null;
+  }
+
+  Node elementAt(int index) => children.elementAt(index);
+
+  Node? elementAtOrNull(int index) => children.elementAtOrNull(index);
+
+  bool contains(String id) => _indexedNodes[id] != null;
 
   Node? findById(String id, {bool deep = true}) {
     if (this.id == id) return this;
+    if (isEmpty) return null;
 
     if (contains(id)) {
       return elementAt(_indexedNodes[id]!);
@@ -233,6 +275,7 @@ final class Node extends LinkedListEntry<Node> {
 
   @override
   void insertAfter(Node entry) {
+    if (!canAddOrRemovedChildren) return;
     // since we insert an element after this
     // the path changes, and we need a new reallocation
     int lastPathKnowed = _path;
@@ -261,6 +304,7 @@ final class Node extends LinkedListEntry<Node> {
 
   @override
   void insertBefore(Node entry) {
+    if (!canAddOrRemovedChildren) return;
     // since we insert an element before this
     // the path changes, and we need a new reallocation
     int lastPathKnowed = _path;
@@ -297,13 +341,14 @@ final class Node extends LinkedListEntry<Node> {
   }
 
   void insertNode(Node child, {int? path, bool after = false}) {
+    if (!canAddOrRemovedChildren) return;
     if (child.parent != null && child.parent != this) {
       child.unlink();
     }
 
     child.parent = this;
 
-    if (path == null) {
+    if (path == null || path >= length) {
       _indexedNodes[child.id] = length == 0 ? 0 : length - 1;
       children.add(child);
       invalidateCache(justCache: true);
@@ -312,7 +357,11 @@ final class Node extends LinkedListEntry<Node> {
 
     int loadAfter = path;
     int newValueAfter = path + 1;
-    final Node entry = children.elementAt(path);
+    final Node? entry = children.elementAtOrNull(path);
+
+    if (entry == null) {
+      throw Exception("Path($path) was not founded into $type($id)");
+    }
 
     if (after) {
       loadAfter++;
@@ -321,19 +370,29 @@ final class Node extends LinkedListEntry<Node> {
     } else {
       entry.insertBefore(child);
     }
+    _indexedNodes[child.id] = after ? path + 1 : path - 1;
     invalidateCache(justCache: true);
     reindexTree(
       loadAfter: loadAfter,
       newValueAfter: newValueAfter,
     );
+    // reset the current path of the node
+    after ? entry.path = path + 1 : child.path = path + 1;
+    invalidateCacheOfSiblings(
+      node: after ? entry : child,
+      after: true,
+      curPath: path + 1,
+    );
   }
 
   void removeNode(Node node) {
+    if (!canAddOrRemovedChildren) return;
     assert(
       node.parent == this,
       "The node passed must be at the same Parent of $id",
     );
     final int path = node.path;
+    Node? sibling = node.next;
 
     node.unlink();
     node.parent = null;
@@ -342,6 +401,15 @@ final class Node extends LinkedListEntry<Node> {
       loadAfter: path == 0 ? path : path - 1,
       newValueAfter: path,
     );
+    if (sibling != null) {
+      sibling.path = path == 0 ? 0 : path - 1;
+      //TODO: apply new index path for deepPath
+      invalidateCacheOfSiblings(
+        node: sibling,
+        after: true,
+        curPath: path == 0 ? 0 : path - 1,
+      );
+    }
   }
 
   int get depthLevel => _deepPath.length - 1;
@@ -433,7 +501,7 @@ final class Node extends LinkedListEntry<Node> {
   }
 
   Map<String, dynamic> getChangedValues() {
-    return attributes[Node.changeBoxKey] ?? {};
+    return metadata[Node.changeBoxKey] ?? {};
   }
 
   void setChangedValues({
@@ -442,7 +510,7 @@ final class Node extends LinkedListEntry<Node> {
     Map<String, dynamic>? attributesChange,
   }) {
     assert(
-      attributes[Node.changeBoxKey] == null,
+      metadata[Node.changeBoxKey] == null,
       "calling `setChangedValues` to add "
       "cached changes, must pass always the assert checking. "
       "This can happen when a "
@@ -450,7 +518,7 @@ final class Node extends LinkedListEntry<Node> {
       "is cached undefinedly.",
     );
 
-    attributes[Node.changeBoxKey] = {
+    metadata[Node.changeBoxKey] = {
       "text_change": textChange,
       "value": value,
       "attributes_change": attributesChange,
@@ -474,7 +542,7 @@ final class Node extends LinkedListEntry<Node> {
     }
     if (values["attributes_change"] != null) {
       final newAttributes = values["attributes_change"] as Map<String, dynamic>;
-      attributes = {...attributes, ...newAttributes};
+      metadata = {...metadata, ...newAttributes};
     }
     // here we need to take a look to verify some things
     return this;
@@ -483,7 +551,7 @@ final class Node extends LinkedListEntry<Node> {
   Node copyWith({
     String? type,
     String? id,
-    Map<String, dynamic>? attributes,
+    Map<String, dynamic>? metadata,
     List<Node>? children,
     Node? parent,
     Object? value,
@@ -502,7 +570,7 @@ final class Node extends LinkedListEntry<Node> {
       "type": type,
       "id": id,
       "value": value,
-      "attributes": attributes,
+      "metadata": metadata,
       "children": children,
     };
   }
@@ -524,7 +592,6 @@ final class Node extends LinkedListEntry<Node> {
     return value != null || length == 1 && firstChild!.value != null;
   }
 
-  @visibleForTesting
   String dumpTreeStr({
     int tab = 0,
     List<int>? paths,
@@ -605,9 +672,8 @@ final class Node extends LinkedListEntry<Node> {
       writeSubPath(buffer, paths, allowRootIndent: true);
       // we add some extra indentation for the values
       buffer.write(" " * (effectiveIndent + 3));
-      buffer.write("'");
-      buffer.write(value.toString().replaceAll(RegExp('\n'), '\\n'));
-      buffer.writeln("'");
+      buffer.write("-> ");
+      buffer.writeln(value.toString().replaceAll(RegExp('\n'), '\\n'));
     }
     return buffer.toString();
   }
@@ -619,7 +685,7 @@ final class Node extends LinkedListEntry<Node> {
       id: id,
       parent: parent,
       children: [...children],
-      attributes: {...attributes},
+      metadata: {...metadata},
     );
   }
 
@@ -646,17 +712,20 @@ final class Node extends LinkedListEntry<Node> {
   }
 
   @internal
+  bool get isRootOwner => id == rootId || type == rootId;
+
+  @internal
   @pragma('vm:entry-point')
   void invalidateCacheOfSiblings({
     required bool after,
     required Node node,
     int curPath = -1,
   }) {
-    assert(
-        parent != null, "Must have a parent to invalidate cache of siblings");
+    assert(parent != null || isRootOwner,
+        "Must have a parent to invalidate cache of siblings");
 
     final NodePathCachePayload payload = NodePathCachePayload(
-      root: parent!,
+      root: parent ?? this,
       node: node,
       path: curPath,
       after: after,
@@ -667,15 +736,29 @@ final class Node extends LinkedListEntry<Node> {
       id: id,
       forceReturningFromIdAlways: true,
     );
+    if (kDebugMode) {
+      debugPrint("Starting background resetting of paths");
+      debugPrint("Params: ${{
+        "parent": parent?.id,
+        "currentNode": node.id,
+        "last_path": curPath,
+        "will_update_path_after_node": after,
+      }}");
+    }
 
     isolate.run(
       payload,
-      callback: (NodePathCacheResult result) {},
+      callback: (NodePathCacheResult result) {
+        if (kDebugMode) {
+          debugPrint("Exited from the background task.");
+          debugPrint("Completed sucessfully");
+        }
+      },
     );
   }
 
   @override
   String toString() {
-    return 'Node(type=$type,value=$value,attributes=$attributes,children=$children)';
+    return 'Node(type=$type,value=$value,metadata=$metadata,children=$children)';
   }
 }

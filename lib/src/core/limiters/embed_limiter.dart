@@ -33,7 +33,7 @@ class EmbedLimiter extends Limiter {
           embedLine.type == depthLimit.last,
           'the node into $limiterParentOf is invalid. Node '
           'of type ${embedLine.type} was founded, when we '
-          'are expecting a ${ParagraphKeys.childrenKey}',
+          'are expecting a ${ParagraphKeys.lineKey}',
         );
         if (embedLine.value == null) return true;
         if (embedLine.value.runtimeType != typeValueAccepted) return true;
@@ -59,9 +59,4 @@ class EmbedLimiter extends Limiter {
 
   @override
   String get limiterParentOf => EmbedKeys.key;
-
-  @override
-  int maxDepthLevelToGetData(Node root) {
-    throw UnimplementedError();
-  }
 }
