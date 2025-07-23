@@ -128,8 +128,8 @@ class ParagraphNodeExtractor extends NodeExtractor<TextFragment> {
       int index = 0;
       final List<NodeValueLocation> locations = <NodeValueLocation>[];
       while (index < node.length) {
-        final Node child = node.elementAt(index);
-        child.updatePathsIfNeeded(index, [...path, index]);
+        final Node child = node.elementAt(index)
+          ..updatePathsIfNeeded(index, [...path, index]);
         final List<NodeValueLocation> location = getLocationsOfValue(
           child,
           value,

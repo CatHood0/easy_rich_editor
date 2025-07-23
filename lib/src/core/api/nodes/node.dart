@@ -2,7 +2,7 @@ import 'dart:collection';
 import 'dart:convert';
 
 import 'package:collection/collection.dart';
-import 'package:easy_rich_editor/src/tree_manager/core/indexer/tree_indexer.dart';
+import 'package:easy_rich_editor/src/logger/editor_logger.dart';
 import 'package:easy_rich_editor/src/utils/background_isolate_runner/isolate_runner.dart';
 import 'package:easy_rich_editor/src/utils/utils.dart';
 import 'package:flutter/foundation.dart';
@@ -23,6 +23,12 @@ final class Node extends LinkedListEntry<Node> {
   final GlobalKey<State<StatefulWidget>> key =
       GlobalKey<State<StatefulWidget>>();
 
+  /// A indexed version of this Node Tree Part (N.T.P) that must be always
+  /// synced with the elements of the LinkedList, and must share the same
+  /// memory reference for any instance (so, we never must put a copy
+  /// of an instance here)
+  final HashMap<String, Node> _fastIndexTreePart = HashMap();
+
   @internal
   static String get rootId => 'root';
 
@@ -31,10 +37,6 @@ final class Node extends LinkedListEntry<Node> {
   /// put them into a `NodeChange` class
   @internal
   static String get changeBoxKey => 'changed';
-
-  /// A indexed version of the tree and must be updated
-  /// always, never can lost a update, insert or delete operation
-  Map<String, int> _indexedNodes = <String, int>{};
 
   Node.root({
     String? id,
@@ -94,7 +96,7 @@ final class Node extends LinkedListEntry<Node> {
         canModifyChildrenLength: false,
       );
       insertNode(line);
-      _indexedNodes[line.id] = i;
+      _fastIndexTreePart[line.id] = line;
     }
   }
 
@@ -121,7 +123,7 @@ final class Node extends LinkedListEntry<Node> {
         canModifyChildrenLength: false,
       );
       insertNode(lineNode);
-      _indexedNodes[lineNode.id] = i;
+      _fastIndexTreePart[lineNode.id] = lineNode;
     }
   }
 
@@ -146,7 +148,7 @@ final class Node extends LinkedListEntry<Node> {
           canModifyChildrenLength: false,
         );
         insertNode(lineNode);
-        _indexedNodes[lineNode.id] = i;
+        _fastIndexTreePart[lineNode.id] = lineNode;
       }
       return;
     }
@@ -162,9 +164,9 @@ final class Node extends LinkedListEntry<Node> {
   }
 
   bool get canAddOrRemovedChildren =>
-      metadata['can_modify_children_length'] ?? true;
+      metadata['can_modify_children_length'] as bool? ?? true;
 
-  bool get isReadOnly => metadata['read-only'] ?? false;
+  bool get isReadOnly => metadata['read-only'] as bool? ?? false;
 
   void setReadonly() => metadata['read-only'] = true;
 
@@ -175,14 +177,14 @@ final class Node extends LinkedListEntry<Node> {
     child
       ..parent = this
       ..path = path;
-    _indexedNodes[child.id] = path;
+    _fastIndexTreePart[child.id] = child;
     children.add(child);
   }
 
   void adoptChildren(List<Node> nodes) {
     for (int i = 0; i < nodes.length; i++) {
       final Node child = nodes[i];
-      _indexedNodes[child.id] = i;
+      _fastIndexTreePart[child.id] = child;
       adoptChild(child, i);
     }
   }
@@ -207,19 +209,19 @@ final class Node extends LinkedListEntry<Node> {
 
   Node? elementAtOrNull(int index) => children.elementAtOrNull(index);
 
-  bool contains(String id) => _indexedNodes[id] != null;
+  bool contains(String id) => _fastIndexTreePart[id] != null;
 
   Node? findById(String id, {bool deep = true}) {
     if (this.id == id) return this;
     if (isEmpty) return null;
 
     if (contains(id)) {
-      return elementAt(_indexedNodes[id]!);
+      return _fastIndexTreePart[id]!;
     }
 
-    for (Node child in children) {
-      if (child.id == id) return child;
-      if (deep || child.contains(id)) {
+    if (deep) {
+      for (Node child in children) {
+        if (child.id == id) return child;
         final Node? node = child.findById(id, deep: deep);
         if (node != null) return node;
       }
@@ -280,19 +282,15 @@ final class Node extends LinkedListEntry<Node> {
     // the path changes, and we need a new reallocation
     int lastPathKnowed = _path;
     super.insertAfter(entry);
-    entry.parent = parent;
-    // to avoid recomputing of a knowed path
-    // just set it
-    entry.path = lastPathKnowed++;
+    entry
+      ..parent = parent
+      // to avoid recomputing of a knowed path
+      // just set it
+      ..path = lastPathKnowed++;
     //TODO: implement the same for _deepPath
     invalidateCache();
+    _fastIndexTreePart[entry.id] = entry;
     if (entry.next != null) {
-      reindexTree(
-        // set a new path to after the entry
-        loadAfter: lastPathKnowed++,
-        // and set the correct value for the index
-        newValueAfter: lastPathKnowed++,
-      );
       // reset the current path of the node
       invalidateCacheOfSiblings(
         node: entry,
@@ -309,19 +307,17 @@ final class Node extends LinkedListEntry<Node> {
     // the path changes, and we need a new reallocation
     int lastPathKnowed = _path;
     super.insertBefore(entry);
-    entry.parent = parent;
-    // to avoid recomputing of a knowed path
-    // just set it
-    entry.path = lastPathKnowed;
+    entry
+      ..parent = parent
+      // to avoid recomputing of a knowed path
+      // just set it
+      ..path = lastPathKnowed;
     //TODO: implement the same for _deepPath
     invalidateCache();
     lastPathKnowed++;
     path = lastPathKnowed;
+    _fastIndexTreePart[entry.id] = entry;
     if (next != null) {
-      reindexTree(
-        loadAfter: lastPathKnowed,
-        newValueAfter: lastPathKnowed + 1,
-      );
       // reset the current path of the node
       invalidateCacheOfSiblings(
         node: this,
@@ -335,6 +331,7 @@ final class Node extends LinkedListEntry<Node> {
   void unlink() {
     super.unlink();
     if (parent != null) {
+      parent!._removeCached(this);
       parent = null;
       invalidateCache();
     }
@@ -347,16 +344,14 @@ final class Node extends LinkedListEntry<Node> {
     }
 
     child.parent = this;
+    _fastIndexTreePart[child.id] = child;
 
     if (path == null || path >= length) {
-      _indexedNodes[child.id] = length == 0 ? 0 : length - 1;
       children.add(child);
       invalidateCache(justCache: true);
       return;
     }
 
-    int loadAfter = path;
-    int newValueAfter = path + 1;
     final Node? entry = children.elementAtOrNull(path);
 
     if (entry == null) {
@@ -364,18 +359,11 @@ final class Node extends LinkedListEntry<Node> {
     }
 
     if (after) {
-      loadAfter++;
-      newValueAfter++;
       entry.insertAfter(child);
     } else {
       entry.insertBefore(child);
     }
-    _indexedNodes[child.id] = after ? path + 1 : path - 1;
     invalidateCache(justCache: true);
-    reindexTree(
-      loadAfter: loadAfter,
-      newValueAfter: newValueAfter,
-    );
     // reset the current path of the node
     after ? entry.path = path + 1 : child.path = path + 1;
     invalidateCacheOfSiblings(
@@ -388,19 +376,15 @@ final class Node extends LinkedListEntry<Node> {
   void removeNode(Node node) {
     if (!canAddOrRemovedChildren) return;
     assert(
-      node.parent == this,
+      node.parent == this || contains(node.id),
       "The node passed must be at the same Parent of $id",
     );
     final int path = node.path;
     Node? sibling = node.next;
 
     node.unlink();
-    node.parent = null;
     invalidateCache(justCache: true);
-    reindexTree(
-      loadAfter: path == 0 ? path : path - 1,
-      newValueAfter: path,
-    );
+
     if (sibling != null) {
       sibling.path = path == 0 ? 0 : path - 1;
       //TODO: apply new index path for deepPath
@@ -501,7 +485,7 @@ final class Node extends LinkedListEntry<Node> {
   }
 
   Map<String, dynamic> getChangedValues() {
-    return metadata[Node.changeBoxKey] ?? {};
+    return metadata[Node.changeBoxKey] as Map<String, dynamic>? ?? {};
   }
 
   void setChangedValues({
@@ -619,8 +603,8 @@ final class Node extends LinkedListEntry<Node> {
     }
 
     final Limiter? limiter = Tree.getLimiter(type);
-    final StringBuffer buffer = StringBuffer("");
-    buffer.write("$type(${id.substring(0, 4).trim()}-[$path]):");
+    final StringBuffer buffer = StringBuffer("")
+      ..write("$type(${id.substring(0, 4).trim()}-[$path]):");
     if (listEquals(currentPath, deepPath)) {
       buffer.write(" < Cursor position");
     }
@@ -671,9 +655,10 @@ final class Node extends LinkedListEntry<Node> {
       // that the current one, must pass its level)
       writeSubPath(buffer, paths, allowRootIndent: true);
       // we add some extra indentation for the values
-      buffer.write(" " * (effectiveIndent + 3));
-      buffer.write("-> ");
-      buffer.writeln(value.toString().replaceAll(RegExp('\n'), '\\n'));
+      buffer
+        ..write(" " * (effectiveIndent + 3))
+        ..write("-> ")
+        ..writeln(value.toString().replaceAll(RegExp('\n'), '\\n'));
     }
     return buffer.toString();
   }
@@ -690,29 +675,11 @@ final class Node extends LinkedListEntry<Node> {
   }
 
   @internal
-  @pragma('vm:entry-point')
-  void reindexTree({
-    int loadAfter = -1,
-    int newValueAfter = -1,
-  }) {
-    final IsolateRunner<TreeIndexerPayload, TreeIndexerResult> isolate =
-        IsolateTreeIndexer.getSafeIsolate(
-      id: id,
-      forceReturningFromIdAlways: true,
-    );
-    isolate.run(
-        TreeIndexerPayload(
-          root: this,
-          loadAfter: loadAfter,
-          newValueAfter: newValueAfter,
-          curIndexTree: _indexedNodes,
-        ), callback: (TreeIndexerResult result) {
-      _indexedNodes = result.indexes;
-    });
-  }
-
-  @internal
   bool get isRootOwner => id == rootId || type == rootId;
+
+  void _removeCached(Node node) {
+    _fastIndexTreePart.remove(node.id);
+  }
 
   @internal
   @pragma('vm:entry-point')
@@ -737,25 +704,36 @@ final class Node extends LinkedListEntry<Node> {
       forceReturningFromIdAlways: true,
     );
     if (kDebugMode) {
-      debugPrint("Starting background resetting of paths");
-      debugPrint("Params: ${{
+      EasyEditorLogger.treeBackgroundRunners
+          .debug("Params for resetting paths: ${{
         "parent": parent?.id,
         "currentNode": node.id,
         "last_path": curPath,
-        "will_update_path_after_node": after,
+        "after": after,
       }}");
     }
 
     isolate.run(
       payload,
-      callback: (NodePathCacheResult result) {
-        if (kDebugMode) {
-          debugPrint("Exited from the background task.");
-          debugPrint("Completed sucessfully");
-        }
-      },
+      callback: (NodePathCacheResult result) {},
     );
   }
+
+  // =================== NOTE ===================
+  // We dont implement a custom equals and hashcode
+  // that uses all the class attributes, because them
+  // can create a circular loop and aftera stack
+  // overflow.
+  @override
+  bool operator ==(covariant Node other) {
+    if (identical(this, other)) return true;
+    return id == other.id;
+  }
+
+  @override
+  int get hashCode => Object.hashAllUnordered(<Object?>[
+        id,
+      ]);
 
   @override
   String toString() {

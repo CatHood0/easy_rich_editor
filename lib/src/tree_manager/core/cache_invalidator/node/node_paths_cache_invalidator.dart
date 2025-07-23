@@ -4,6 +4,7 @@ class NodePathCachePayload {
   final Node root;
   final Node node;
   final int path;
+  final int endPath;
   // the direction of the resetting
   final bool after;
 
@@ -12,6 +13,7 @@ class NodePathCachePayload {
     required this.node,
     required this.path,
     required this.after,
+    this.endPath = -1,
   });
 }
 

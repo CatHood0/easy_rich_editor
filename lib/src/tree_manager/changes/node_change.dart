@@ -190,7 +190,7 @@ class NodeChange {
                       return true;
                     }
                     return false;
-                  }), n, changes['text_change']))
+                  }), n, changes['text_change'].runtimeType))
               : n.updateValues(changes, false)
           : n;
     }).toList();

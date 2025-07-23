@@ -1,5 +1,4 @@
 import 'package:easy_rich_editor/src/core/limiters/embed_limiter.dart';
-import 'package:easy_rich_editor/src/tree_manager/core/indexer/tree_indexer.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:easy_rich_editor/easy_rich_editor.dart';
 import 'package:meta/meta.dart';
@@ -8,23 +7,8 @@ import '../../internal.dart';
 
 @internal
 class Tree extends ValueNotifier<Node> implements TreeOperations {
-  static final String id = 'Tree';
-  Tree(this.root) : super(root) {
-    IsolateTreeIndexer.getSafeIsolate(
-      id: id,
-      forceReturningFromIdAlways: true,
-    ).run(
-      TreeIndexerPayload(
-        root: root,
-        loadAfter: 0,
-        newValueAfter: 1,
-        curIndexTree: <String, int>{},
-      ),
-      callback: (TreeIndexerResult result) {
-        _indexedTree = result.indexes;
-      },
-    );
-  }
+  static const String id = 'Tree';
+  Tree(this.root) : super(root);
 
   factory Tree.root({
     required List<Node> nodes,
@@ -35,13 +19,6 @@ class Tree extends ValueNotifier<Node> implements TreeOperations {
       ),
     );
   }
-
-  /// A indexed version of the tree and must be updated
-  /// always, never can lost a update, insert or delete operation
-  late Map<String, int> _indexedTree = <String, int>{};
-
-  @visibleForTesting
-  Map<String, int> get indexTree => <String, int>{..._indexedTree};
 
   //TODO: build a indexedTree for every node (into the Node class)
   // to cache these and make more fast the queries
@@ -93,41 +70,23 @@ class Tree extends ValueNotifier<Node> implements TreeOperations {
     return _extractors[key];
   }
 
-  // ignore: unused_element
-  void _updateIndexedTreeIfNeeded(Node node) {
-    final int? original = _indexedTree[node.id];
-    if (original == null) return;
-
-    if (original != node.path) {
-      _indexedTree[node.id] = node.path;
-    }
-  }
-
   @override
-  Node? query(String id, {bool deep = true, String? targetId}) {
-    Node? node;
-
-    if (!deep && targetId == null) {
-      final int? path = _indexedTree[id];
-      if (path == null) {
-        return null;
-      }
-      return root.elementAtOrNull(path);
+  Node? query(
+    String id, {
+    bool deep = true,
+    String? targetId,
+    bool strict = true,
+  }) {
+    if (targetId == null) {
+      return root.findById(id, deep: deep);
     }
 
     // normally the root parent of the node to search
-    if (targetId != null) {
-      final int? path = _indexedTree[targetId];
-      if (path == null) {
-        return null;
-      }
-      Node targetNode = root.elementAtOrNull(path)!;
-      node = targetNode.findById(id, deep: deep);
-    } else if (deep) {
-      node = root.findById(id);
+    final Node? targetNode = root.findById(targetId);
+    if (targetNode == null) {
+      return null;
     }
-
-    return node;
+    return targetNode.findById(id, deep: deep);
   }
 
   /// Find the Node at the full path passed
@@ -374,7 +333,8 @@ class Tree extends ValueNotifier<Node> implements TreeOperations {
       if (limiter.shouldAvoidTraverseInto(node)) {
         final NodeExtractor? extractor = getExtractor(node.type);
         final String line = extractor!
-            .formatObjectToStr(extractor.getValueFromNode(node, needsTraverse: false))
+            .formatObjectToStr(
+                extractor.getValueFromNode(node, needsTraverse: false))
             .join("")
             .replaceAll('\n', '\\n');
         buffer.writeln("$index. $line");

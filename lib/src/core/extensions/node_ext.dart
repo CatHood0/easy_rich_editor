@@ -20,3 +20,24 @@ extension NodeExt on Node {
 
   bool get isBlank => value != null;
 }
+
+extension NodeEquality on Iterable<Node> {
+  bool equals(Iterable<Node> other) {
+    if (length != other.length) {
+      return false;
+    }
+    for (var i = 0; i < length; i++) {
+      if (!_nodeEquals(elementAt(i), other.elementAt(i))) {
+        return false;
+      }
+    }
+    return true;
+  }
+
+  bool _nodeEquals<T, U>(T base, U other) =>
+      identical(this, other) ||
+      base is Node &&
+          other is Node &&
+          other.type == base.type &&
+          other.children.equals(base.children);
+}

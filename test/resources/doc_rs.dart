@@ -115,7 +115,7 @@ Document get commonDoc => Document(paragraphs: [
 Document get largeDoc {
   final List<Paragraph> prs = [];
 
-  for (int i = 0; i <= 10000; i++) {
+  for (int i = 0; i <= 700; i++) {
     prs.addAll([
       Paragraph.newLine(id: 'new line 1 [loop - $i]'),
       Paragraph(

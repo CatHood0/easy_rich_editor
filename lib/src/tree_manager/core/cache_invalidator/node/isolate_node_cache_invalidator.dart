@@ -1,4 +1,5 @@
 import 'package:easy_rich_editor/easy_rich_editor.dart';
+import 'package:easy_rich_editor/src/logger/editor_logger.dart';
 import 'package:easy_rich_editor/src/tree_manager/core/cache_invalidator/node/node_paths_cache_invalidator.dart';
 import 'package:flutter_quill_delta_easy_parser/utils/nano_id_generator.dart';
 import '../../../../utils/background_isolate_runner/isolate_runner.dart';
@@ -10,6 +11,7 @@ class IsolateNodeCacheInvalidator {
       IsolateRunner<NodePathCachePayload, NodePathCacheResult>(
     'main nodes invalidator',
     _invalidateCacheOrReset,
+    restartIfAlreadyIsRunning: true,
     concurrent: 1,
   );
 
@@ -39,7 +41,7 @@ class IsolateNodeCacheInvalidator {
           newIsolate = IsolateRunner<NodePathCachePayload, NodePathCacheResult>(
         'secundary invalidator for: $id',
         _invalidateCacheOrReset,
-        restartIfAlreadyIsRunning: false,
+        restartIfAlreadyIsRunning: true,
         concurrent: 1,
       );
       _queue[id] = newIsolate;
@@ -75,18 +77,35 @@ class IsolateNodeCacheInvalidator {
       // get the exact index to start the resetting
       int curPath = payload.after ? payload.path + 1 : payload.path - 1;
       Node? node = payload.after ? payload.node.next : payload.node.previous;
+      EasyEditorLogger.treeBackgroundRunners.debug(
+        'Starting resetting of paths '
+        'from $curPath until ${payload.node.parent?.length} path',
+      );
       while (node != null) {
         node.path = curPath;
+        if (payload.endPath != -1 && payload.endPath == curPath) break;
         payload.after ? curPath++ : curPath--;
         node = payload.after ? node.next : node.previous;
       }
+      EasyEditorLogger.treeBackgroundRunners.debug(
+        'Completed resettings of paths '
+        'sucessfully in ${payload.root.type}(${payload.root.id})',
+      );
       return NodePathCacheResult();
     }
     Node? node = payload.root.firstChild;
+    EasyEditorLogger.treeBackgroundRunners.debug(
+      'Starting invalidation of paths '
+      'from 0 until ${payload.root.length} path',
+    );
     while (node != null) {
       node.invalidateCache();
       node = node.next;
     }
+    EasyEditorLogger.treeBackgroundRunners.debug(
+      'Completed invalidation of paths '
+      'sucessfully in ${payload.root.type}(${payload.root.id})',
+    );
     return NodePathCacheResult();
   }
 }

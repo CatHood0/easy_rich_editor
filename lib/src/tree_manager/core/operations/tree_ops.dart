@@ -10,6 +10,7 @@ abstract interface class TreeOperations {
     String id, {
     bool deep = true,
     String? targetId,
+    bool strict = true,
   });
 
   bool insertNode(Node node, {List<int> path = const <int>[]});

@@ -1,4 +1,4 @@
-import 'package:flutter/cupertino.dart';
+import 'package:easy_rich_editor/src/logger/editor_logger.dart';
 import 'package:flutter/foundation.dart';
 import 'package:isolate_manager/isolate_manager.dart';
 import 'package:meta/meta.dart';
@@ -25,6 +25,7 @@ class IsolateRunner<Req, Res> {
     _isolateManager = IsolateManager.create(
       runnable,
       concurrent: concurrent,
+      queueStrategy: DropOldestStrategy(maxCount: 1),
     );
   }
 
@@ -35,11 +36,9 @@ class IsolateRunner<Req, Res> {
     if (isRunning && restartIfAlreadyIsRunning) {
       await _isolateManager?.restart();
       if (kDebugMode) {
-        debugPrint(
-          "Restarting "
-          "computation since can't"
-          " run the same "
-          "function several times",
+        EasyEditorLogger.treeBackgroundRunners.warn(
+          "Restarting computation to avoid "
+          "ambiguous data modifications",
         );
       }
     }
