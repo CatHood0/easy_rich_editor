@@ -4,12 +4,12 @@ import 'package:flutter_test/flutter_test.dart';
 import '../resources/doc_rs.dart';
 
 void main() {
-  final Node root = DocumentToNodesParser.documentParse(largeDoc);
+  final Node root = DocumentToNodesParser.documentParse(commonDoc);
   final Tree tree = Tree(root);
 
   group('Queries', () {
     test('Query Node by id', () {
-      const String id = "normal pr 2 [loop - 1]";
+      const String id = "normal pr 2";
       final Node? node = tree.query(id, deep: false);
       expect(node, isNotNull);
       expect(node!.id, id);
@@ -25,11 +25,11 @@ void main() {
       expect(locations, isNotEmpty);
       expect(
         locations.first.location.path,
-        <int>[2, 2, 0],
+        <int>[2, 2],
       );
       expect(
         locations.last.location.path,
-        <int>[5, 2, 0],
+        <int>[5, 2],
       );
     });
   });

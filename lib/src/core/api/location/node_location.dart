@@ -3,6 +3,7 @@ import 'package:easy_rich_editor/easy_rich_editor.dart';
 /// The location of the current Node
 class NodeLocation {
   final List<int> path;
+
   final Node node;
 
   /// Node owner can be null at some situations

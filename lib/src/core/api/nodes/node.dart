@@ -2,6 +2,7 @@ import 'dart:collection';
 import 'dart:convert';
 
 import 'package:collection/collection.dart';
+import 'package:easy_rich_editor/src/core/extensions/object_ext.dart';
 import 'package:easy_rich_editor/src/logger/editor_logger.dart';
 import 'package:easy_rich_editor/src/utils/background_isolate_runner/isolate_runner.dart';
 import 'package:easy_rich_editor/src/utils/utils.dart';
@@ -12,22 +13,32 @@ import 'package:easy_rich_editor/internal.dart';
 import 'package:easy_rich_editor/easy_rich_editor.dart';
 import 'package:meta/meta.dart';
 
+part 'package:easy_rich_editor/src/core/extensions/nodes/node_ext.dart';
+part 'package:easy_rich_editor/src/core/extensions/nodes/node_offset_ext.dart';
+part 'package:easy_rich_editor/src/core/extensions/nodes/node_search_ext.dart';
+part 'package:easy_rich_editor/src/core/extensions/nodes/node_printer_ext.dart';
+part 'package:easy_rich_editor/src/core/extensions/nodes/node_operations_ext.dart';
+
 final class Node extends LinkedListEntry<Node> {
   String type;
   Node? parent;
   late Map<String, dynamic> metadata = <String, dynamic>{};
-  late final Object? value;
   late final String id;
 
   final LinkedList<Node> children = LinkedList<Node>();
   final GlobalKey<State<StatefulWidget>> key =
       GlobalKey<State<StatefulWidget>>();
+  final LayerLink nodeLink = LayerLink();
 
   /// A indexed version of this Node Tree Part (N.T.P) that must be always
   /// synced with the elements of the LinkedList, and must share the same
   /// memory reference for any instance (so, we never must put a copy
   /// of an instance here)
   final HashMap<String, Node> _fastIndexTreePart = HashMap();
+
+  // Refer to https://www.fileformat.info/info/unicode/char/fffc/index.htm
+  static const String kObjectReplacementCharacter = '\uFFFC';
+  static const int kObjectReplacementInt = 65532;
 
   @internal
   static String get rootId => 'root';
@@ -38,28 +49,46 @@ final class Node extends LinkedListEntry<Node> {
   @internal
   static String get changeBoxKey => 'changed';
 
+  Object? _value;
+  int? _offset;
+
+  /// The current length of the value into this Node
+  int? _dataLength;
+
+  /// The current length of the children list
+  int? _cachedLength;
+  // current path of this node
+  int _path = -1;
+
+  // current full path of this node
+  List<int> _deepPath = <int>[-1];
+
+  bool needsComputePath = true;
+  bool needsComputeFullPath = true;
+
   Node.root({
-    String? id,
     List<Node> children = const [],
     Map<String, dynamic>? metadata,
   })  : type = Node.rootId,
         parent = null,
-        value = null {
+        _value = null {
     metadata ??= <String, dynamic>{};
-    this.id = id ?? nanoid(8);
+    id = rootId;
+    type = rootId;
     this.metadata = {...metadata};
     adoptChildren(children);
   }
 
   Node({
     required this.type,
-    required this.value,
+    required Object? value,
     this.parent,
     Map<String, dynamic>? metadata,
     String? id,
     bool canModifyChildrenLength = true,
     List<Node> children = const [],
   }) {
+    this.value = value;
     metadata ??= <String, dynamic>{};
     this.id = id ?? nanoid(8);
     this.metadata = {...metadata};
@@ -69,10 +98,11 @@ final class Node extends LinkedListEntry<Node> {
 
   Node.fromParagraphEmbed({
     String? id,
-    this.value,
+    Object? value,
     this.parent,
     required Paragraph paragraph,
   }) : type = EmbedKeys.key {
+    this.value = value;
     assert(type.trim().isNotEmpty, 'type cannot be empty');
     assert(paragraph.isEmbed, 'the type of the Paragraph must be an Embed');
     this.id = id ?? paragraph.id;
@@ -85,11 +115,7 @@ final class Node extends LinkedListEntry<Node> {
       // customizations, its better just allow saving them
       final Node line = Node(
         type: EmbedKeys.childrenKey,
-        value: child.fragments
-            .map<Object>(
-              (TextFragment e) => e.data,
-            )
-            .toList(),
+        value: <TextFragment>[...child.fragments],
         children: [],
         parent: this,
         id: child.id,
@@ -103,12 +129,13 @@ final class Node extends LinkedListEntry<Node> {
   Node.fromParagraph({
     String? id,
     this.type = ParagraphKeys.key,
-    this.value,
+    Object? value,
     this.parent,
     required Paragraph paragraph,
   }) {
     assert(type.trim().isNotEmpty, 'type cannot be empty');
     this.id = id ?? paragraph.id;
+    this.value = value;
     final List<Line> lines = paragraph.unsafeLines();
     for (int i = 0; i < lines.length; i++) {
       final Line line = lines[i];
@@ -130,19 +157,22 @@ final class Node extends LinkedListEntry<Node> {
   Node.text({
     String? id,
     this.type = ParagraphKeys.key,
-    this.value,
+    Object? value,
     this.parent,
     required String text,
   }) {
     assert(type.trim().isNotEmpty, 'type cannot be empty');
+    this.value = value;
     this.id = id ?? nanoid(8);
     if (text.contains(Utils.CR)) {
       final List<String> lines = LineSplitter().convert(text);
       for (int i = 0; i < lines.length; i++) {
         final String line = lines[i];
         final Node lineNode = Node(
-          type: ParagraphKeys.lineKey,
-          value: <TextFragment>[TextFragment(data: line)],
+          type: type,
+          value: <TextFragment>[
+            TextFragment(data: line),
+          ],
           children: <Node>[],
           parent: this,
           canModifyChildrenLength: false,
@@ -154,13 +184,41 @@ final class Node extends LinkedListEntry<Node> {
     }
 
     final Node lineNode = Node(
-      type: ParagraphKeys.lineKey,
+      type: type,
       value: <TextFragment>[TextFragment(data: text)],
       children: <Node>[],
       parent: this,
       canModifyChildrenLength: false,
     );
     insertNode(lineNode);
+  }
+
+  /// Contents of this node, either a String if this is a [QuillText] or an
+  /// [Embed] if this is an [BlockEmbed].
+  Object? get value => _value;
+
+  set value(Object? v) {
+    _value = v;
+    invalidateDataOffset();
+  }
+
+  int get dataLength {
+    // This means that we are into a Parent
+    if (!hasDefinedValue) {
+      _dataLength ??= children.fold<int>(
+        0,
+        (int prev, Node n) => prev + n.dataLength,
+      );
+      return _dataLength!;
+    }
+
+    if (_value == null) return -1;
+
+    if (_value is! String) {
+      return _dataLength ??= 1;
+    }
+
+    return (_dataLength ??= _value?.cast<String>().length)!;
   }
 
   bool get canAddOrRemovedChildren =>
@@ -189,56 +247,11 @@ final class Node extends LinkedListEntry<Node> {
     }
   }
 
-  // TODO: Implement a more efficient search algorithm using previous/next node navigation
-  // instead of relying on LinkedList.elementAt() which can lead to O(n²) complexity
-  // when used improperly in loops (vs the desired O(n) complexity).
-  //
-  // Proposed approach:
-  // 1. Calculate the relative position of the target node based on its path index
-  // 2. Determine search direction based on comparison with current position:
-  //    - If target path < current index: search backward (using previous)
-  //    - If target path > current index: search forward (using next)
-  // 3. Implement bounded search within a calculated proximity area
-  //
-  // This should maintain O(n) complexity while avoiding elementAt performance penalties
-  Node? searchInRange(int index, {bool into = true}) {
-    return null;
+  void invalidateDataOffset() {
+    _dataLength = null;
+    _offset = null;
+    parent?.invalidateDataOffset();
   }
-
-  Node elementAt(int index) => children.elementAt(index);
-
-  Node? elementAtOrNull(int index) => children.elementAtOrNull(index);
-
-  bool contains(String id) => _fastIndexTreePart[id] != null;
-
-  Node? findById(String id, {bool deep = true}) {
-    if (this.id == id) return this;
-    if (isEmpty) return null;
-
-    if (contains(id)) {
-      return _fastIndexTreePart[id]!;
-    }
-
-    if (deep) {
-      for (Node child in children) {
-        if (child.id == id) return child;
-        final Node? node = child.findById(id, deep: deep);
-        if (node != null) return node;
-      }
-    }
-
-    return null;
-  }
-
-  Node jumpToParent({bool Function(Node)? stopAt}) {
-    if (parent == null || stopAt != null && stopAt(this)) {
-      return this;
-    }
-
-    return parent!.jumpToParent(stopAt: stopAt);
-  }
-
-  int? _cachedLength;
 
   /// When a node is added, moved, or deleted
   /// this function is called to avoid have an
@@ -258,22 +271,112 @@ final class Node extends LinkedListEntry<Node> {
 
   int get length => _cachedLength ??= children.length;
 
-  TextRange? computeGlobalOffset(Limiter limiter) {
-    return null;
-  }
-
-  TextRange? computeNodeLength(Limiter limiter) {
-    return null;
-  }
-
   Node? get firstChild => isEmpty ? null : children.first;
   Node? firstWhere(bool Function(Node) expr) => children.firstWhereOrNull(expr);
 
   Node? get lastChild => isEmpty ? null : children.last;
   Node? lastWhere(bool Function(Node) expr) => children.lastWhereOrNull(expr);
 
+  /// Returns `true` if this node is the first node in the [parent] list.
+  bool get isFirst => list!.first == this;
+
+  /// Returns `true` if this node is the last node in the [parent] list.
+  bool get isLast => list!.last == this;
+
   bool get isEmpty => length < 1;
   bool get isNotEmpty => !isEmpty;
+
+  int get depthLevel => _deepPath.length - 1;
+
+  /// Queries the child [Node] at [offset] in this [Node].
+  ///
+  /// The result may contain the found node or `null` if no node is found
+  /// at specified offset.
+  ///
+  /// [NodeCursorPosLocation.fragmentIndex] is set to relative fragment index
+  /// within returned child node
+  ///
+  /// [NodeCursorPosLocation.fragmentOffset] is set to relative offset into the fragments
+  /// within returned child node which points at the same character position in the document
+  ///
+  /// [NodeCursorPosLocation.locationOffset] is set to relative offset within returned child node
+  /// which points at the same character position in the document as the
+  /// original [offset]
+  // TODO: we can probably implement a fast version using
+  // ranges to know for what node we should start to traverse
+  NodeCursorPosLocation queryPosition(
+    int cursorPos, {
+    bool includeLastNode = false,
+  }) {
+    if (cursorPos < 0 || cursorPos > dataLength) {
+      return NodeCursorPosLocation.notFound();
+    }
+
+    for (final Node node in children) {
+      final int len = node.dataLength;
+      // at this point, the cursor can be used
+      // as a local position in the node, instead
+      // a global one
+      if (cursorPos < len ||
+          (includeLastNode && cursorPos == len && node.isLast)) {
+        // this means that we are in a `Node` of type `Line` or `EmbedLine`
+        if (node.hasDefinedValue) {
+          final List<TextFragment> frags = node.value!.castToFragments();
+          int fragOffset = 0;
+          for (int i = 0; i < frags.length; i++) {
+            final TextFragment frag = frags[i];
+            final int fragmentLength =
+                frag.data is String ? frag.data.castString().length : 1;
+
+            final int effectivePosition = fragOffset + fragmentLength;
+            // if the cursor is in this exact fragment
+            if (cursorPos < effectivePosition) {
+              return NodeCursorPosLocation(
+                location: NodeLocation(
+                  path: <int>[...node.deepPath],
+                  node: node,
+                ),
+                fragmentIndex: i,
+                fragmentOffset: cursorPos - fragOffset,
+                locationOffset: cursorPos,
+              );
+            }
+
+            fragOffset += fragmentLength;
+          }
+        }
+
+        return NodeCursorPosLocation(
+          location: NodeLocation(path: <int>[...node.deepPath], node: node),
+          fragmentIndex: -1,
+          fragmentOffset: -1,
+          locationOffset: cursorPos,
+        );
+      }
+      cursorPos -= len;
+    }
+
+    return NodeCursorPosLocation.notFound();
+  }
+
+  /// Simplifies the insertion, it mades the operation directly at the node
+  /// passed. The node passed must contain a value
+  void insertAtNode(Node line, int offset, Object data, {int? endOffset}) {
+    assert(line.value != null, 'node must contain a value to modify it');
+  }
+
+  /// Simplifies the deletion, it mades the operation directly at the node
+  /// passed. The node passed must contain a value
+  void deleteAtNode(Node line, int from, int to) {
+    assert(line.value != null, 'node must contain a value to modify it');
+  }
+
+  void insert(int offset, Object data, {int? endOffset}) {}
+
+  /// Retain is used commonly to apply styles into the subNodes
+  void retain() {}
+
+  void delete(int from, int to) {}
 
   @override
   void insertAfter(Node entry) {
@@ -282,12 +385,14 @@ final class Node extends LinkedListEntry<Node> {
     // the path changes, and we need a new reallocation
     int lastPathKnowed = _path;
     super.insertAfter(entry);
+    final List<int> effectiveDeepPath = <int>[..._deepPath];
+    _deepPath[_deepPath.length - 1] = _path + 1;
     entry
       ..parent = parent
       // to avoid recomputing of a knowed path
       // just set it
-      ..path = lastPathKnowed++;
-    //TODO: implement the same for _deepPath
+      ..path = lastPathKnowed++
+      ..deepPath = effectiveDeepPath;
     invalidateCache();
     _fastIndexTreePart[entry.id] = entry;
     if (entry.next != null) {
@@ -311,11 +416,14 @@ final class Node extends LinkedListEntry<Node> {
       ..parent = parent
       // to avoid recomputing of a knowed path
       // just set it
-      ..path = lastPathKnowed;
-    //TODO: implement the same for _deepPath
+      ..path = lastPathKnowed
+      ..deepPath = <int>[..._deepPath];
     invalidateCache();
     lastPathKnowed++;
+    final List<int> effectiveDeepPath = <int>[..._deepPath]
+      ..[_deepPath.length - 1] = _path + 1;
     path = lastPathKnowed;
+    deepPath = effectiveDeepPath;
     _fastIndexTreePart[entry.id] = entry;
     if (next != null) {
       // reset the current path of the node
@@ -337,76 +445,6 @@ final class Node extends LinkedListEntry<Node> {
     }
   }
 
-  void insertNode(Node child, {int? path, bool after = false}) {
-    if (!canAddOrRemovedChildren) return;
-    if (child.parent != null && child.parent != this) {
-      child.unlink();
-    }
-
-    child.parent = this;
-    _fastIndexTreePart[child.id] = child;
-
-    if (path == null || path >= length) {
-      children.add(child);
-      invalidateCache(justCache: true);
-      return;
-    }
-
-    final Node? entry = children.elementAtOrNull(path);
-
-    if (entry == null) {
-      throw Exception("Path($path) was not founded into $type($id)");
-    }
-
-    if (after) {
-      entry.insertAfter(child);
-    } else {
-      entry.insertBefore(child);
-    }
-    invalidateCache(justCache: true);
-    // reset the current path of the node
-    after ? entry.path = path + 1 : child.path = path + 1;
-    invalidateCacheOfSiblings(
-      node: after ? entry : child,
-      after: true,
-      curPath: path + 1,
-    );
-  }
-
-  void removeNode(Node node) {
-    if (!canAddOrRemovedChildren) return;
-    assert(
-      node.parent == this || contains(node.id),
-      "The node passed must be at the same Parent of $id",
-    );
-    final int path = node.path;
-    Node? sibling = node.next;
-
-    node.unlink();
-    invalidateCache(justCache: true);
-
-    if (sibling != null) {
-      sibling.path = path == 0 ? 0 : path - 1;
-      //TODO: apply new index path for deepPath
-      invalidateCacheOfSiblings(
-        node: sibling,
-        after: true,
-        curPath: path == 0 ? 0 : path - 1,
-      );
-    }
-  }
-
-  int get depthLevel => _deepPath.length - 1;
-
-  // current path of this node
-  int _path = -1;
-
-  // current full path of this node
-  List<int> _deepPath = <int>[-1];
-
-  bool needsComputePath = true;
-  bool needsComputeFullPath = true;
-
   void updatePathsIfNeeded(int path, List<int> fullPath) {
     if (needsComputePath && path != -1) {
       path = path;
@@ -421,31 +459,32 @@ final class Node extends LinkedListEntry<Node> {
     if (id == Node.rootId || type == Node.rootId) {
       return -1;
     }
+
+    if (!needsComputePath || parent == null) return _path;
+
     assert(
         parent != null,
         'to get a path '
         'for child "$id" needs a '
         'parent that wrap it');
 
-    if (needsComputePath) {
-      needsComputePath = false;
-      final int lastPath = _path;
-      for (int i = 0; i < parent!.length; i++) {
-        Node child = parent!.children.elementAt(i);
-        if (child.id == id) {
-          _path = i;
-          break;
-        }
+    needsComputePath = false;
+    final int lastPath = _path;
+    for (int i = 0; i < parent!.length; i++) {
+      Node child = parent!.children.elementAt(i);
+      if (child.id == id) {
+        _path = i;
+        break;
       }
+    }
 
-      /// This never happen, since, when `needsComputePath`
-      /// is `true`, it means that the Node was moved, and requires
-      /// a new value to be catched
-      if (_path == lastPath) {
-        throw Exception(
-          "Not found child(${id.substring(0, 6)}) in parent(${parent!.id.substring(0, 6)})",
-        );
-      }
+    /// This never happen, since, when `needsComputePath`
+    /// is `true`, it means that the Node was moved, and requires
+    /// a new value to be catched
+    if (_path == lastPath) {
+      throw Exception(
+        "Not found child(${id.substring(0, 6)}) in parent(${parent!.id.substring(0, 6)})",
+      );
     }
 
     return _path;
@@ -457,7 +496,7 @@ final class Node extends LinkedListEntry<Node> {
   }
 
   set deepPath(List<int> path) {
-    _deepPath = path;
+    _deepPath = <int>[...path];
     needsComputeFullPath = false;
   }
 
@@ -484,31 +523,6 @@ final class Node extends LinkedListEntry<Node> {
     return _deepPath;
   }
 
-  Map<String, dynamic> getChangedValues() {
-    return metadata[Node.changeBoxKey] as Map<String, dynamic>? ?? {};
-  }
-
-  void setChangedValues({
-    String? textChange,
-    Object? value,
-    Map<String, dynamic>? attributesChange,
-  }) {
-    assert(
-      metadata[Node.changeBoxKey] == null,
-      "calling `setChangedValues` to add "
-      "cached changes, must pass always the assert checking. "
-      "This can happen when a "
-      "change is not processed by the Tree, and it "
-      "is cached undefinedly.",
-    );
-
-    metadata[Node.changeBoxKey] = {
-      "text_change": textChange,
-      "value": value,
-      "attributes_change": attributesChange,
-    };
-  }
-
   @internal
   Node updateValues(Map<String, dynamic> values, bool isText) {
     if (values["text_change"] != null) {
@@ -531,151 +545,6 @@ final class Node extends LinkedListEntry<Node> {
     // here we need to take a look to verify some things
     return this;
   }
-
-  Node copyWith({
-    String? type,
-    String? id,
-    Map<String, dynamic>? metadata,
-    List<Node>? children,
-    Node? parent,
-    Object? value,
-  }) {
-    return Node(
-      type: type ?? this.type,
-      value: value ?? this.value,
-      id: id ?? this.id,
-      parent: parent ?? this.parent,
-      children: children ?? [...this.children],
-    );
-  }
-
-  Map<String, dynamic> toJson() {
-    return {
-      "type": type,
-      "id": id,
-      "value": value,
-      "metadata": metadata,
-      "children": children,
-    };
-  }
-
-  /// Determines if this Node has a direct value
-  ///
-  /// You can see this like the following diagram
-  ///
-  /// ```bash
-  /// Line
-  ///  └─── Text
-  ///
-  /// # or
-  ///
-  /// EmbedLine
-  ///  └─── Value
-  /// ```
-  bool hasDirectValue() {
-    return value != null || length == 1 && firstChild!.value != null;
-  }
-
-  String dumpTreeStr({
-    int tab = 0,
-    List<int>? paths,
-    bool applyJustIndents = false,
-    int applyJustBefore = 0,
-    List<int> currentPath = const <int>[],
-  }) {
-    paths ??= <int>[];
-
-    void writeSubPath(StringBuffer buffer, List<int> paths,
-        {bool allowRootIndent = false}) {
-      for (int subPath in paths) {
-        final int effectiveSubIndent = subPath * 2;
-        final String indent = !allowRootIndent
-            ? subPath == 0
-                ? ""
-                : " " * effectiveSubIndent
-            : " " * effectiveSubIndent;
-        buffer.write(indent);
-        if (!applyJustIndents ||
-            applyJustIndents && subPath < applyJustBefore) {
-          buffer.write("│");
-        }
-      }
-    }
-
-    final Limiter? limiter = Tree.getLimiter(type);
-    final StringBuffer buffer = StringBuffer("")
-      ..write("$type(${id.substring(0, 4).trim()}-[$path]):");
-    if (listEquals(currentPath, deepPath)) {
-      buffer.write(" < Cursor position");
-    }
-    buffer.writeln("");
-    final int effectiveIndent = tab * 2;
-
-    if (limiter == null || !limiter.shouldAvoidTraverseInto(this)) {
-      for (int i = 0; i < length; i++) {
-        final bool isEndChil = i + 1 >= length;
-        final bool isNotRootIndent = tab > 0;
-        writeSubPath(buffer, paths);
-        // adding indenting for the
-        if (isNotRootIndent) buffer.write(" " * effectiveIndent);
-
-        final Node child = children.elementAt(i);
-        if (isEndChil) {
-          // if, is the first child, and the same time
-          // the last one, just add an intersection
-          //
-          // This just add the intersection
-          // moves to a new lines and makes the same process
-          if (i == 0) {
-            buffer.writeln("│");
-            writeSubPath(buffer, paths);
-            if (isNotRootIndent) buffer.write(" " * effectiveIndent);
-          }
-          buffer.write("└─");
-        } else {
-          buffer.write("│");
-        }
-        // add a separation between the guide lines
-        // and the node
-        buffer.write(" ");
-        buffer.write(
-          child.dumpTreeStr(
-            tab: tab + 1,
-            paths: i + 1 < length ? [...paths, tab] : paths,
-            applyJustIndents: i + 1 >= length,
-            applyJustBefore: tab,
-            currentPath: currentPath,
-          ),
-        );
-      }
-    }
-    if (value != null) {
-      // We need a way to add the other levels knowing
-      // if them need a line (parent with more children
-      // that the current one, must pass its level)
-      writeSubPath(buffer, paths, allowRootIndent: true);
-      // we add some extra indentation for the values
-      buffer
-        ..write(" " * (effectiveIndent + 3))
-        ..write("-> ")
-        ..writeln(value.toString().replaceAll(RegExp('\n'), '\\n'));
-    }
-    return buffer.toString();
-  }
-
-  Node deepCopy() {
-    return Node(
-      type: type,
-      value: value,
-      id: id,
-      parent: parent,
-      children: [...children],
-      metadata: {...metadata},
-    );
-  }
-
-  @internal
-  bool get isRootOwner => id == rootId || type == rootId;
 
   void _removeCached(Node node) {
     _fastIndexTreePart.remove(node.id);

@@ -1,4 +1,5 @@
-import 'package:flutter/material.dart' show TextRange, TextSelection;
+import 'package:flutter/material.dart' show TextSelection;
+import 'package:meta/meta.dart';
 
 import '../../../../easy_rich_editor.dart';
 
@@ -12,6 +13,25 @@ abstract interface class TreeOperations {
     String? targetId,
     bool strict = true,
   });
+
+  /// Queries the child [Node] at [offset] in [Tree].
+  ///
+  /// The result may contain the found node or `null` if no node is found
+  /// at specified offset.
+  ///
+  /// [strict] is set to determine if we want to traverse in the Tree
+  /// until found the `Node` with the exact `TextFragment` position
+  NodeCursorPosLocation? queryOffset(
+    int cursorPos, {
+    bool includeLastNode = false,
+    @experimental bool strict = false,
+  });
+
+  /// Queries the children [Node] that are wrapped by the [selection] in [Tree].
+  ///
+  /// The result may contain the found node or `null` if no node is found
+  /// at specified [selection].
+  List<Node> querySelectedNodes(TextSelection selection);
 
   bool insertNode(Node node, {List<int> path = const <int>[]});
   bool addNode(Node node, {List<int>? paths});
@@ -34,11 +54,6 @@ abstract interface class TreeOperations {
 
   // ========== SELECTION ============
 
-  int computeGlobalStartPosition(Node node);
-  int computeGlobalEndPosition(Node node);
-  TextRange computeRangePosition(Node node);
-  TextRange computeLocalRangePosition(Node node);
   String getTextAtSelection(TextSelection selection);
-  List<Node> getSelectedNodes(TextSelection selection);
   Node? getSelectedNode(TextSelection selection);
 }

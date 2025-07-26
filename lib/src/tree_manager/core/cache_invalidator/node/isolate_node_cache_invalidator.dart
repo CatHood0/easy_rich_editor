@@ -55,16 +55,17 @@ class IsolateNodeCacheInvalidator {
     final Map<String, IsolateRunner<NodePathCachePayload, NodePathCacheResult>>
         remainingIsolates =
         <String, IsolateRunner<NodePathCachePayload, NodePathCacheResult>>{};
-    _queue.forEach((
-      String id,
-      IsolateRunner<NodePathCachePayload, NodePathCacheResult> isolate,
-    ) {
-      if (isolate.isRunning) remainingIsolates[id] = isolate;
-      if (!isolate.isClosed && !isolate.isRunning) {
-        isolate.close();
-      }
-    });
-    _queue.clear();
+    _queue
+      ..forEach((
+        String id,
+        IsolateRunner<NodePathCachePayload, NodePathCacheResult> isolate,
+      ) {
+        if (isolate.isRunning) remainingIsolates[id] = isolate;
+        if (!isolate.isClosed && !isolate.isRunning) {
+          isolate.close();
+        }
+      })
+      ..clear();
     if (remainingIsolates.isNotEmpty) {
       _queue.addAll(remainingIsolates);
     }
@@ -83,6 +84,9 @@ class IsolateNodeCacheInvalidator {
       );
       while (node != null) {
         node.path = curPath;
+        final List<int> effectiveDeepPath = <int>[...node.deepPath]
+          ..[node.deepPath.length - 1] = curPath + 1;
+        node.deepPath = effectiveDeepPath;
         if (payload.endPath != -1 && payload.endPath == curPath) break;
         payload.after ? curPath++ : curPath--;
         node = payload.after ? node.next : node.previous;

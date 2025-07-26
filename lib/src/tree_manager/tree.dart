@@ -10,6 +10,10 @@ class Tree extends ValueNotifier<Node> implements TreeOperations {
   static const String id = 'Tree';
   Tree(this.root) : super(root);
 
+  factory Tree.json(Map<String, dynamic> json) {
+    return Tree(Node.root());
+  }
+
   factory Tree.root({
     required List<Node> nodes,
   }) {
@@ -20,10 +24,12 @@ class Tree extends ValueNotifier<Node> implements TreeOperations {
     );
   }
 
-  //TODO: build a indexedTree for every node (into the Node class)
-  // to cache these and make more fast the queries
   /// The root source of every Node used into the Tree
   final Node root;
+
+  final FixedListLength _changes = FixedListLength(
+    operations: <EasyOperation>[],
+  );
 
   /// updated externally for the editor, to cache the current position
   NodeLocation? lastKnowedLocation;
@@ -87,6 +93,20 @@ class Tree extends ValueNotifier<Node> implements TreeOperations {
       return null;
     }
     return targetNode.findById(id, deep: deep);
+  }
+
+  @override
+  NodeCursorPosLocation queryOffset(
+    int cursorPos, {
+    bool includeLastNode = false,
+    @experimental bool strict = false,
+  }) {
+    throw UnimplementedError();
+  }
+
+  @override
+  List<Node> querySelectedNodes(TextSelection selection) {
+    throw UnimplementedError();
   }
 
   /// Find the Node at the full path passed
@@ -220,30 +240,6 @@ class Tree extends ValueNotifier<Node> implements TreeOperations {
   }
 
   @override
-  int computeGlobalEndPosition(Node node) {
-    // TODO: implement computeGlobalEndPosition
-    throw UnimplementedError();
-  }
-
-  @override
-  int computeGlobalStartPosition(Node node) {
-    // TODO: implement computeGlobalStartPosition
-    throw UnimplementedError();
-  }
-
-  @override
-  TextRange computeLocalRangePosition(Node node) {
-    // TODO: implement computeLocalRangePosition
-    throw UnimplementedError();
-  }
-
-  @override
-  TextRange computeRangePosition(Node node) {
-    // TODO: implement computeRangePosition
-    throw UnimplementedError();
-  }
-
-  @override
   bool deleteNodesBySelection(TextSelection selection) {
     // TODO: implement deleteNodesBySelection
     throw UnimplementedError();
@@ -258,12 +254,6 @@ class Tree extends ValueNotifier<Node> implements TreeOperations {
   @override
   Node? getSelectedNode(TextSelection selection) {
     // TODO: implement getSelectedNode
-    throw UnimplementedError();
-  }
-
-  @override
-  List<Node> getSelectedNodes(TextSelection selection) {
-    // TODO: implement getSelectedNodes
     throw UnimplementedError();
   }
 
@@ -303,25 +293,6 @@ class Tree extends ValueNotifier<Node> implements TreeOperations {
     throw UnimplementedError();
   }
 
-  //TODO: literal esto solo es para imprimir las lineas (texto)
-  // que tenemos en el tree. Algo como un "editor" en la consola
-  // que muestra el contenido con las lineas:
-  //
-  // tipo:
-  //
-  // De esto:
-  //
-  // Paragraph
-  // │  Line 1
-  // │  └─── Text: 'My tipo de texto'
-  // │
-  // └─ Line 2
-  //    └─── Text: 'Debe estart dentro de aqui'
-  //
-  // A esto:
-  //
-  // 1. My tipo de texto
-  // 2. Debe estart dentro de aqui
   @visibleForTesting
   String printLines({Node? original, Node? now}) {
     int index = 1;

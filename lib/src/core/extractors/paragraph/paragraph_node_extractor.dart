@@ -108,28 +108,17 @@ class ParagraphNodeExtractor extends NodeExtractor<TextFragment> {
     List<int>? path,
     bool caseSensitive = true,
   }) {
-    if (node.value != null &&
-            node.value.runtimeType != limiter.typeValueAccepted ||
-        value.runtimeType != limiter.typeValueAccepted) {
-      return <NodeValueLocation>[];
-    }
-    assert(
-      value is String,
-      "ParagraphNodeExtractor only "
-      "accept strings values to get locations",
-    );
-
     path ??= <int>[];
     final String valueStr = value as String;
-    final String nodeValueStr = node.value == null ? "" : node.value.toString();
     final RegExp regexp = RegExp(valueStr, caseSensitive: caseSensitive);
 
     if (!limiter.shouldAvoidTraverseInto(node)) {
       int index = 0;
       final List<NodeValueLocation> locations = <NodeValueLocation>[];
-      while (index < node.length) {
-        final Node child = node.elementAt(index)
-          ..updatePathsIfNeeded(index, [...path, index]);
+
+      Node? child = node.firstChild;
+      while (child != null) {
+        child.updatePathsIfNeeded(index, [...path, index]);
         final List<NodeValueLocation> location = getLocationsOfValue(
           child,
           value,
@@ -140,13 +129,22 @@ class ParagraphNodeExtractor extends NodeExtractor<TextFragment> {
 
         locations.addAll(location);
 
+        child = child.next;
         index++;
       }
       return locations;
     }
-    if (nodeValueStr != "" && nodeValueStr.trim().isNotEmpty) {
-      final List<TextRange> ranges = <TextRange>[];
-      final Iterable<RegExpMatch> matches = regexp.allMatches(nodeValueStr);
+
+    assert(
+      node.value is Iterable<TextFragment>,
+      "ParagraphNodeExtractor only "
+      "accept List<TextFragment> or Iterable<TextFragment> values to get locations and"
+      " found ${node.value.runtimeType}",
+    );
+    final List<TextRange> ranges = <TextRange>[];
+    final String str = node.toPlainText();
+    if (str != "" && str.trim().isNotEmpty) {
+      final Iterable<RegExpMatch> matches = regexp.allMatches(str);
       if (matches.isEmpty) return <NodeValueLocation>[];
       for (final RegExpMatch match in matches) {
         ranges.add(TextRange(
@@ -154,14 +152,14 @@ class ParagraphNodeExtractor extends NodeExtractor<TextFragment> {
           end: match.end,
         ));
       }
-
-      return <NodeValueLocation>[
-        NodeValueLocation(
-          location: NodeLocation(path: path, node: node),
-          ranges: ranges,
-        )
-      ];
     }
-    return <NodeValueLocation>[];
+
+    if (ranges.isEmpty) return <NodeValueLocation>[];
+    return <NodeValueLocation>[
+      NodeValueLocation(
+        location: NodeLocation(path: path, node: node),
+        ranges: ranges,
+      )
+    ];
   }
 }

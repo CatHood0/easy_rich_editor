@@ -1,0 +1,121 @@
+part of 'package:easy_rich_editor/src/core/api/nodes/node.dart';
+
+extension NodeExt on Node {
+  bool get hasDefinedValue => value != null && value is List<TextFragment>;
+
+  bool get hasText =>
+      value != null &&
+      value is List<TextFragment> &&
+      value!.cast<List<TextFragment>>().isNotEmpty &&
+      value!.cast<List<TextFragment>>().first.data.runtimeType == String;
+
+  bool get isBlankText =>
+      value != null &&
+      value is List<TextFragment> &&
+      value!.cast<List<TextFragment>>().isNotEmpty;
+
+  bool get hasEmbed =>
+      value != null &&
+      value is List<TextFragment> &&
+      value!.cast<List<TextFragment>>().isNotEmpty &&
+      value!.cast<List<TextFragment>>().first.data.runtimeType == Map;
+
+  bool get isBlank => value == null;
+}
+
+extension NodeEquality on Iterable<Node> {
+  bool equals(Iterable<Node> other) {
+    if (length != other.length) {
+      return false;
+    }
+    for (var i = 0; i < length; i++) {
+      if (!_nodeEquals(elementAt(i), other.elementAt(i))) {
+        return false;
+      }
+    }
+    return true;
+  }
+
+  bool _nodeEquals<T, U>(T base, U other) =>
+      identical(this, other) ||
+      base is Node &&
+          other is Node &&
+          other.type == base.type &&
+          other.children.equals(base.children);
+}
+
+extension NodeUtilities on Node {
+  /// Determines if this Node has a direct value
+  ///
+  /// You can see this like the following diagram
+  ///
+  /// ```bash
+  /// Line
+  ///  └─── Text
+  ///
+  /// # or
+  ///
+  /// EmbedLine
+  ///  └─── Value
+  /// ```
+  bool hasDirectValue() {
+    return value != null || length == 1 && firstChild!.value != null;
+  }
+
+  Node deepCopy() {
+    return Node(
+      id: id,
+      type: type,
+      value: value,
+      parent: parent,
+      children: children
+          .map(
+            (e) => e.copyWith(),
+          )
+          .toList(),
+      metadata: <String, dynamic>{...metadata},
+    );
+  }
+
+  void forEach(void Function(Node node, int index) el) {
+    if (isEmpty) return;
+
+    Node? child = firstChild;
+    int index = 0;
+    while (child != null) {
+      el(child, index);
+      index++;
+      child = child.next;
+    }
+  }
+
+  Node copyWith({
+    String? type,
+    String? id,
+    Map<String, dynamic>? metadata,
+    List<Node>? children,
+    Node? parent,
+    Object? value,
+  }) {
+    return Node(
+      type: type ?? this.type,
+      value: value ?? this.value,
+      id: id ?? this.id,
+      parent: parent ?? this.parent,
+      children: children ?? [...this.children],
+    );
+  }
+
+  Map<String, dynamic> toJson() {
+    return {
+      "type": type,
+      "id": id,
+      "value": value,
+      "metadata": metadata,
+      "children": children,
+    };
+  }
+
+  @internal
+  bool get isRootOwner => id == Node.rootId || type == Node.rootId;
+}

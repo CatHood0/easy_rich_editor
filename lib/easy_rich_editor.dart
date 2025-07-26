@@ -2,7 +2,8 @@ library;
 
 // core
 export 'package:easy_rich_editor/src/core/api/document/document.dart';
-export 'package:easy_rich_editor/src/core/api/document/operations.dart';
+export 'package:easy_rich_editor/src/core/api/document/operations/operation.dart';
+export 'package:easy_rich_editor/src/core/api/document/operations/fixed_list_length.dart';
 // core -> Nodes
 export 'package:easy_rich_editor/src/core/api/nodes/node.dart';
 // core -> Parsers
@@ -13,6 +14,7 @@ export 'package:easy_rich_editor/src/core/api/selection/node_selection.dart';
 // core -> Locations
 export 'package:easy_rich_editor/src/core/api/location/node_location.dart';
 export 'package:easy_rich_editor/src/core/api/location/node_value_location.dart';
+export 'package:easy_rich_editor/src/core/api/location/node_cursor_pos_location.dart';
 // core -> builders
 export 'package:easy_rich_editor/src/core/builders/base_builder.dart';
 export 'package:easy_rich_editor/src/core/builders/paragraph/pr/paragraph_builder.dart';

@@ -1,5 +1,5 @@
 import 'package:easy_rich_editor/easy_rich_editor.dart';
-import 'package:flutter_quill_delta_easy_parser/blocks/text_fragment.dart';
+import 'package:flutter_quill_delta_easy_parser/flutter_quill_delta_easy_parser.dart';
 
 class ParagraphLimiter extends Limiter {
   static final ParagraphLimiter _instance = ParagraphLimiter._();
@@ -22,7 +22,7 @@ class ParagraphLimiter extends Limiter {
   }
 
   @override
-  Type get typeValueAccepted => TextFragment;
+  Type get typeValueAccepted => Iterable<TextFragment>;
 
   @override
   bool ignoreByEmptyValueOrInvalid(Node node) {

@@ -2,6 +2,7 @@ import 'dart:ui';
 
 import 'package:easy_rich_editor/easy_rich_editor.dart';
 import 'package:easy_rich_editor/src/core/extensions/object_ext.dart';
+import 'package:flutter_quill_delta_easy_parser/flutter_quill_delta_easy_parser.dart';
 import 'package:meta/meta.dart';
 
 class EmbedNodeExtractor extends NodeExtractor<Map<String, dynamic>> {
@@ -22,19 +23,18 @@ class EmbedNodeExtractor extends NodeExtractor<Map<String, dynamic>> {
   @internal
   @override
   List<String> formatObjectToStr(Object obj) {
-    assert(obj is List<Map<String, dynamic>> || obj is Map<String, dynamic>,
-        "The value passed must be a list of objects or just Map<String, dynamic>");
+    assert(obj is List<TextFragment>,
+        "The value passed must be a list of TextFragment");
     return [
-      if (obj is Map<String, dynamic>) _formatFragment(obj),
-      if (obj is Iterable<Map<String, dynamic>>)
-        ...obj.map<String>((Map<String, dynamic> fr) {
+      if (obj is Iterable<TextFragment>)
+        ...obj.map<String>((TextFragment fr) {
           return _formatFragment(fr);
         }),
     ];
   }
 
-  String _formatFragment(Map<String, dynamic> obj) {
-    return obj.toString();
+  String _formatFragment(TextFragment obj) {
+    return obj.data.toString();
   }
 
   @override

@@ -1,4 +1,5 @@
 import 'package:easy_rich_editor/easy_rich_editor.dart';
+import 'package:flutter_quill_delta_easy_parser/core/blocks/text_fragment.dart';
 
 class EmbedLimiter extends Limiter {
   static final EmbedLimiter _instance = EmbedLimiter._();
@@ -21,7 +22,7 @@ class EmbedLimiter extends Limiter {
   }
 
   @override
-  Type get typeValueAccepted => Map<String, dynamic>;
+  Type get typeValueAccepted => TextFragment;
 
   @override
   bool ignoreByEmptyValueOrInvalid(Node node) {
