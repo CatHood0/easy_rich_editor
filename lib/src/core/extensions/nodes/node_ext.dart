@@ -1,4 +1,4 @@
-part of 'package:easy_rich_editor/src/core/api/nodes/node.dart';
+part of 'package:easy_rich_editor/src/core/api/document/nodes/node.dart';
 
 extension NodeExt on Node {
   bool get hasDefinedValue => value != null && value is List<TextFragment>;

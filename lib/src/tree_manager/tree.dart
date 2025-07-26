@@ -7,7 +7,6 @@ import '../../internal.dart';
 
 @internal
 class Tree extends ValueNotifier<Node> implements TreeOperations {
-  static const String id = 'Tree';
   Tree(this.root) : super(root);
 
   factory Tree.json(Map<String, dynamic> json) {
@@ -26,13 +25,8 @@ class Tree extends ValueNotifier<Node> implements TreeOperations {
 
   /// The root source of every Node used into the Tree
   final Node root;
-
-  final FixedListLength _changes = FixedListLength(
-    operations: <EasyOperation>[],
-  );
-
-  /// updated externally for the editor, to cache the current position
-  NodeLocation? lastKnowedLocation;
+  final FixedListLength changes =
+      FixedListLength(operations: <EasyOperation>[]);
 
   /// A simple register with all the limiters.
   ///
@@ -67,6 +61,9 @@ class Tree extends ValueNotifier<Node> implements TreeOperations {
     return extractor!.canNodeHaveValueType(node, t);
   }
 
+  void registerLimiters(List<Map<String, Limiter>> customLimiters) {}
+  void registerExtractors(List<Map<String, NodeExtractor>> customExtractors) {}
+
   /// TODO: verify that the key exist
   static Limiter? getLimiter(String key) {
     return _limiters[key];
@@ -98,15 +95,80 @@ class Tree extends ValueNotifier<Node> implements TreeOperations {
   @override
   NodeCursorPosLocation queryOffset(
     int cursorPos, {
-    bool includeLastNode = false,
     @experimental bool strict = false,
   }) {
-    throw UnimplementedError();
+    if (strict) {
+      // at this point, we get just the parent that contains
+      // the node for this offset
+      final NodeCursorPosLocation parentLocation = root.queryPosition(
+        cursorPos,
+        includeLastNode: false,
+      );
+
+      if (parentLocation.notFoundLocation) {
+        return parentLocation;
+      }
+
+      // at this point, we get the line that contains our
+      // value
+      final NodeCursorPosLocation childLocation =
+          parentLocation.location!.node.queryPosition(
+        parentLocation.locationOffset,
+        includeLastNode: false,
+      );
+
+      if (childLocation.notFoundLocation) {
+        return childLocation;
+      }
+
+      // if found the node, but not the fragment
+      // this probably means
+      if (childLocation.foundButNotFragment) {
+        final NodeCursorPosLocation effectiveLocation = childLocation
+            .location!.node
+            .queryFragments(childLocation.locationOffset);
+
+        if (effectiveLocation.found) {
+          return effectiveLocation;
+        }
+      }
+
+      return childLocation;
+    }
+
+    return root.queryPosition(
+      cursorPos,
+      includeLastNode: false,
+    );
   }
 
   @override
-  List<Node> querySelectedNodes(TextSelection selection) {
-    throw UnimplementedError();
+  List<Node> querySelectedNodes(NodeSelection selection) {
+    final List<Node> nodes = <Node>[];
+
+    return nodes;
+  }
+
+  /// Queries the child [Node] at [offset] in this [Node].
+  (List<Node>, bool) collectNodesUntilOffset(Node node, int cursorPos) {
+    if (cursorPos < 0 || cursorPos > node.dataLength) {
+      return ([], true);
+    }
+
+    final List<Node> nodes = <Node>[];
+
+    for (final Node child in node.children) {
+      final int len = child.dataLength;
+      if (cursorPos < len) {
+        nodes.add(child);
+        cursorPos -= len - (len - cursorPos);
+        break;
+      }
+      nodes.add(child);
+      cursorPos -= len;
+    }
+
+    return (<Node>[], cursorPos > 0);
   }
 
   /// Find the Node at the full path passed

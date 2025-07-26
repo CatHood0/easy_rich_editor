@@ -1,4 +1,4 @@
-part of 'package:easy_rich_editor/src/core/api/nodes/node.dart';
+part of 'package:easy_rich_editor/src/core/api/document/nodes/node.dart';
 
 extension NodeOperations on Node {
   void insertNode(Node child, {int? path, bool after = false}) {
@@ -31,7 +31,7 @@ extension NodeOperations on Node {
     invalidateCache(justCache: true);
     invalidateDataOffset();
     // reset the current path of the node
-    after ? entry.path = path + 1 : child.path = path + 1;
+    after ? entry.path = path + 1 : child.path = path - 1;
     invalidateCacheOfSiblings(
       node: after ? entry : child,
       after: true,

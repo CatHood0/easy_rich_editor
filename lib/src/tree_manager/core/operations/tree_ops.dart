@@ -23,7 +23,6 @@ abstract interface class TreeOperations {
   /// until found the `Node` with the exact `TextFragment` position
   NodeCursorPosLocation? queryOffset(
     int cursorPos, {
-    bool includeLastNode = false,
     @experimental bool strict = false,
   });
 
@@ -31,7 +30,7 @@ abstract interface class TreeOperations {
   ///
   /// The result may contain the found node or `null` if no node is found
   /// at specified [selection].
-  List<Node> querySelectedNodes(TextSelection selection);
+  List<Node> querySelectedNodes(NodeSelection selection);
 
   bool insertNode(Node node, {List<int> path = const <int>[]});
   bool addNode(Node node, {List<int>? paths});

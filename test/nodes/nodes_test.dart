@@ -1,4 +1,5 @@
 import 'package:easy_rich_editor/easy_rich_editor.dart';
+import 'package:easy_rich_editor/internal.dart';
 import 'package:flutter_quill_delta_easy_parser/flutter_quill_delta_easy_parser.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -20,7 +21,7 @@ void main() {
       canModifyChildrenLength: false,
     );
 
-    paragraph.insertNode(node, path: 0, after: false);
+    paragraph.insertNode(node, path: 0, after: true);
     final rootNode = node.jumpToParent(stopAt: (node) {
       // if the parent of the cur parent, is null
       // means that we are currently at the root

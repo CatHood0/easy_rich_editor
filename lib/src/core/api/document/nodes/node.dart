@@ -315,13 +315,11 @@ final class Node extends LinkedListEntry<Node> {
   /// [NodeCursorPosLocation.locationOffset] is set to relative offset within returned child node
   /// which points at the same character position in the document as the
   /// original [offset]
-  // TODO: we can probably implement a fast version using
-  // ranges to know for what node we should start to traverse
   NodeCursorPosLocation queryPosition(
     int cursorPos, {
     bool includeLastNode = false,
   }) {
-    if (!isRootOwner && (cursorPos < 0 || cursorPos > dataLength)) {
+    if (cursorPos < 0 || cursorPos > dataLength) {
       return NodeCursorPosLocation.notFound();
     }
 
@@ -372,6 +370,40 @@ final class Node extends LinkedListEntry<Node> {
     return NodeCursorPosLocation.notFound();
   }
 
+  NodeCursorPosLocation queryFragments(int cursorPos) {
+    if (hasDefinedValue) return NodeCursorPosLocation.notFound();
+
+    if (cursorPos < 0 || cursorPos > dataLength) {
+      return NodeCursorPosLocation.notFound();
+    }
+
+    final List<TextFragment> frags = value!.castToFragments();
+    int fragOffset = 0;
+    for (int i = 0; i < frags.length; i++) {
+      final TextFragment frag = frags[i];
+      final int fragmentLength =
+          frag.data is String ? frag.data.castString().length : 1;
+
+      final int effectivePosition = fragOffset + fragmentLength;
+      // if the cursor is in this exact fragment
+      if (cursorPos < effectivePosition) {
+        return NodeCursorPosLocation(
+          location: NodeLocation(
+            path: <int>[...deepPath],
+            node: this,
+          ),
+          fragmentIndex: i,
+          fragmentOffset: cursorPos - fragOffset,
+          locationOffset: cursorPos,
+        );
+      }
+
+      fragOffset += fragmentLength;
+    }
+
+    return NodeCursorPosLocation.notFound();
+  }
+
   /// Simplifies the insertion, it mades the operation directly at the node
   /// passed. The node passed must contain a value
   void insertAtNode(Node line, int offset, Object data, {int? endOffset}) {
@@ -393,7 +425,6 @@ final class Node extends LinkedListEntry<Node> {
 
   @override
   void insertAfter(Node entry) {
-    if (!canAddOrRemovedChildren) return;
     // since we insert an element after this
     // the path changes, and we need a new reallocation
     int lastPathKnowed = _path;
@@ -420,7 +451,6 @@ final class Node extends LinkedListEntry<Node> {
 
   @override
   void insertBefore(Node entry) {
-    if (!canAddOrRemovedChildren) return;
     // since we insert an element before this
     // the path changes, and we need a new reallocation
     int lastPathKnowed = _path;

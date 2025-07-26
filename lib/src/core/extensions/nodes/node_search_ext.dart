@@ -1,4 +1,4 @@
-part of 'package:easy_rich_editor/src/core/api/nodes/node.dart';
+part of 'package:easy_rich_editor/src/core/api/document/nodes/node.dart';
 
 extension NodeSearchExt on Node {
   /// Search easily the node at the index passed using ranges
@@ -19,8 +19,7 @@ extension NodeSearchExt on Node {
       if (targetI >= endRange) {
         return lastChild?.fastSearch(targetI, into: false);
       }
-      firstChild?.fastSearch(targetI, into: false);
-      return null;
+      return firstChild?.fastSearch(targetI, into: false);
     }
 
     if (targetI == path) return this;

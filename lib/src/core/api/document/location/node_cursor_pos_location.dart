@@ -1,0 +1,68 @@
+import 'package:easy_rich_editor/easy_rich_editor.dart';
+
+/// The location of the current Node and
+/// the current ranges that matches with
+/// the values of these Nodes
+class NodeCursorPosLocation {
+  /// The exact location where we can found this [Node] 
+  /// conformed by a full path and the [Node]
+  final NodeLocation? location;
+
+  /// The exact index position of the [TextFragment]
+  final int fragmentIndex;
+
+  /// The exact relative cursor position
+  /// into the [TextFragment] defined in
+  /// [fragmentIndex]
+  final int fragmentOffset;
+
+  /// The exact relative cursor position
+  /// into the [Line] that satifies the tests
+  final int locationOffset;
+
+  NodeCursorPosLocation({
+    required this.location,
+    required this.fragmentIndex,
+    required this.fragmentOffset,
+    required this.locationOffset,
+  });
+
+  NodeCursorPosLocation.notFound()
+      : location = null,
+        fragmentOffset = -1,
+        locationOffset = -1,
+        fragmentIndex = -1;
+
+  /// Determines if we not found the [Node]
+  bool get notFoundLocation =>
+      location == null && fragmentIndex <= -1 && locationOffset <= -1;
+
+  /// Determines if we found the [Node]
+  bool get found => !notFoundLocation;
+
+  /// Determines if we found the [Node] but not the [TextFragment]
+  /// at the specified [Offset]
+  bool get foundButNotFragment =>
+      location != null && fragmentOffset <= -1 && fragmentIndex <= -1;
+
+  /// Determines if we found the [Node] and the [TextFragment] at the
+  /// specified [offset]
+  bool get foundOffset => found && fragmentOffset >= 0;
+
+  NodeCursorPosLocation withOffset(int offset) {
+    return NodeCursorPosLocation(
+      location: location,
+      fragmentIndex: fragmentIndex,
+      fragmentOffset: fragmentOffset,
+      locationOffset: offset,
+    );
+  }
+
+  @override
+  String toString() {
+    return 'NodeValueLocation(index: $fragmentIndex, '
+        'offset: $fragmentOffset, '
+        'locationOffset: $locationOffset, '
+        'location: $location)';
+  }
+}

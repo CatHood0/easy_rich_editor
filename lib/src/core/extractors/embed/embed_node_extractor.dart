@@ -5,7 +5,7 @@ import 'package:easy_rich_editor/src/core/extensions/object_ext.dart';
 import 'package:flutter_quill_delta_easy_parser/flutter_quill_delta_easy_parser.dart';
 import 'package:meta/meta.dart';
 
-class EmbedNodeExtractor extends NodeExtractor<Map<String, dynamic>> {
+class EmbedNodeExtractor extends NodeExtractor<TextFragment> {
   static final EmbedNodeExtractor _instance = EmbedNodeExtractor._();
 
   EmbedNodeExtractor._();
@@ -24,12 +24,11 @@ class EmbedNodeExtractor extends NodeExtractor<Map<String, dynamic>> {
   @override
   List<String> formatObjectToStr(Object obj) {
     assert(obj is List<TextFragment>,
-        "The value passed must be a list of TextFragment");
+        "The value passed must be a list of TextFragment but found ${obj.runtimeType}");
     return [
-      if (obj is Iterable<TextFragment>)
-        ...obj.map<String>((TextFragment fr) {
-          return _formatFragment(fr);
-        }),
+      ...obj.castToFragments().map<String>((TextFragment fr) {
+        return _formatFragment(fr);
+      }),
     ];
   }
 
@@ -47,12 +46,12 @@ class EmbedNodeExtractor extends NodeExtractor<Map<String, dynamic>> {
   }
 
   @override
-  List<Map<String, dynamic>> getValueFromNode(
+  List<TextFragment> getValueFromNode(
     Node node, {
     bool Function(Node value)? filter,
     bool needsTraverse = true,
   }) {
-    final List<Map<String, dynamic>> fragments = [];
+    final List<TextFragment> fragments = [];
 
     if (needsTraverse) {
       if (node.isEmpty) return fragments;
@@ -75,10 +74,10 @@ class EmbedNodeExtractor extends NodeExtractor<Map<String, dynamic>> {
     }
     if (node.type == ParagraphKeys.lineKey) {
       if (node.value == null) return fragments;
-      if (node.value is! Iterable<Map<String, dynamic>>) {
+      if (node.value is! Iterable<TextFragment>) {
         throw UnsupportedError(
           "Expected "
-          "List<Map<String, dynamic>> type, "
+          "List<TextFragment> type, "
           "founded: ${node.value.runtimeType} "
           "in ${node.type}:${node.id}",
         );
@@ -106,25 +105,14 @@ class EmbedNodeExtractor extends NodeExtractor<Map<String, dynamic>> {
     List<int>? path,
     bool caseSensitive = false,
   }) {
-    if (node.value != null &&
-            node.value.runtimeType != limiter.typeValueAccepted ||
-        value.runtimeType != limiter.typeValueAccepted) {
-      return <NodeValueLocation>[];
-    }
-    assert(
-      value is Map<String, dynamic>,
-      "EmbedNodeExtractor only "
-      "accept Map<String, dynamic> values to get locations",
-    );
-
     path ??= <int>[];
 
     if (!limiter.shouldAvoidTraverseInto(node)) {
       int index = 0;
       final List<NodeValueLocation> locations = <NodeValueLocation>[];
       while (index < node.length) {
-        final Node child = node.elementAt(index);
-        child.updatePathsIfNeeded(index, [...path, index]);
+        final Node child = node.elementAt(index)
+          ..updatePathsIfNeeded(index, [...path, index]);
         final List<NodeValueLocation> location = getLocationsOfValue(
           child,
           value,
@@ -139,6 +127,12 @@ class EmbedNodeExtractor extends NodeExtractor<Map<String, dynamic>> {
       }
       return locations;
     }
+    assert(
+      node.value is Iterable<TextFragment>,
+      "EmbedNodeExtractor only "
+      "accept List<TextFragment> or Iterable<TextFragment> values to get locations and"
+      " found ${node.value.runtimeType}",
+    );
     if (node.value == value) {
       return <NodeValueLocation>[
         NodeValueLocation(
