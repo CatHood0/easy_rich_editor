@@ -12,7 +12,7 @@ extension NodeExt on Node {
   bool get isBlankText =>
       value != null &&
       value is List<TextFragment> &&
-      value!.cast<List<TextFragment>>().isNotEmpty;
+      value!.cast<List<TextFragment>>().isEmpty;
 
   bool get hasEmbed =>
       value != null &&

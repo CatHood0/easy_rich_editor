@@ -13,7 +13,10 @@ extension NodeTreeDumperExt on Node {
       return buffer.toString();
     }
 
-    if (value == null || value!.castToFragments().isEmpty) return "";
+    if (value == null) return "";
+    // as we say, all the blank lines are
+    // referenced as a new line
+    if (isBlankText) return "\\n";
 
     for (final TextFragment frag in value!.castToFragments()) {
       if (frag.data is! String) {
@@ -58,7 +61,8 @@ extension NodeTreeDumperExt on Node {
 
     final Limiter? limiter = Tree.getLimiter(type);
     final StringBuffer buffer = StringBuffer("")
-      ..write("$type(${id.substring(0, 4).trim()}-[$path]):");
+      ..write(
+          "$type(${id.substring(0, 4).trim()}-[$path]): Offset(g: $globalOffset, l: $dataLength)");
     if (listEquals(currentPath, deepPath)) {
       buffer.write(" < Cursor position");
     }

@@ -13,6 +13,7 @@ extension NodeOperations on Node {
     if (path == null || path >= length) {
       children.add(child);
       invalidateCache(justCache: true);
+      invalidateDataOffset();
       return;
     }
 
@@ -28,6 +29,7 @@ extension NodeOperations on Node {
       entry.insertBefore(child);
     }
     invalidateCache(justCache: true);
+    invalidateDataOffset();
     // reset the current path of the node
     after ? entry.path = path + 1 : child.path = path + 1;
     invalidateCacheOfSiblings(
@@ -48,6 +50,7 @@ extension NodeOperations on Node {
 
     node.unlink();
     invalidateCache(justCache: true);
+    invalidateDataOffset();
 
     if (sibling != null) {
       sibling.path = path == 0 ? 0 : path - 1;

@@ -17,7 +17,7 @@ extension NodeOffsetExt on Node {
       if (node == this) {
         break;
       }
-      offset += node.length;
+      offset += node.dataLength;
     }
 
     _offset = offset;

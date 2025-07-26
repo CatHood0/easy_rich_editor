@@ -7,6 +7,7 @@ import 'package:easy_rich_editor/src/logger/editor_logger.dart';
 import 'package:easy_rich_editor/src/utils/background_isolate_runner/isolate_runner.dart';
 import 'package:easy_rich_editor/src/utils/utils.dart';
 import 'package:flutter/foundation.dart';
+import 'package:flutter/material.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_quill_delta_easy_parser/flutter_quill_delta_easy_parser.dart';
 import 'package:easy_rich_editor/internal.dart';
@@ -86,14 +87,15 @@ final class Node extends LinkedListEntry<Node> {
     Map<String, dynamic>? metadata,
     String? id,
     bool canModifyChildrenLength = true,
+    Map<String, dynamic>? blockAttributes,
     List<Node> children = const [],
   }) {
     this.value = value;
-    metadata ??= <String, dynamic>{};
     this.id = id ?? nanoid(8);
-    this.metadata = {...metadata};
-    metadata['can_modify_children_length'] = canModifyChildrenLength;
+    this.metadata = <String, dynamic>{...?metadata};
+    this.metadata['can_modify_children_length'] = canModifyChildrenLength;
     adoptChildren(children);
+    this.metadata['pr_attributes'] = blockAttributes;
   }
 
   Node.fromParagraphEmbed({
@@ -124,6 +126,7 @@ final class Node extends LinkedListEntry<Node> {
       insertNode(line);
       _fastIndexTreePart[line.id] = line;
     }
+    metadata['pr_attributes'] = paragraph.blockAttributes;
   }
 
   Node.fromParagraph({
@@ -141,9 +144,13 @@ final class Node extends LinkedListEntry<Node> {
       final Line line = lines[i];
       final Node lineNode = Node(
         type: ParagraphKeys.lineKey,
-        value: <TextFragment>[
-          ...line.fragments,
-        ],
+        // we will never accept new lines
+        // as fragments
+        value: paragraph.isNewLine || paragraph.isNewLineWithBlockAttributes
+            ? <TextFragment>[]
+            : <TextFragment>[
+                ...line.fragments,
+              ],
         children: <Node>[],
         parent: this,
         id: line.id,
@@ -152,6 +159,7 @@ final class Node extends LinkedListEntry<Node> {
       insertNode(lineNode);
       _fastIndexTreePart[lineNode.id] = lineNode;
     }
+    metadata['pr_attributes'] = paragraph.blockAttributes;
   }
 
   Node.text({
@@ -207,18 +215,23 @@ final class Node extends LinkedListEntry<Node> {
     if (!hasDefinedValue) {
       _dataLength ??= children.fold<int>(
         0,
-        (int prev, Node n) => prev + n.dataLength,
+        (int? prev, Node n) => (prev ?? 0) + n.dataLength,
       );
       return _dataLength!;
     }
 
-    if (_value == null) return -1;
+    if (_value == null) return 0;
+    if (_dataLength != null) return _dataLength!;
+    if (_value is! List<TextFragment>) return _dataLength ??= 0;
+    // we count all blank lines as new lines
+    if (isBlankText) return _dataLength ??= 1;
 
-    if (_value is! String) {
-      return _dataLength ??= 1;
+    int length = 0;
+    for (TextFragment frag in _value!.castToFragments()) {
+      length += frag.isText ? frag.data.castString().length : 1;
     }
 
-    return (_dataLength ??= _value?.cast<String>().length)!;
+    return _dataLength = length;
   }
 
   bool get canAddOrRemovedChildren =>
@@ -308,7 +321,7 @@ final class Node extends LinkedListEntry<Node> {
     int cursorPos, {
     bool includeLastNode = false,
   }) {
-    if (cursorPos < 0 || cursorPos > dataLength) {
+    if (!isRootOwner && (cursorPos < 0 || cursorPos > dataLength)) {
       return NodeCursorPosLocation.notFound();
     }
 
