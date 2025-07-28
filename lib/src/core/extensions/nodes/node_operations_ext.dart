@@ -46,7 +46,7 @@ extension NodeOperations on Node {
       "The node passed must be at the same Parent of $id",
     );
     final int path = node.path;
-    Node? sibling = node.next;
+    Node? sibling = path + 1 >= length ? null : node.parent!.children[path + 1];
 
     node.unlink();
     invalidateCache(justCache: true);

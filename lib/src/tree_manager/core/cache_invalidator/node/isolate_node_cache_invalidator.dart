@@ -73,23 +73,24 @@ class IsolateNodeCacheInvalidator {
 
   @pragma('vm:entry-point')
   static NodePathCacheResult _invalidateCacheOrReset(
-      NodePathCachePayload payload) {
+    NodePathCachePayload payload,
+  ) {
     if (payload.path != -1) {
       // get the exact index to start the resetting
       int curPath = payload.after ? payload.path + 1 : payload.path - 1;
-      Node? node = payload.after ? payload.node.next : payload.node.previous;
       EasyEditorLogger.treeBackgroundRunners.debug(
         'Starting resetting of paths '
         'from $curPath until ${payload.node.parent?.length} path',
       );
-      while (node != null) {
-        node.path = curPath;
+      for (int i = curPath;
+          payload.after ? i > payload.root.length : i > 0;
+          payload.after ? i++ : i--) {
+        final Node node = payload.root.children[i]..path = curPath;
         final List<int> effectiveDeepPath = <int>[...node.deepPath]
           ..[node.deepPath.length - 1] = curPath + 1;
         node.deepPath = effectiveDeepPath;
         if (payload.endPath != -1 && payload.endPath == curPath) break;
         payload.after ? curPath++ : curPath--;
-        node = payload.after ? node.next : node.previous;
       }
       EasyEditorLogger.treeBackgroundRunners.debug(
         'Completed resettings of paths '
@@ -97,14 +98,12 @@ class IsolateNodeCacheInvalidator {
       );
       return NodePathCacheResult();
     }
-    Node? node = payload.root.firstChild;
     EasyEditorLogger.treeBackgroundRunners.debug(
       'Starting invalidation of paths '
       'from 0 until ${payload.root.length} path',
     );
-    while (node != null) {
+    for (final Node node in payload.root.children) {
       node.invalidateCache();
-      node = node.next;
     }
     EasyEditorLogger.treeBackgroundRunners.debug(
       'Completed invalidation of paths '

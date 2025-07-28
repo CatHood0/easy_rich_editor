@@ -114,11 +114,11 @@ class Tree extends ValueNotifier<Node> implements TreeOperations {
       final NodeCursorPosLocation childLocation =
           parentLocation.location!.node.queryPosition(
         parentLocation.locationOffset,
-        includeLastNode: false,
+        includeLastNode: true,
       );
 
       if (childLocation.notFoundLocation) {
-        return childLocation;
+        return parentLocation;
       }
 
       // if found the node, but not the fragment
@@ -145,6 +145,11 @@ class Tree extends ValueNotifier<Node> implements TreeOperations {
   @override
   List<Node> querySelectedNodes(NodeSelection selection) {
     final List<Node> nodes = <Node>[];
+    final NodeSelection normalizedSelection = selection.normalized;
+
+    if (selection.selectedNodes != null) {
+      return selection.selectedNodes!;
+    }
 
     return nodes;
   }
@@ -202,9 +207,7 @@ class Tree extends ValueNotifier<Node> implements TreeOperations {
     );
     final List<NodeValueLocation> locations = <NodeValueLocation>[];
 
-    int rootIndex = 0;
-    Node? rootNode = root.firstChild;
-    while (rootNode != null) {
+    root.forEach((rootNode, rootIndex) {
       // since we are searching the nodes based on the path
       // we can just redefining its path if them required
       //
@@ -223,9 +226,7 @@ class Tree extends ValueNotifier<Node> implements TreeOperations {
       );
 
       locations.addAll(location);
-      rootNode = rootNode.next;
-      rootIndex++;
-    }
+    });
 
     return <NodeValueLocation>[...locations];
   }
@@ -358,8 +359,7 @@ class Tree extends ValueNotifier<Node> implements TreeOperations {
   @visibleForTesting
   String printLines({Node? original, Node? now}) {
     int index = 1;
-    Node? rootNode = root.firstChild;
-    if (rootNode == null) return "1. ~\n";
+    if (root.isEmpty) return "1. ~\n";
     final StringBuffer buffer = StringBuffer();
 
     void writeSubNodes(Node node, Limiter limiter) {
@@ -379,18 +379,14 @@ class Tree extends ValueNotifier<Node> implements TreeOperations {
         return;
       }
 
-      Node? subNode = node.firstChild;
-
-      while (subNode != null) {
+      for (final Node subNode in node.children) {
         writeSubNodes(subNode, limiter);
-        subNode = subNode.next;
       }
     }
 
-    while (rootNode != null) {
+    for (final Node rootNode in root.children) {
       final Limiter limiter = getLimiter(rootNode.type)!;
       writeSubNodes(rootNode, limiter);
-      rootNode = rootNode.next;
     }
 
     return buffer.toString();

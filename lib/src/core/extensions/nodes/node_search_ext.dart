@@ -2,6 +2,7 @@ part of 'package:easy_rich_editor/src/core/api/document/nodes/node.dart';
 
 extension NodeSearchExt on Node {
   /// Search easily the node at the index passed using ranges
+  //TODO: implement binary search
   Node? fastSearch(int targetI, {bool into = true, int? endRangeLimit}) {
     RangeError.checkNotNegative(targetI);
     if (into) {
@@ -24,6 +25,7 @@ extension NodeSearchExt on Node {
 
     if (targetI == path) return this;
 
+    if (parent!.isEmpty) return null;
     if (targetI >= parent!.length) {
       throw RangeError.range(
         targetI,
@@ -36,31 +38,36 @@ extension NodeSearchExt on Node {
     final bool isBack = targetI < path;
     final bool isFront = targetI > path;
     if (isBack) {
-      Node? prev = previous;
-      while (prev!.path > targetI) {
-        prev = prev.previous;
-        if (prev == null) break;
+      Node? prev;
+      for (int i = path; i > 0; i--) {
+        prev = parent!.children[i];
+        if (targetI == i) {
+          break;
+        }
       }
 
-      if (prev?.path == targetI) return prev;
+      return prev;
     }
 
     if (isFront) {
-      Node? nextN = next;
-      while (nextN!.path < targetI) {
-        nextN = nextN.next;
-        if (nextN == null) break;
+      Node? next;
+      for (int i = path; i < length; i++) {
+        next = parent!.children[i];
+        if (targetI == i) {
+          break;
+        }
       }
 
-      if (nextN?.path == targetI) return nextN;
+      return next;
     }
 
     return null;
   }
 
-  Node elementAt(int index) => fastSearch(index)!;
+  Node elementAt(int index) => children[index];
 
-  Node? elementAtOrNull(int index) => fastSearch(index);
+  Node? elementAtOrNull(int index) =>
+      isEmpty || index < 0 || index >= length ? null : children[index];
 
   bool contains(String id) => _fastIndexTreePart[id] != null;
 

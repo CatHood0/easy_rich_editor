@@ -2,6 +2,7 @@ import 'dart:collection';
 import 'dart:convert';
 
 import 'package:collection/collection.dart';
+import 'package:easy_rich_editor/src/core/api/document/path/path.dart';
 import 'package:easy_rich_editor/src/core/extensions/object_ext.dart';
 import 'package:easy_rich_editor/src/logger/editor_logger.dart';
 import 'package:easy_rich_editor/src/utils/background_isolate_runner/isolate_runner.dart';
@@ -20,13 +21,13 @@ part 'package:easy_rich_editor/src/core/extensions/nodes/node_search_ext.dart';
 part 'package:easy_rich_editor/src/core/extensions/nodes/node_printer_ext.dart';
 part 'package:easy_rich_editor/src/core/extensions/nodes/node_operations_ext.dart';
 
-final class Node extends LinkedListEntry<Node> {
+final class Node {
   String type;
   Node? parent;
   late Map<String, dynamic> metadata = <String, dynamic>{};
   late final String id;
 
-  final LinkedList<Node> children = LinkedList<Node>();
+  final List<Node> children = <Node>[];
   final GlobalKey<State<StatefulWidget>> key =
       GlobalKey<State<StatefulWidget>>();
   final LayerLink nodeLink = LayerLink();
@@ -60,6 +61,8 @@ final class Node extends LinkedListEntry<Node> {
   int? _cachedLength;
   // current path of this node
   int _path = -1;
+
+  static const int _notFoundPath = -1;
 
   // current full path of this node
   List<int> _deepPath = <int>[-1];
@@ -201,9 +204,14 @@ final class Node extends LinkedListEntry<Node> {
     insertNode(lineNode);
   }
 
-  /// Contents of this node, either a String if this is a [QuillText] or an
-  /// [Embed] if this is an [BlockEmbed].
   Object? get value => _value;
+
+  Node? get next => parent == null || path.next >= parent!.length
+      ? null
+      : parent!.children[path.next];
+
+  Node? get previous =>
+      parent == null || path.prev < 0 ? null : parent!.children[path.prev];
 
   set value(Object? v) {
     _value = v;
@@ -276,6 +284,7 @@ final class Node extends LinkedListEntry<Node> {
   /// we don't need recompute the path really
   void invalidateCache({bool justCache = false}) {
     _cachedLength = null;
+    parent?._cachedLength = null;
     if (!justCache) {
       needsComputePath = true;
       needsComputeFullPath = true;
@@ -284,17 +293,20 @@ final class Node extends LinkedListEntry<Node> {
 
   int get length => _cachedLength ??= children.length;
 
-  Node? get firstChild => isEmpty ? null : children.first;
+  Node? get firstChild => children.firstOrNull;
   Node? firstWhere(bool Function(Node) expr) => children.firstWhereOrNull(expr);
 
-  Node? get lastChild => isEmpty ? null : children.last;
+  Node? get lastChild => isEmpty ? null : children[length - 1];
   Node? lastWhere(bool Function(Node) expr) => children.lastWhereOrNull(expr);
 
+  Node get first => firstChild!;
+  Node get last => lastChild!;
+
   /// Returns `true` if this node is the first node in the [parent] list.
-  bool get isFirst => list!.first == this;
+  bool get isFirst => parent?.first == this;
 
   /// Returns `true` if this node is the last node in the [parent] list.
-  bool get isLast => list!.last == this;
+  bool get isLast => parent?.last == this;
 
   bool get isEmpty => length < 1;
   bool get isNotEmpty => !isEmpty;
@@ -315,7 +327,7 @@ final class Node extends LinkedListEntry<Node> {
   /// [NodeCursorPosLocation.locationOffset] is set to relative offset within returned child node
   /// which points at the same character position in the document as the
   /// original [offset]
-  NodeCursorPosLocation queryPosition(
+  NodeCursorPosLocation queryPositionLinear(
     int cursorPos, {
     bool includeLastNode = false,
   }) {
@@ -370,8 +382,85 @@ final class Node extends LinkedListEntry<Node> {
     return NodeCursorPosLocation.notFound();
   }
 
+  /// The same than [queryPosition] but applying
+  /// **binary search algorithm**
+  NodeCursorPosLocation queryPosition(
+    int cursorPos, {
+    bool includeLastNode = false,
+  }) {
+    if (cursorPos < 0 || cursorPos > dataLength) {
+      return NodeCursorPosLocation.notFound();
+    }
+
+    if (includeLastNode && cursorPos == dataLength && isNotEmpty) {
+      final lastNode = children.last;
+      return NodeCursorPosLocation(
+        location: NodeLocation(path: [...lastNode.deepPath], node: lastNode),
+        fragmentIndex: -1,
+        fragmentOffset: -1,
+        locationOffset: lastNode.dataLength,
+      );
+    }
+
+    int low = 0;
+    int high = length - 1;
+
+    while (low <= high) {
+      final int mid = (low + high) ~/ 2;
+      final Node node = children[mid];
+
+      final int actualStart = node.globalStart - globalStart;
+      final int actualEnd = node.globalEnd - globalStart;
+
+      if (cursorPos >= actualStart && cursorPos < actualEnd) {
+        final int localOffset = cursorPos - actualStart;
+        if (node.hasDefinedValue) {
+          final List<TextFragment> frags = node.value!.castToFragments();
+          int fragOffset = 0;
+          for (int i = 0; i < frags.length; i++) {
+            final frag = frags[i];
+            final fragmentLength =
+                frag.data is String ? frag.data.castString().length : 1;
+
+            if (localOffset < fragOffset + fragmentLength) {
+              return NodeCursorPosLocation(
+                location: NodeLocation(path: [...node.deepPath], node: node),
+                fragmentIndex: i,
+                fragmentOffset: localOffset - fragOffset,
+                locationOffset: localOffset,
+              );
+            }
+            fragOffset += fragmentLength;
+          }
+        }
+
+        return NodeCursorPosLocation(
+          location: NodeLocation(path: [...node.deepPath], node: node),
+          fragmentIndex: -1,
+          fragmentOffset: -1,
+          locationOffset: localOffset,
+        );
+      } else if (includeLastNode &&
+          cursorPos == actualEnd &&
+          mid == length - 1) {
+        return NodeCursorPosLocation(
+          location: NodeLocation(path: [...node.deepPath], node: node),
+          fragmentIndex: -1,
+          fragmentOffset: -1,
+          locationOffset: node.dataLength,
+        );
+      } else if (cursorPos < actualStart) {
+        high = mid - 1;
+      } else {
+        low = mid + 1;
+      }
+    }
+
+    return NodeCursorPosLocation.notFound();
+  }
+
   NodeCursorPosLocation queryFragments(int cursorPos) {
-    if (hasDefinedValue) return NodeCursorPosLocation.notFound();
+    if (!hasDefinedValue) return NodeCursorPosLocation.notFound();
 
     if (cursorPos < 0 || cursorPos > dataLength) {
       return NodeCursorPosLocation.notFound();
@@ -423,14 +512,17 @@ final class Node extends LinkedListEntry<Node> {
 
   void delete(int from, int to) {}
 
-  @override
+  // FIXME: probably we can found a better way to cache the data length
+  // instead of invalidating always the parent
   void insertAfter(Node entry) {
     // since we insert an element after this
     // the path changes, and we need a new reallocation
-    int lastPathKnowed = _path;
-    super.insertAfter(entry);
+    int lastPathKnowed = path;
     final List<int> effectiveDeepPath = <int>[..._deepPath];
-    _deepPath[_deepPath.length - 1] = _path + 1;
+    _deepPath[_deepPath.length - 1] = lastPathKnowed + 1;
+    isLast
+        ? parent!.children.add(entry)
+        : parent!.children.insert(lastPathKnowed + 1, entry);
     entry
       ..parent = parent
       // to avoid recomputing of a knowed path
@@ -438,8 +530,9 @@ final class Node extends LinkedListEntry<Node> {
       ..path = lastPathKnowed++
       ..deepPath = effectiveDeepPath;
     invalidateCache();
+    invalidateDataOffset();
     _fastIndexTreePart[entry.id] = entry;
-    if (entry.next != null) {
+    if (lastPathKnowed + 1 < length) {
       // reset the current path of the node
       invalidateCacheOfSiblings(
         node: entry,
@@ -449,25 +542,27 @@ final class Node extends LinkedListEntry<Node> {
     }
   }
 
-  @override
   void insertBefore(Node entry) {
     // since we insert an element before this
     // the path changes, and we need a new reallocation
-    int lastPathKnowed = _path;
-    super.insertBefore(entry);
+    int lastPathKnowed = path;
+    isLast
+        ? parent!.children.add(entry)
+        : parent!.children.insert(lastPathKnowed, entry);
     entry
       ..parent = parent
       // to avoid recomputing of a knowed path
       // just set it
       ..path = lastPathKnowed
       ..deepPath = <int>[..._deepPath];
+    _fastIndexTreePart[entry.id] = entry;
     invalidateCache();
+    invalidateDataOffset();
     lastPathKnowed++;
     final List<int> effectiveDeepPath = <int>[..._deepPath]
-      ..[_deepPath.length - 1] = _path + 1;
+      ..[_deepPath.length - 1] = lastPathKnowed;
     path = lastPathKnowed;
     deepPath = effectiveDeepPath;
-    _fastIndexTreePart[entry.id] = entry;
     if (next != null) {
       // reset the current path of the node
       invalidateCacheOfSiblings(
@@ -478,14 +573,16 @@ final class Node extends LinkedListEntry<Node> {
     }
   }
 
-  @override
   void unlink() {
-    super.unlink();
-    if (parent != null) {
-      parent!._removeCached(this);
-      parent = null;
-      invalidateCache();
-    }
+    assert(
+        parent != null,
+        'unlink cannot be executed if '
+        'there\'s no parent relationship');
+    parent!.removeNode(this);
+    parent!._removeCached(this);
+    parent!.invalidateDataOffset();
+    parent = null;
+    invalidateCache();
   }
 
   void updatePathsIfNeeded(int path, List<int> fullPath) {
@@ -512,21 +609,48 @@ final class Node extends LinkedListEntry<Node> {
         'parent that wrap it');
 
     needsComputePath = false;
-    final int lastPath = _path;
-    for (int i = 0; i < parent!.length; i++) {
-      Node child = parent!.children.elementAt(i);
-      if (child.id == id) {
-        _path = i;
+    int low = 0;
+    int high = parent!.length - 1;
+    _path = -1;
+
+    while (low <= high) {
+      int mid = (low + high) ~/ 2;
+      Node child = parent!.children[mid];
+
+      if (child.globalStart == globalStart) {
+        if (child.id != id) {
+          break;
+        }
+        _path = mid;
         break;
+      } else if (child.globalStart < globalStart) {
+        low = mid + 1;
+      } else {
+        high = mid - 1;
+      }
+    }
+
+    /// Try to make an linear search in case that
+    /// binary search does not found the path
+    if (_path == _notFoundPath) {
+      for (int i = 0; i < parent!.length; i++) {
+        if (parent!.children[i].id == id) {
+          _path = i;
+          break;
+        }
       }
     }
 
     /// This never happen, since, when `needsComputePath`
     /// is `true`, it means that the Node was moved, and requires
     /// a new value to be catched
-    if (_path == lastPath) {
+    if (_path == _notFoundPath) {
       throw Exception(
-        "Not found child(${id.substring(0, 6)}) in parent(${parent!.id.substring(0, 6)})",
+        "Not found "
+        "child("
+        "${id.substring(0, id.length > 5 ? 6 : 4)}) "
+        "in parent("
+        "${parent!.id.substring(0, parent!.id.length > 5 ? 6 : 4)})",
       );
     }
 
@@ -546,7 +670,7 @@ final class Node extends LinkedListEntry<Node> {
   /// Get a normalized list of paths where this Node is
   List<int> get deepPath {
     if (!needsComputeFullPath) return _deepPath;
-    if (parent == null) return [];
+    if (parent == null) return <int>[];
 
     final List<int> path = [this.path];
 
@@ -554,7 +678,7 @@ final class Node extends LinkedListEntry<Node> {
 
     while (curParent != null) {
       // we ignore always the root
-      if (curParent.id == Node.rootId) {
+      if (curParent.isRootOwner) {
         break;
       }
       path.add(curParent.path);

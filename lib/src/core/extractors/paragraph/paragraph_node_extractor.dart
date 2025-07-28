@@ -50,10 +50,8 @@ class ParagraphNodeExtractor extends NodeExtractor<TextFragment> {
 
     if (needsTraverse) {
       if (node.isEmpty) return fragments;
-      Node? subNode = node.firstChild;
-      while (subNode != null) {
+      for (final Node subNode in node.children) {
         if (filter != null && !filter(subNode)) {
-          subNode = subNode.next;
           continue;
         }
         fragments.addAll(
@@ -63,7 +61,6 @@ class ParagraphNodeExtractor extends NodeExtractor<TextFragment> {
             needsTraverse: needsTraverse,
           ),
         );
-        subNode = subNode.next;
       }
       return fragments;
     }
@@ -116,8 +113,7 @@ class ParagraphNodeExtractor extends NodeExtractor<TextFragment> {
       int index = 0;
       final List<NodeValueLocation> locations = <NodeValueLocation>[];
 
-      Node? child = node.firstChild;
-      while (child != null) {
+      for (final Node child in node.children) {
         child.updatePathsIfNeeded(index, [...path, index]);
         final List<NodeValueLocation> location = getLocationsOfValue(
           child,
@@ -129,7 +125,6 @@ class ParagraphNodeExtractor extends NodeExtractor<TextFragment> {
 
         locations.addAll(location);
 
-        child = child.next;
         index++;
       }
       return locations;

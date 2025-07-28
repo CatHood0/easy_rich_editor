@@ -1,7 +1,14 @@
 import 'package:flutter_quill_delta_easy_parser/flutter_quill_delta_easy_parser.dart';
+
 import '../../../../../easy_rich_editor.dart';
 
 class EasyOperation {
+  static const String deleteKey = 'delete';
+  static const String insertKey = 'insert';
+  static const String updateKey = 'update';
+  static const String ignoreKey = 'ignore';
+  static const String moveKey = 'move';
+
   final String type;
 
   // This must be a copy of the original object
@@ -58,18 +65,6 @@ class EasyOperation {
         metadataChange = null,
         type = insertKey;
 
-  /// Update is only used when a change in
-  /// the attributes of a node is applied
-  EasyOperation.update({
-    required this.startOffset,
-    required this.endOffset,
-    required this.targetChange,
-    this.metadataChange,
-  })  : moveFrom = null,
-        data = null,
-        moveTo = null,
-        type = updateKey;
-
   /// Move is only used when we moves
   /// a nodes to another place from its
   /// original position
@@ -83,15 +78,21 @@ class EasyOperation {
         metadataChange = null,
         type = moveKey;
 
-  bool get isInsert => type == insertKey;
+  /// Update is only used when a change in
+  /// the attributes of a node is applied
+  EasyOperation.update({
+    required this.startOffset,
+    required this.endOffset,
+    required this.targetChange,
+    this.metadataChange,
+  })  : moveFrom = null,
+        data = null,
+        moveTo = null,
+        type = updateKey;
+
   bool get isDelete => type == deleteKey;
   bool get isIgnore => type == ignoreKey;
-  bool get isUpdate => type == updateKey;
+  bool get isInsert => type == insertKey;
   bool get isMove => type == moveKey;
-
-  static const String deleteKey = 'delete';
-  static const String insertKey = 'insert';
-  static const String updateKey = 'update';
-  static const String ignoreKey = 'ignore';
-  static const String moveKey = 'move';
+  bool get isUpdate => type == updateKey;
 }

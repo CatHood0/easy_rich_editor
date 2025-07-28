@@ -80,12 +80,11 @@ extension NodeUtilities on Node {
   void forEach(void Function(Node node, int index) el) {
     if (isEmpty) return;
 
-    Node? child = firstChild;
     int index = 0;
-    while (child != null) {
+    for (int i = 0; i < length; i++) {
+      final Node child = children[i];
       el(child, index);
       index++;
-      child = child.next;
     }
   }
 

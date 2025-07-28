@@ -5,19 +5,18 @@ extension NodeOffsetExt on Node {
   ///
   /// To get offset of this node in the Tree see [globalOffset].
   int get offset {
-    if (_offset != null) {
-      return _offset!;
-    }
+    if (_offset != null) return _offset!;
 
-    if (list == null || isFirst) {
+    if (parent == null || isFirst) {
+      _offset = 0;
       return 0;
     }
+
+    final List<Node> siblings = parent!.children;
     int offset = 0;
-    for (final Node node in list!) {
-      if (node == this) {
-        break;
-      }
-      offset += node.dataLength;
+    for (int i = 0; i < siblings.length; i++) {
+      if (siblings[i] == this) break;
+      offset += siblings[i].dataLength;
     }
 
     _offset = offset;
@@ -31,5 +30,27 @@ extension NodeOffsetExt on Node {
     }
     final int parentOffset = !parent!.isRootOwner ? parent!.globalOffset : 0;
     return parentOffset + offset;
+  }
+
+  /// Start Offset in characters of this node in the Tree.
+  int get globalStart {
+    if (parent == null) {
+      return offset;
+    }
+    final int parentOffset = !parent!.isRootOwner ? parent!.globalOffset : 0;
+    return parentOffset + offset;
+  }
+
+  /// End Offset in characters of this node in the Tree.
+  int get globalEnd {
+    if (parent == null) {
+      return offset + dataLength;
+    }
+    final int parentOffset = !parent!.isRootOwner ? parent!.globalOffset : 0;
+    return (parentOffset + offset) + dataLength;
+  }
+
+  bool containsSelection(NodeSelection selection) {
+    return false;
   }
 }

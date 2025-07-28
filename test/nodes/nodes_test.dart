@@ -1,5 +1,4 @@
 import 'package:easy_rich_editor/easy_rich_editor.dart';
-import 'package:easy_rich_editor/internal.dart';
 import 'package:flutter_quill_delta_easy_parser/flutter_quill_delta_easy_parser.dart';
 import 'package:flutter_test/flutter_test.dart';
 

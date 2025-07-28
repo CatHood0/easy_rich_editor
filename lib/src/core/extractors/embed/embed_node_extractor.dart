@@ -55,10 +55,8 @@ class EmbedNodeExtractor extends NodeExtractor<TextFragment> {
 
     if (needsTraverse) {
       if (node.isEmpty) return fragments;
-      Node? subNode = node.firstChild;
-      while (subNode != null) {
+      for (final Node subNode in node.children) {
         if (filter != null && !filter(subNode)) {
-          subNode = subNode.next;
           continue;
         }
         fragments.addAll(
@@ -68,7 +66,6 @@ class EmbedNodeExtractor extends NodeExtractor<TextFragment> {
             needsTraverse: needsTraverse,
           ),
         );
-        subNode = subNode.next;
       }
       return fragments;
     }

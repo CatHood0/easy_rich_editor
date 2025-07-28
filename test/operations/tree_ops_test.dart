@@ -32,19 +32,33 @@ void main() {
         <int>[5, 2],
       );
     });
+    test('Get the new line at offset 110', () async {
+      final NodeCursorPosLocation location = tree.queryOffset(
+        110,
+        strict: true,
+      );
+      expect(location.found, isTrue);
+      expect(location.location, isNotNull);
+      expect(location.location!.path, isNotEmpty);
+      expect(location.location!.path, [3, 0]);
+      expect(
+          location.location!.node,
+          tree.queryPath(
+            [3, 0],
+          ));
+
+      expect(location.location!.node.type, ParagraphKeys.lineKey);
+    });
   });
 
   group('Add nodes', () {
     test('insert node at start', () {
-      final node = randomNode;
+      final Node node = randomNode;
       tree.addNode(node, after: false, paths: [0]);
 
       expect(node.parent, isNotNull);
       expect(node.parent, tree.root);
-      expect(
-        tree.queryPath([0]),
-        node,
-      );
+      expect(tree.queryPath([0]), node);
     });
     test('insert node at end', () {});
     test('insert node at path', () {});
