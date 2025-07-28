@@ -4,7 +4,7 @@ import 'dart:convert';
 import 'package:collection/collection.dart';
 import 'package:easy_rich_editor/src/core/api/document/path/path.dart';
 import 'package:easy_rich_editor/src/core/extensions/object_ext.dart';
-import 'package:easy_rich_editor/src/logger/editor_logger.dart';
+import 'package:easy_rich_editor/src/core/logger/editor_logger.dart';
 import 'package:easy_rich_editor/src/utils/background_isolate_runner/isolate_runner.dart';
 import 'package:easy_rich_editor/src/utils/utils.dart';
 import 'package:flutter/foundation.dart';
@@ -51,6 +51,8 @@ final class Node {
   @internal
   static String get changeBoxKey => 'changed';
 
+  static const int _notFoundPath = -1;
+
   Object? _value;
   int? _offset;
 
@@ -61,8 +63,6 @@ final class Node {
   int? _cachedLength;
   // current path of this node
   int _path = -1;
-
-  static const int _notFoundPath = -1;
 
   // current full path of this node
   List<int> _deepPath = <int>[-1];
@@ -168,6 +168,7 @@ final class Node {
   Node.text({
     String? id,
     this.type = ParagraphKeys.key,
+    String lineType = ParagraphKeys.lineKey,
     Object? value,
     this.parent,
     required String text,
@@ -180,7 +181,7 @@ final class Node {
       for (int i = 0; i < lines.length; i++) {
         final String line = lines[i];
         final Node lineNode = Node(
-          type: type,
+          type: lineType,
           value: <TextFragment>[
             TextFragment(data: line),
           ],
@@ -195,7 +196,7 @@ final class Node {
     }
 
     final Node lineNode = Node(
-      type: type,
+      type: lineType,
       value: <TextFragment>[TextFragment(data: text)],
       children: <Node>[],
       parent: this,
@@ -660,6 +661,10 @@ final class Node {
   set path(int path) {
     _path = path;
     needsComputePath = false;
+
+    if (_deepPath.isNotEmpty && _deepPath.first != -1) {
+      _deepPath[_deepPath.length - 1] = path;
+    }
   }
 
   set deepPath(List<int> path) {
