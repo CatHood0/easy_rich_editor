@@ -143,7 +143,7 @@ extension NodeOperations on Node {
 
       deleteAtNode(this, delta.start, delta.end);
 
-      block._dataLength = parent!.dataLength + deltaLength;
+      block._dataLength = block.dataLength + deltaLength;
 
       // if there's a next block, we need to compute it
       if (block.next != null) {
