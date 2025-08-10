@@ -13,7 +13,7 @@ extension NodeOperations on Node {
     if (path == null || path >= length) {
       children.add(child);
       invalidateCache(justCache: true);
-      parent!.invalidateDataOffset();
+      parent?.invalidateDataOffset();
       return;
     }
 
@@ -29,7 +29,7 @@ extension NodeOperations on Node {
       entry.insertBefore(child);
     }
     invalidateCache(justCache: true);
-    parent!.invalidateDataOffset();
+    parent?.invalidateDataOffset();
     // reset the current path of the node
     after ? entry.path = path + 1 : child.path = path - 1;
     invalidateCacheOfSiblings(
@@ -70,39 +70,132 @@ extension NodeOperations on Node {
 
   /// Receives a Delta that contains the change do it to this element
   ///
+  /// - [delta]: indicates the change into the Node where this is called. the selection must be normalized
+  /// - [removedIfRequired]: indicates if the Node will be removed completely from its parent if the deletion wraps the whole [Node]
+  /// - [transformOffsetWhenRequired]: indicates if the [offset] will be modified if requires querying ([queryPosition] method) a [Node]. Tipically, this just happen when we call this method in the Root node.
+  ///
   /// All the changes in this [DeltaNode] must be applied just internally into this [Node]
-  /// if exceeds the Node length, just return false, indicating that this operation must
+  /// if exceeds the [Node] length, just return [false], indicating that this operation must
   /// be managed by the [Tree] manager
-  void receiveDelta(DeltaNode delta, {bool removedIfRequired = false}) {
+  void receiveDelta(
+    DeltaNode delta, {
+    bool removedIfRequired = false,
+    bool transformOffsetWhenRequired = true,
+  }) {
+    assert(
+        delta.isNormalized,
+        "the delta passed must be "
+        "normalized before "
+        "making any change");
     // if this is just a [Line] or a [EmbedLine]
-    if (delta.newLength == 0 && hasDefinedValue) {
-      if (removedIfRequired) {
+    if (delta.newLength == 0 && hasDefinedValue && !isBlockNode) {
+      final int lineOffset = offset;
+      // literally, we are selecting the whole line,
+      // so, we will remove it
+      if (delta.start == lineOffset &&
+          delta.end == lineOffset &&
+          removedIfRequired) {
         unlink();
         invalidateDataOffset();
         invalidateCache();
       }
-      _value = <TextFragment>[];
-      // this will be transformed in a new-line
-      _dataLength = 1;
+      // this case should always be true
+      // but since we will support custom
+      // Node forms, we prefer just adjust
+      // our implementations to more be
+      // strict
+      if (!isBlockNode) {
+        _value = <TextFragment>[];
+        // this will be transformed in a new-line
+        _dataLength = 1;
+      } else {
+        _dataLength = 0;
+      }
+      notify();
       return;
     }
 
     // means that this is a Line
     if (!isBlockNode) {
       _dataLength = delta.newLength;
-      if (parent != null) {
-        final Node root = parent!.jumpToParent();
-        // TODO: check how you can avoid invalidate the data length
-        // of the parent, and just recomputing with the Delta values
-        // which should be the new length for the parent
-        if (root.metadata['root'] as bool? ?? false) {
-          final int path = parent!.path;
-          for (int i = path + 1; i < root.length; i++) {
-            //TODO: how too
-          }
+      final int deltaLength = delta.newLength - delta.oldLength;
+      // there's is no length change. Tipically
+      // occurs when was selected a portion of text
+      // and was replaced with a new text version
+      // that has the same length
+      if (deltaLength == 0) {
+        notify();
+        return;
+      }
+
+      // jump to the most nearest node of the [Root] one
+      final Node? block = jumpToParentExceptRoot();
+
+      if (block == null) {
+        throw UnimplementedError(
+            "not implemented root cases or non parent cases");
+      }
+
+      // should never happen
+      if (block.path == -1) {
+        throw IllegalNodeException(node: block, message: "Invalid Parent");
+      }
+
+      deleteAtNode(this, delta.start, delta.end);
+
+      block._dataLength = parent!.dataLength + deltaLength;
+
+      // if there's a next block, we need to compute it
+      if (block.next != null) {
+        final Node root = block.parent!;
+        // this probably means that we are computing
+        // this in the [Root] node, and we cannot allow this
+        if (root.isRootOwner) {
+          final HashMap<String, int> changes = HashMap();
+          int previousOffset = block.globalEnd;
+          Node? next = block.next!;
+          do {
+            next!._offset = previousOffset;
+            previousOffset = next.globalEnd;
+            changes[next.id] = 1;
+            next = next.next;
+          } while (next != null);
+
+          // the render editor will take care about this particular
+          // property
+          root.metadata['requires_rebuild'] = changes;
         }
       }
+
       return;
+    }
+
+    // this is the parent
+    if (isBlockNode) {}
+    if (isRootOwner) {
+      // only can be registered the blocks (the most nearest parent to the Root)
+      final HashMap<String, int> changes = HashMap<String, int>();
+      if (delta.isCollapsed) {
+        metadata['requires_rebuild'] = changes;
+        final NodeCursorPosLocation startNodeLocation =
+            queryPosition(delta.start);
+        if (startNodeLocation.notFoundLocation) {
+          EasyEditorLogger.treeFailures.error("Received a Delta: "
+              "$delta, but the Node at the offset "
+              "${delta.start} couldn't be founded in the whole Tree");
+          return;
+        }
+
+        notify();
+        return;
+      }
+      final NodeCursorPosLocation startLoc = queryPosition(delta.start);
+      final NodeCursorPosLocation? endLoc = queryPosition(delta.end);
+      final List<Node> selectedNodes = NodeIterator(
+        startNode: startLoc.location!.node,
+        endNode: endLoc?.location?.node,
+      ).toList(addEnd: true);
+      metadata['requires_rebuild'] = changes;
     }
 
     // checks if before this Delta, we had some content inside
@@ -110,23 +203,30 @@ extension NodeOperations on Node {
     //
     // if the new length is zero or less, just remove this block
     if (delta.oldLength > 0 && delta.newLength <= 0) {
-      unlink();
-      invalidateDataOffset();
-      invalidateCache();
+      final Node parent = jumpToParentExceptRoot()!;
+      if (removedIfRequired) {
+        unlink();
+      }
       children.clear();
       _fastIndexTreePart.clear();
+      invalidateDataOffset();
+      invalidateCache();
+      parent.notify();
     }
-
-    // ======= Containers section ======== \\
-    final NodeCursorPosLocation node = queryPositionLinear(
-      delta.start,
-      includeLastNode: true,
-    );
   }
 
   /// Simplifies the deletion, it mades the operation directly at the node
   /// passed. The node passed must contain a value
-  void deleteAtNode(Node line, int from, int to) {
+  ///
+  /// - [line]: the [Node] that will be modified.
+  ///
+  /// - [from]: the start offset.
+  ///
+  /// - [to]: the end offset.
+  ///
+  /// - [global]: indicates to the method if the [from] and [to] passed are in global
+  /// ranges and need a convertion to be relative.
+  void deleteAtNode(Node line, int from, int to, {bool global = false}) {
     assert(line.hasDirectValue(), 'node must contain a value to modify it');
   }
 

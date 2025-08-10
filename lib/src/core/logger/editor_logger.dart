@@ -13,6 +13,8 @@ class EasyEditorLogger {
   static EasyEditorLogger tree = EasyEditorLogger._(name: 'tree');
   static EasyEditorLogger treeBackgroundRunners = EasyEditorLogger._(name: 'tree_background_runners');
   static EasyEditorLogger treeOperations = EasyEditorLogger._(name: 'tree_ops');
+
+  /// When a operation or a search fails, this will be the logger that notifies about that
   static EasyEditorLogger treeFailures = EasyEditorLogger._(name: 'tree_failure');
 
   /// ================== Editor ================== \\\

@@ -76,11 +76,12 @@ class NodeIterator implements Iterator<Node> {
     return _currentNode != null;
   }
 
-  List<Node> toList() {
+  List<Node> toList({bool addEnd = false}) {
     final List<Node> result = <Node>[];
     while (moveNext()) {
       result.add(current);
     }
+    if (endNode != null && addEnd) result.add(endNode!);
     return result;
   }
 }

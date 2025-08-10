@@ -118,5 +118,8 @@ extension NodeUtilities on Node {
   }
 
   @internal
-  bool get isRootOwner => id == Node.rootId || type == Node.rootId;
+  bool get isRootOwner =>
+      id == Node.rootId ||
+      type == Node.rootId ||
+      metadata['root'] != null && metadata['root'] as bool;
 }

@@ -48,6 +48,11 @@ extension NodeSearchExt on Node {
     return parent!.jumpToParent(stopAt: stopAt);
   }
 
+  Node? jumpToParentExceptRoot() {
+    if (isRootOwner || parent == null) return null;
+    return jumpToParent(stopAt: (Node n) => n.parent?.isRootOwner ?? false);
+  }
+
   /// Queries the child [Node] at [offset] in this [Node].
   ///
   /// The result may contain the found node or `null` if no node is found

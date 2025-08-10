@@ -15,6 +15,9 @@ import 'package:easy_rich_editor/internal.dart';
 import 'package:easy_rich_editor/easy_rich_editor.dart';
 import 'package:meta/meta.dart';
 
+import '../../../exceptions/illegal_node_exception.dart';
+import 'node_iterator.dart';
+
 part 'package:easy_rich_editor/src/core/extensions/nodes/node_ext.dart';
 part 'package:easy_rich_editor/src/core/extensions/nodes/node_offset_ext.dart';
 part 'package:easy_rich_editor/src/core/extensions/nodes/node_search_ext.dart';
@@ -77,11 +80,10 @@ final class Node extends ChangeNotifier {
     List<Node> children = const [],
     Map<String, dynamic>? metadata,
   })  : type = Node.rootId,
+        id = Node.rootId,
         parent = null,
         _value = null {
     metadata ??= <String, dynamic>{};
-    id = rootId;
-    type = rootId;
     this.metadata = {
       ...metadata,
       'root': true,
@@ -103,8 +105,8 @@ final class Node extends ChangeNotifier {
     this.id = id ?? nanoid(8);
     this.metadata = <String, dynamic>{...?metadata};
     this.metadata['can_modify_children_length'] = canModifyChildrenLength;
-    this.metadata['block'] = value != null;
-    if (children.isNotEmpty) this.metadata['block'] = true;
+    this.metadata['block'] = value == null;
+    if (canModifyChildrenLength) this.metadata['block'] = true;
     adoptChildren(children);
     this.metadata['pr_attributes'] = blockAttributes;
   }
@@ -148,7 +150,7 @@ final class Node extends ChangeNotifier {
   }) {
     assert(!paragraph.isEmbed, 'Paragraph cannot be Embed. Found: $paragraph');
     this.id = id ?? paragraph.id;
-    value = null;
+    _value = null;
     metadata
       ..['block'] = true
       ..['pr_attributes'] = paragraph.blockAttributes;
@@ -216,6 +218,13 @@ final class Node extends ChangeNotifier {
 
   Object? get value => _value;
 
+  /// Notify to all listeners about the changes in this [Node]
+  ///
+  /// Use it to force rebuilds if it requires
+  void notify() {
+    notifyListeners();
+  }
+
   Node? get next => parent == null || path.next >= parent!.length
       ? null
       : parent!.children[path.next];
@@ -226,7 +235,7 @@ final class Node extends ChangeNotifier {
   set value(Object? v) {
     // calculate the diff between change to avoid recomputing
     _value = v;
-    parent!.invalidateDataOffset();
+    parent?.invalidateDataOffset();
   }
 
   int get dataLength {
@@ -324,6 +333,7 @@ final class Node extends ChangeNotifier {
   bool get isLast => parent?.last == this;
 
   bool get isEmpty => length < 1;
+
   bool get isNotEmpty => !isEmpty;
 
   int get depthLevel => _deepPath.length - 1;
@@ -613,7 +623,7 @@ class DeltaNode {
   final int start;
   final int newLength;
   final int oldLength;
-  final Object inserted;
+  final Object? inserted;
 
   DeltaNode({
     required this.oldLength,
@@ -622,4 +632,24 @@ class DeltaNode {
     required this.start,
     required this.end,
   });
+
+  /// Returns a Boolean indicating whether the selection is backward.
+  bool get isBackward => start < end;
+
+  /// Returns a Boolean indicating whether the selection is forward/normalized.
+  bool get isNormalized => start > end;
+
+  /// Returns a Boolean indicating whether the selection start and ends in the same place.
+  bool get isCollapsed => start == end;
+
+  /// Returns a normalized selection that direction is forward.
+  DeltaNode get normalized => isBackward
+      ? this
+      : DeltaNode(
+          oldLength: oldLength,
+          newLength: newLength,
+          inserted: inserted,
+          start: end,
+          end: start,
+        );
 }
