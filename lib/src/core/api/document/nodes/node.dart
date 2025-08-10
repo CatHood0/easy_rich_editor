@@ -642,6 +642,8 @@ class DeltaNode {
   /// Returns a Boolean indicating whether the selection start and ends in the same place.
   bool get isCollapsed => start == end;
 
+  bool get isDeletion => inserted == null && (newLength - oldLength) < 0;
+
   /// Returns a normalized selection that direction is forward.
   DeltaNode get normalized => isBackward
       ? this
@@ -652,4 +654,24 @@ class DeltaNode {
           start: end,
           end: start,
         );
+}
+
+class DeltaChangeResult {
+  final bool removed;
+  final bool executed;
+  final bool inserted;
+  final bool removedEntireNode;
+
+  DeltaChangeResult({
+    this.removed = false,
+    this.executed = true,
+    this.inserted = false,
+    this.removedEntireNode = false,
+  });
+
+  DeltaChangeResult.noExecution()
+      : removed = false,
+        executed = false,
+        inserted = false,
+        removedEntireNode = false;
 }

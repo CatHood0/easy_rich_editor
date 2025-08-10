@@ -14,6 +14,8 @@ extension NodeExt on Node {
       value != null &&
       value is List<TextFragment> &&
       value!.cast<List<TextFragment>>().isEmpty;
+  
+  bool get isNotBlankText => !isBlankText;
 
   bool get hasEmbed =>
       value != null &&

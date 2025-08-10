@@ -77,7 +77,7 @@ extension NodeOperations on Node {
   /// All the changes in this [DeltaNode] must be applied just internally into this [Node]
   /// if exceeds the [Node] length, just return [false], indicating that this operation must
   /// be managed by the [Tree] manager
-  void receiveDelta(
+  DeltaChangeResult receiveDelta(
     DeltaNode delta, {
     bool removedIfRequired = false,
     bool transformOffsetWhenRequired = true,
@@ -89,11 +89,16 @@ extension NodeOperations on Node {
         "making any change");
     // if this is just a [Line] or a [EmbedLine]
     if (delta.newLength == 0 && hasDefinedValue && !isBlockNode) {
-      final int lineOffset = offset;
+      final int lineStartOffset = offset;
+      final int lineEndOffset = offset + dataLength;
       // if we are selecting the whole line
       // and the content before this one
       // delete this [Node]
-      if (delta.start == lineOffset && delta.end == lineOffset) {
+      //
+      // First removes all the content
+      if (delta.start == lineStartOffset &&
+          delta.end == lineEndOffset &&
+          isNotBlankText) {
         _value = <TextFragment>[];
         // this will be transformed in a new-line
         _dataLength = 1;
@@ -109,10 +114,26 @@ extension NodeOperations on Node {
           // to take care about the metadata
           // that we passes and just rebuild this
           ..notify();
-        return;
+        return DeltaChangeResult(removed: true, executed: true);
       }
 
-      if (delta.start < lineOffset && delta.end >= lineOffset) {
+      if (isBlankText &&
+          delta.isCollapsed &&
+          delta.isDeletion &&
+          delta.newLength <= 0) {
+        unlink();
+        invalidateDataOffset();
+        invalidateCache();
+        value = <TextFragment>[];
+        _dataLength = null;
+        return DeltaChangeResult(
+          removed: true,
+          removedEntireNode: true,
+          executed: true,
+        );
+      }
+
+      if (delta.start < lineStartOffset && delta.end >= lineEndOffset) {
         unlink();
         invalidateDataOffset();
         invalidateCache();
@@ -127,10 +148,10 @@ extension NodeOperations on Node {
         // this will be transformed in a new-line
         _dataLength = 1;
       } else {
-        _dataLength = 0;
+        _dataLength = null;
       }
       notify();
-      return;
+      return DeltaChangeResult(removed: true, executed: true);
     }
 
     // means that this is a Line
@@ -143,7 +164,7 @@ extension NodeOperations on Node {
       // that has the same length
       if (deltaLength == 0) {
         notify();
-        return;
+        return DeltaChangeResult(executed: false);
       }
 
       // jump to the most nearest node of the [Root] one
@@ -185,7 +206,7 @@ extension NodeOperations on Node {
         }
       }
 
-      return;
+      return DeltaChangeResult(removed: true, executed: true);
     }
 
     // this is the parent
@@ -201,11 +222,11 @@ extension NodeOperations on Node {
           EasyEditorLogger.treeFailures.error("Received a Delta: "
               "$delta, but the Node at the offset "
               "${delta.start} couldn't be founded in the whole Tree");
-          return;
+          return DeltaChangeResult(removed: false, executed: true);
         }
 
         notify();
-        return;
+        return DeltaChangeResult(executed: true);
       }
       final NodeCursorPosLocation startLoc = queryPosition(delta.start);
       final NodeCursorPosLocation? endLoc = queryPosition(delta.end);
@@ -230,7 +251,12 @@ extension NodeOperations on Node {
       invalidateDataOffset();
       invalidateCache();
       parent.notify();
+      return DeltaChangeResult(
+        removedEntireNode: removedIfRequired,
+        removed: true,
+      );
     }
+    return DeltaChangeResult.noExecution();
   }
 
   /// Simplifies the deletion, it mades the operation directly at the node

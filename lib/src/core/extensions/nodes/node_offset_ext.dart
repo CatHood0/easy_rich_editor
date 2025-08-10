@@ -61,6 +61,11 @@ extension NodeOffsetExt on Node {
     return globalStart + dataLength;
   }
 
+  /// Relative end Offset from its parent.
+  int get endOffset {
+    return offset + dataLength;
+  }
+
   bool containsSelection(NodeSelection selection) {
     return false;
   }
