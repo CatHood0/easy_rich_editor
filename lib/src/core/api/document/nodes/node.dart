@@ -21,7 +21,7 @@ part 'package:easy_rich_editor/src/core/extensions/nodes/node_search_ext.dart';
 part 'package:easy_rich_editor/src/core/extensions/nodes/node_printer_ext.dart';
 part 'package:easy_rich_editor/src/core/extensions/nodes/node_operations_ext.dart';
 
-final class Node {
+final class Node extends ChangeNotifier {
   String type;
   Node? parent;
   late Map<String, dynamic> metadata = <String, dynamic>{};
@@ -54,6 +54,9 @@ final class Node {
   static const int _notFoundPath = -1;
 
   Object? _value;
+
+  /// Offset only works for parents like [Paragraph], [Embed], or [Table]
+  /// Since we want to avoid caching the relative offsets of the [Lines]
   int? _offset;
 
   /// The current length of the value into this Node
@@ -65,7 +68,7 @@ final class Node {
   int _path = -1;
 
   // current full path of this node
-  List<int> _deepPath = <int>[-1];
+  NodeDepthPath _deepPath = <int>[-1];
 
   bool needsComputePath = true;
   bool needsComputeFullPath = true;
@@ -79,7 +82,10 @@ final class Node {
     metadata ??= <String, dynamic>{};
     id = rootId;
     type = rootId;
-    this.metadata = {...metadata};
+    this.metadata = {
+      ...metadata,
+      'root': true,
+    };
     adoptChildren(children);
   }
 
@@ -97,19 +103,22 @@ final class Node {
     this.id = id ?? nanoid(8);
     this.metadata = <String, dynamic>{...?metadata};
     this.metadata['can_modify_children_length'] = canModifyChildrenLength;
+    this.metadata['block'] = value != null;
+    if (children.isNotEmpty) this.metadata['block'] = true;
     adoptChildren(children);
     this.metadata['pr_attributes'] = blockAttributes;
   }
 
   Node.fromParagraphEmbed({
     String? id,
-    Object? value,
     this.parent,
     required Paragraph paragraph,
   }) : type = EmbedKeys.key {
-    this.value = value;
-    assert(type.trim().isNotEmpty, 'type cannot be empty');
     assert(paragraph.isEmbed, 'the type of the Paragraph must be an Embed');
+    value = null;
+    metadata
+      ..['block'] = true
+      ..['pr_attributes'] = paragraph.blockAttributes;
     this.id = id ?? paragraph.id;
     final List<Line> lines = paragraph.unsafeLines();
     for (int i = 0; i < lines.length; i++) {
@@ -129,19 +138,20 @@ final class Node {
       insertNode(line);
       _fastIndexTreePart[line.id] = line;
     }
-    metadata['pr_attributes'] = paragraph.blockAttributes;
   }
 
   Node.fromParagraph({
     String? id,
     this.type = ParagraphKeys.key,
-    Object? value,
     this.parent,
     required Paragraph paragraph,
   }) {
-    assert(type.trim().isNotEmpty, 'type cannot be empty');
+    assert(!paragraph.isEmbed, 'Paragraph cannot be Embed. Found: $paragraph');
     this.id = id ?? paragraph.id;
-    this.value = value;
+    value = null;
+    metadata
+      ..['block'] = true
+      ..['pr_attributes'] = paragraph.blockAttributes;
     final List<Line> lines = paragraph.unsafeLines();
     for (int i = 0; i < lines.length; i++) {
       final Line line = lines[i];
@@ -162,7 +172,6 @@ final class Node {
       insertNode(lineNode);
       _fastIndexTreePart[lineNode.id] = lineNode;
     }
-    metadata['pr_attributes'] = paragraph.blockAttributes;
   }
 
   Node.text({
@@ -215,16 +224,17 @@ final class Node {
       parent == null || path.prev < 0 ? null : parent!.children[path.prev];
 
   set value(Object? v) {
+    // calculate the diff between change to avoid recomputing
     _value = v;
-    invalidateDataOffset();
+    parent!.invalidateDataOffset();
   }
 
   int get dataLength {
     // This means that we are into a Parent
-    if (!hasDefinedValue) {
+    if (isBlockNode) {
       _dataLength ??= children.fold<int>(
         0,
-        (int? prev, Node n) => (prev ?? 0) + n.dataLength,
+        (int prev, Node n) => prev + n.dataLength,
       );
       return _dataLength!;
     }
@@ -269,9 +279,13 @@ final class Node {
     }
   }
 
-  void invalidateDataOffset() {
+  /// Invalidates the current cache of this [Node]
+  /// and of its direct parent
+  ///
+  /// - [willBeAfter]: indicates that the invalidation of the offset will be after this [Node], and not at this one.
+  void invalidateDataOffset({bool willBeAfter = false}) {
     _dataLength = null;
-    _offset = null;
+    if (!willBeAfter) _offset = null;
     parent?.invalidateDataOffset();
   }
 
@@ -314,204 +328,11 @@ final class Node {
 
   int get depthLevel => _deepPath.length - 1;
 
-  /// Queries the child [Node] at [offset] in this [Node].
-  ///
-  /// The result may contain the found node or `null` if no node is found
-  /// at specified offset.
-  ///
-  /// [NodeCursorPosLocation.fragmentIndex] is set to relative fragment index
-  /// within returned child node
-  ///
-  /// [NodeCursorPosLocation.fragmentOffset] is set to relative offset into the fragments
-  /// within returned child node which points at the same character position in the document
-  ///
-  /// [NodeCursorPosLocation.locationOffset] is set to relative offset within returned child node
-  /// which points at the same character position in the document as the
-  /// original [offset]
-  NodeCursorPosLocation queryPositionLinear(
-    int cursorPos, {
-    bool includeLastNode = false,
-  }) {
-    if (cursorPos < 0 || cursorPos > dataLength) {
-      return NodeCursorPosLocation.notFound();
-    }
-
-    for (final Node node in children) {
-      final int len = node.dataLength;
-      // at this point, the cursor can be used
-      // as a local position in the node, instead
-      // a global one
-      if (cursorPos < len ||
-          (includeLastNode && cursorPos == len && node.isLast)) {
-        // this means that we are in a `Node` of type `Line` or `EmbedLine`
-        if (node.hasDefinedValue) {
-          final List<TextFragment> frags = node.value!.castToFragments();
-          int fragOffset = 0;
-          for (int i = 0; i < frags.length; i++) {
-            final TextFragment frag = frags[i];
-            final int fragmentLength =
-                frag.data is String ? frag.data.castString().length : 1;
-
-            final int effectivePosition = fragOffset + fragmentLength;
-            // if the cursor is in this exact fragment
-            if (cursorPos < effectivePosition) {
-              return NodeCursorPosLocation(
-                location: NodeLocation(
-                  path: <int>[...node.deepPath],
-                  node: node,
-                ),
-                fragmentIndex: i,
-                fragmentOffset: cursorPos - fragOffset,
-                locationOffset: cursorPos,
-              );
-            }
-
-            fragOffset += fragmentLength;
-          }
-        }
-
-        return NodeCursorPosLocation(
-          location: NodeLocation(path: <int>[...node.deepPath], node: node),
-          fragmentIndex: -1,
-          fragmentOffset: -1,
-          locationOffset: cursorPos,
-        );
-      }
-      cursorPos -= len;
-    }
-
-    return NodeCursorPosLocation.notFound();
-  }
-
-  /// The same than [queryPosition] but applying
-  /// **binary search algorithm**
-  NodeCursorPosLocation queryPosition(
-    int cursorPos, {
-    bool includeLastNode = false,
-  }) {
-    if (cursorPos < 0 || cursorPos > dataLength) {
-      return NodeCursorPosLocation.notFound();
-    }
-
-    if (includeLastNode && cursorPos == dataLength && isNotEmpty) {
-      final lastNode = children.last;
-      return NodeCursorPosLocation(
-        location: NodeLocation(path: [...lastNode.deepPath], node: lastNode),
-        fragmentIndex: -1,
-        fragmentOffset: -1,
-        locationOffset: lastNode.dataLength,
-      );
-    }
-
-    int low = 0;
-    int high = length - 1;
-
-    while (low <= high) {
-      final int mid = (low + high) ~/ 2;
-      final Node node = children[mid];
-
-      final int actualStart = node.globalStart - globalStart;
-      final int actualEnd = node.globalEnd - globalStart;
-
-      if (cursorPos >= actualStart && cursorPos < actualEnd) {
-        final int localOffset = cursorPos - actualStart;
-        if (node.hasDefinedValue) {
-          final List<TextFragment> frags = node.value!.castToFragments();
-          int fragOffset = 0;
-          for (int i = 0; i < frags.length; i++) {
-            final frag = frags[i];
-            final fragmentLength =
-                frag.data is String ? frag.data.castString().length : 1;
-
-            if (localOffset < fragOffset + fragmentLength) {
-              return NodeCursorPosLocation(
-                location: NodeLocation(path: [...node.deepPath], node: node),
-                fragmentIndex: i,
-                fragmentOffset: localOffset - fragOffset,
-                locationOffset: localOffset,
-              );
-            }
-            fragOffset += fragmentLength;
-          }
-        }
-
-        return NodeCursorPosLocation(
-          location: NodeLocation(path: [...node.deepPath], node: node),
-          fragmentIndex: -1,
-          fragmentOffset: -1,
-          locationOffset: localOffset,
-        );
-      } else if (includeLastNode &&
-          cursorPos == actualEnd &&
-          mid == length - 1) {
-        return NodeCursorPosLocation(
-          location: NodeLocation(path: [...node.deepPath], node: node),
-          fragmentIndex: -1,
-          fragmentOffset: -1,
-          locationOffset: node.dataLength,
-        );
-      } else if (cursorPos < actualStart) {
-        high = mid - 1;
-      } else {
-        low = mid + 1;
-      }
-    }
-
-    return NodeCursorPosLocation.notFound();
-  }
-
-  NodeCursorPosLocation queryFragments(int cursorPos) {
-    if (!hasDefinedValue) return NodeCursorPosLocation.notFound();
-
-    if (cursorPos < 0 || cursorPos > dataLength) {
-      return NodeCursorPosLocation.notFound();
-    }
-
-    final List<TextFragment> frags = value!.castToFragments();
-    int fragOffset = 0;
-    for (int i = 0; i < frags.length; i++) {
-      final TextFragment frag = frags[i];
-      final int fragmentLength =
-          frag.data is String ? frag.data.castString().length : 1;
-
-      final int effectivePosition = fragOffset + fragmentLength;
-      // if the cursor is in this exact fragment
-      if (cursorPos < effectivePosition) {
-        return NodeCursorPosLocation(
-          location: NodeLocation(
-            path: <int>[...deepPath],
-            node: this,
-          ),
-          fragmentIndex: i,
-          fragmentOffset: cursorPos - fragOffset,
-          locationOffset: cursorPos,
-        );
-      }
-
-      fragOffset += fragmentLength;
-    }
-
-    return NodeCursorPosLocation.notFound();
-  }
-
   /// Simplifies the insertion, it mades the operation directly at the node
   /// passed. The node passed must contain a value
   void insertAtNode(Node line, int offset, Object data, {int? endOffset}) {
     assert(line.value != null, 'node must contain a value to modify it');
   }
-
-  /// Simplifies the deletion, it mades the operation directly at the node
-  /// passed. The node passed must contain a value
-  void deleteAtNode(Node line, int from, int to) {
-    assert(line.value != null, 'node must contain a value to modify it');
-  }
-
-  void insert(int offset, Object data, {int? endOffset}) {}
-
-  /// Retain is used commonly to apply styles into the subNodes
-  void retain() {}
-
-  void delete(int from, int to) {}
 
   // FIXME: probably we can found a better way to cache the data length
   // instead of invalidating always the parent
@@ -531,7 +352,7 @@ final class Node {
       ..path = lastPathKnowed++
       ..deepPath = effectiveDeepPath;
     invalidateCache();
-    invalidateDataOffset();
+    parent!.invalidateDataOffset();
     _fastIndexTreePart[entry.id] = entry;
     if (lastPathKnowed + 1 < length) {
       // reset the current path of the node
@@ -558,7 +379,7 @@ final class Node {
       ..deepPath = <int>[..._deepPath];
     _fastIndexTreePart[entry.id] = entry;
     invalidateCache();
-    invalidateDataOffset();
+    parent!.invalidateDataOffset();
     lastPathKnowed++;
     final List<int> effectiveDeepPath = <int>[..._deepPath]
       ..[_deepPath.length - 1] = lastPathKnowed;
@@ -667,7 +488,7 @@ final class Node {
     }
   }
 
-  set deepPath(List<int> path) {
+  set deepPath(NodeDepthPath path) {
     _deepPath = <int>[...path];
     needsComputeFullPath = false;
   }
@@ -780,4 +601,25 @@ final class Node {
   String toString() {
     return 'Node(type=$type,value=$value,metadata=$metadata,children=$children)';
   }
+}
+
+/// Represents the granular change do it to a particular [Node]
+class DeltaNode {
+  // Represents where ends the change
+  final int end;
+  // Represents where starts the change
+  //
+  // Must be relative
+  final int start;
+  final int newLength;
+  final int oldLength;
+  final Object inserted;
+
+  DeltaNode({
+    required this.oldLength,
+    required this.newLength,
+    required this.inserted,
+    required this.start,
+    required this.end,
+  });
 }

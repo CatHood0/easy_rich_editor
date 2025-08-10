@@ -1,5 +1,5 @@
 import 'package:easy_rich_editor/easy_rich_editor.dart';
-import 'package:easy_rich_editor/src/logger/editor_logger.dart';
+import 'package:easy_rich_editor/src/core/logger/editor_logger.dart';
 import 'package:easy_rich_editor/src/tree_manager/core/cache_invalidator/node/node_paths_cache_invalidator.dart';
 import 'package:flutter_quill_delta_easy_parser/utils/nano_id_generator.dart';
 import '../../../../utils/background_isolate_runner/isolate_runner.dart';
@@ -85,10 +85,7 @@ class IsolateNodeCacheInvalidator {
       for (int i = curPath;
           payload.after ? i > payload.root.length : i > 0;
           payload.after ? i++ : i--) {
-        final Node node = payload.root.children[i]..path = curPath;
-        final List<int> effectiveDeepPath = <int>[...node.deepPath]
-          ..[node.deepPath.length - 1] = curPath + 1;
-        node.deepPath = effectiveDeepPath;
+        payload.root.children[i].path = curPath;
         if (payload.endPath != -1 && payload.endPath == curPath) break;
         payload.after ? curPath++ : curPath--;
       }

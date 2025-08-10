@@ -3,26 +3,26 @@ import 'package:flutter/foundation.dart';
 
 import '../../../../../easy_rich_editor.dart';
 
-typedef Path = List<int>;
+typedef NodeDepthPath = List<int>;
 
 extension MinimalPathExtension on int {
   int get prev => this - 1;
   int get next => this + 1;
 }
 
-extension PathExtensions on Path {
-  bool equals(Path other) {
+extension PathExtensions on NodeDepthPath {
+  bool equals(NodeDepthPath other) {
     return listEquals(this, other);
   }
 
-  bool operator >=(Path other) {
+  bool operator >=(NodeDepthPath other) {
     if (equals(other)) {
       return true;
     }
     return this > other;
   }
 
-  bool operator >(Path other) {
+  bool operator >(NodeDepthPath other) {
     if (equals(other)) {
       return false;
     }
@@ -40,14 +40,14 @@ extension PathExtensions on Path {
     return true;
   }
 
-  bool operator <=(Path other) {
+  bool operator <=(NodeDepthPath other) {
     if (equals(other)) {
       return true;
     }
     return this < other;
   }
 
-  bool operator <(Path other) {
+  bool operator <(NodeDepthPath other) {
     if (equals(other)) {
       return false;
     }
@@ -65,8 +65,8 @@ extension PathExtensions on Path {
     return true;
   }
 
-  Path get next {
-    Path nextPath = Path.from(this, growable: true);
+  NodeDepthPath get next {
+    NodeDepthPath nextPath = NodeDepthPath.from(this, growable: true);
     if (isEmpty) {
       return nextPath;
     }
@@ -76,8 +76,8 @@ extension PathExtensions on Path {
       ..add(last + 1);
   }
 
-  Path nextNPath(int n) {
-    Path nextPath = Path.from(this, growable: true);
+  NodeDepthPath nextNPath(int n) {
+    NodeDepthPath nextPath = NodeDepthPath.from(this, growable: true);
     if (isEmpty) {
       return nextPath;
     }
@@ -87,12 +87,12 @@ extension PathExtensions on Path {
       ..add(last + n);
   }
 
-  Path child(int index) {
-    return Path.from(this, growable: true)..add(index);
+  NodeDepthPath child(int index) {
+    return NodeDepthPath.from(this, growable: true)..add(index);
   }
 
-  Path get previous {
-    Path previousPath = Path.from(this, growable: true);
+  NodeDepthPath get previous {
+    NodeDepthPath previousPath = NodeDepthPath.from(this, growable: true);
     if (isEmpty) {
       return previousPath;
     }
@@ -102,8 +102,8 @@ extension PathExtensions on Path {
       ..add(max(0, last - 1));
   }
 
-  Path previousNPath(int n) {
-    Path previousPath = Path.from(this, growable: true);
+  NodeDepthPath previousNPath(int n) {
+    NodeDepthPath previousPath = NodeDepthPath.from(this, growable: true);
     if (isEmpty) {
       return previousPath;
     }
@@ -113,14 +113,14 @@ extension PathExtensions on Path {
       ..add(max(0, last - n));
   }
 
-  Path get parent {
+  NodeDepthPath get parent {
     if (isEmpty) {
       return this;
     }
-    return Path.from(this, growable: true)..removeLast();
+    return NodeDepthPath.from(this, growable: true)..removeLast();
   }
 
-  bool isAncestorOf(Path other) {
+  bool isAncestorOf(NodeDepthPath other) {
     if (isEmpty) {
       return true;
     }

@@ -2,6 +2,7 @@ part of 'package:easy_rich_editor/src/core/api/document/nodes/node.dart';
 
 extension NodeExt on Node {
   bool get hasDefinedValue => value != null && value is List<TextFragment>;
+  bool get isBlockNode => metadata['block'] as bool? ?? !hasDefinedValue;
 
   bool get hasText =>
       value != null &&
@@ -50,16 +51,17 @@ extension NodeUtilities on Node {
   /// You can see this like the following diagram
   ///
   /// ```bash
-  /// Line
-  ///  └─── Text
+  /// Paragraph
+  ///  └─── Line
   ///
   /// # or
   ///
-  /// EmbedLine
-  ///  └─── Value
+  /// Embed
+  ///  └─── EmbedLine
   /// ```
   bool hasDirectValue() {
-    return value != null || length == 1 && firstChild!.value != null;
+    return value != null ||
+        value == null && length == 1 && firstChild!.value != null;
   }
 
   Node deepCopy() {

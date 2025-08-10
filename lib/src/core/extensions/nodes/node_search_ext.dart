@@ -3,65 +3,8 @@ part of 'package:easy_rich_editor/src/core/api/document/nodes/node.dart';
 extension NodeSearchExt on Node {
   /// Search easily the node at the index passed using ranges
   //TODO: implement binary search
-  Node? fastSearch(int targetI, {bool into = true, int? endRangeLimit}) {
-    RangeError.checkNotNegative(targetI);
-    if (into) {
-      if (targetI >= length) {
-        throw RangeError.range(
-          targetI,
-          0,
-          length,
-          'InvalidNodeRange',
-        );
-      }
-      endRangeLimit ??= 15;
-      final int endRange = (length - endRangeLimit).clamp(0, length);
-
-      if (targetI >= endRange) {
-        return lastChild?.fastSearch(targetI, into: false);
-      }
-      return firstChild?.fastSearch(targetI, into: false);
-    }
-
-    if (targetI == path) return this;
-
-    if (parent!.isEmpty) return null;
-    if (targetI >= parent!.length) {
-      throw RangeError.range(
-        targetI,
-        0,
-        parent!.length,
-        'InvalidNodeRange',
-      );
-    }
-
-    final bool isBack = targetI < path;
-    final bool isFront = targetI > path;
-    if (isBack) {
-      Node? prev;
-      for (int i = path; i > 0; i--) {
-        prev = parent!.children[i];
-        if (targetI == i) {
-          break;
-        }
-      }
-
-      return prev;
-    }
-
-    if (isFront) {
-      Node? next;
-      for (int i = path; i < length; i++) {
-        next = parent!.children[i];
-        if (targetI == i) {
-          break;
-        }
-      }
-
-      return next;
-    }
-
-    return null;
+  Node? fastSearch(int index) {
+    throw UnimplementedError("fastSearch is not implemented yet");
   }
 
   Node elementAt(int index) => children[index];
@@ -103,5 +46,185 @@ extension NodeSearchExt on Node {
     }
 
     return parent!.jumpToParent(stopAt: stopAt);
+  }
+
+  /// Queries the child [Node] at [offset] in this [Node].
+  ///
+  /// The result may contain the found node or `null` if no node is found
+  /// at specified offset.
+  ///
+  /// [NodeCursorPosLocation.fragmentIndex] is set to relative fragment index
+  /// within returned child node
+  ///
+  /// [NodeCursorPosLocation.fragmentOffset] is set to relative offset into the fragments
+  /// within returned child node which points at the same character position in the document
+  ///
+  /// [NodeCursorPosLocation.locationOffset] is set to relative offset within returned child node
+  /// which points at the same character position in the document as the
+  /// original [offset]
+  NodeCursorPosLocation queryPositionLinear(
+    int cursorPos, {
+    bool includeLastNode = false,
+  }) {
+    if (cursorPos < 0 || cursorPos > dataLength) {
+      return NodeCursorPosLocation.notFound();
+    }
+
+    for (final Node node in children) {
+      final int len = node.dataLength;
+      // at this point, the cursor can be used
+      // as a local position in the node, instead
+      // a global one
+      if (cursorPos < len ||
+          (includeLastNode && cursorPos == len && node.isLast)) {
+        // this means that we are in a `Node` of type `Line` or `EmbedLine`
+        if (node.hasDefinedValue) {
+          final List<TextFragment> frags = node.value!.castToFragments();
+          int fragOffset = 0;
+          for (int i = 0; i < frags.length; i++) {
+            final TextFragment frag = frags[i];
+            final int fragmentLength =
+                frag.data is String ? frag.data.castString().length : 1;
+
+            final int effectivePosition = fragOffset + fragmentLength;
+            // if the cursor is in this exact fragment
+            if (cursorPos < effectivePosition) {
+              return NodeCursorPosLocation(
+                location: NodeLocation(
+                  path: <int>[...node.deepPath],
+                  node: node,
+                ),
+                fragmentIndex: i,
+                fragmentOffset: cursorPos - fragOffset,
+                locationOffset: cursorPos,
+              );
+            }
+
+            fragOffset += fragmentLength;
+          }
+        }
+
+        return NodeCursorPosLocation(
+          location: NodeLocation(path: <int>[...node.deepPath], node: node),
+          fragmentIndex: -1,
+          fragmentOffset: -1,
+          locationOffset: cursorPos,
+        );
+      }
+      cursorPos -= len;
+    }
+
+    return NodeCursorPosLocation.notFound();
+  }
+
+  /// The same than [queryPositionLinear] but applying
+  /// **binary search algorithm**
+  NodeCursorPosLocation queryPosition(
+    int cursorPos, {
+    bool includeLastNode = false,
+  }) {
+    if (cursorPos < 0 || cursorPos > dataLength) {
+      return NodeCursorPosLocation.notFound();
+    }
+
+    if (includeLastNode && cursorPos == dataLength && isNotEmpty) {
+      final Node lastNode = children.last;
+      return NodeCursorPosLocation(
+        location:
+            NodeLocation(path: <int>[...lastNode.deepPath], node: lastNode),
+        fragmentIndex: -1,
+        fragmentOffset: -1,
+        locationOffset: lastNode.dataLength,
+      );
+    }
+
+    int low = 0;
+    int high = length - 1;
+
+    while (low <= high) {
+      final int mid = (low + high) ~/ 2;
+      final Node node = children[mid];
+
+      final int actualStart = node.globalStart - globalStart;
+      final int actualEnd = node.globalEnd - globalStart;
+
+      if (cursorPos >= actualStart && cursorPos < actualEnd) {
+        final int localOffset = cursorPos - actualStart;
+        if (node.hasDefinedValue) {
+          final List<TextFragment> frags = node.value!.castToFragments();
+          int fragOffset = 0;
+          for (int i = 0; i < frags.length; i++) {
+            final frag = frags[i];
+            final fragmentLength =
+                frag.data is String ? frag.data.castString().length : 1;
+
+            if (localOffset < fragOffset + fragmentLength) {
+              return NodeCursorPosLocation(
+                location: NodeLocation(path: [...node.deepPath], node: node),
+                fragmentIndex: i,
+                fragmentOffset: localOffset - fragOffset,
+                locationOffset: localOffset,
+              );
+            }
+            fragOffset += fragmentLength;
+          }
+        }
+
+        return NodeCursorPosLocation(
+          location: NodeLocation(path: [...node.deepPath], node: node),
+          fragmentIndex: -1,
+          fragmentOffset: -1,
+          locationOffset: localOffset,
+        );
+      } else if (includeLastNode &&
+          cursorPos == actualEnd &&
+          mid == length - 1) {
+        return NodeCursorPosLocation(
+          location: NodeLocation(path: [...node.deepPath], node: node),
+          fragmentIndex: -1,
+          fragmentOffset: -1,
+          locationOffset: node.dataLength,
+        );
+      } else if (cursorPos < actualStart) {
+        high = mid - 1;
+      } else {
+        low = mid + 1;
+      }
+    }
+
+    return NodeCursorPosLocation.notFound();
+  }
+
+  NodeCursorPosLocation queryFragments(int cursorPos) {
+    if (!hasDefinedValue) return NodeCursorPosLocation.notFound();
+
+    if (cursorPos < 0 || cursorPos > dataLength) {
+      return NodeCursorPosLocation.notFound();
+    }
+
+    final List<TextFragment> frags = value!.castToFragments();
+    int fragOffset = 0;
+    for (int i = 0; i < frags.length; i++) {
+      final TextFragment frag = frags[i];
+      final int fragmentLength = frag.isText ? frag.getTextValue().length : 1;
+
+      final int effectivePosition = fragOffset + fragmentLength;
+      // if the cursor is in this exact fragment
+      if (cursorPos < effectivePosition) {
+        return NodeCursorPosLocation(
+          location: NodeLocation(
+            path: <int>[...deepPath],
+            node: this,
+          ),
+          fragmentIndex: i,
+          fragmentOffset: cursorPos - fragOffset,
+          locationOffset: cursorPos,
+        );
+      }
+
+      fragOffset += fragmentLength;
+    }
+
+    return NodeCursorPosLocation.notFound();
   }
 }

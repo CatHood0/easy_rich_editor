@@ -6,7 +6,7 @@ extension NodeTreeDumperExt on Node {
   }) {
     final StringBuffer buffer = StringBuffer();
     // means that we are into a parent
-    if (!hasDefinedValue) {
+    if (!isBlockNode) {
       forEach((Node n, int index) {
         buffer.write(n.toPlainText(onDetectEmbed: onDetectEmbed));
       });

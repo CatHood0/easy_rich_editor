@@ -29,3 +29,6 @@ export 'package:easy_rich_editor/src/core/extractors/node_extractor_base.dart';
 export 'package:easy_rich_editor/src/core/extractors/paragraph/paragraph_node_extractor.dart';
 export 'package:easy_rich_editor/src/core/extractors/table/table_node_extractor.dart';
 export 'package:easy_rich_editor/src/core/extractors/embed/embed_node_extractor.dart';
+// core -> Editor -> Cursor 
+export 'package:easy_rich_editor/src/editor/cursor/event/cursor_event_context.dart';
+export 'package:easy_rich_editor/src/editor/cursor/state/cursor_state.dart';

@@ -1,3 +1,5 @@
+import 'package:easy_rich_editor/src/core/api/document/nodes/node_iterator.dart';
+import 'package:easy_rich_editor/src/core/api/document/path/path.dart';
 import 'package:easy_rich_editor/src/core/limiters/embed_limiter.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:easy_rich_editor/easy_rich_editor.dart';
@@ -144,12 +146,27 @@ class Tree extends ValueNotifier<Node> implements TreeOperations {
 
   @override
   List<Node> querySelectedNodes(NodeSelection selection) {
-    final List<Node> nodes = <Node>[];
-    final NodeSelection normalizedSelection = selection.normalized;
-
     if (selection.selectedNodes != null) {
       return selection.selectedNodes!;
     }
+
+    if (selection.isCollapsed) {
+      return <Node>[selection.start.node];
+    }
+
+    final NodeSelection normalizedSelection = selection.normalized;
+
+    final List<Node> nodes = NodeIterator(
+      startNode: normalizedSelection.start.node,
+      endNode: normalizedSelection.end.node,
+    ).toList();
+
+    assert(
+      nodes.isNotEmpty,
+      "Failed to found Nodes between "
+      "[${normalizedSelection.start.node.id}] and "
+      "[${normalizedSelection.end.node.id}]",
+    );
 
     return nodes;
   }
@@ -181,7 +198,7 @@ class Tree extends ValueNotifier<Node> implements TreeOperations {
   /// path must be always normalized
   /// (source as first element, and the element as the last one)
   @override
-  Node? queryPath(List<int> path) {
+  Node? queryPath(NodeDepthPath path) {
     Node? node = root;
     assert(path.isNotEmpty, 'path cannot be empty');
     for (int p in path) {

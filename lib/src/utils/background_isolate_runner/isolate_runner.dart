@@ -1,4 +1,4 @@
-import 'package:easy_rich_editor/src/logger/editor_logger.dart';
+import 'package:easy_rich_editor/src/core/logger/editor_logger.dart';
 import 'package:flutter/foundation.dart';
 import 'package:isolate_manager/isolate_manager.dart';
 import 'package:meta/meta.dart';

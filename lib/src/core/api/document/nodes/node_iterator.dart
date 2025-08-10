@@ -2,17 +2,20 @@ import '../../../../../easy_rich_editor.dart';
 
 /// [NodeIterator] is used to traverse the nodes in visual order (depth-first).
 class NodeIterator implements Iterator<Node> {
+  /// Creates a NodeIterator.
   NodeIterator({
     required this.startNode,
     this.endNode,
   });
 
+  /// The node to start the iteration with.
   final Node startNode;
+
+  /// The node to end the iteration with.
   final Node? endNode;
 
   Node? _currentNode;
   bool _began = false;
-  final List<int> _indexStack = <int>[];
 
   @override
   Node get current => _currentNode!;
@@ -25,40 +28,37 @@ class NodeIterator implements Iterator<Node> {
       return true;
     }
 
-    if (_currentNode == null) return false;
-    if (endNode != null && _currentNode == endNode) {
+    if (_currentNode == null) {
+      return false;
+    }
+    Node node = _currentNode!;
+
+    if (endNode != null && endNode == node) {
       _currentNode = null;
       return false;
     }
 
-    // 1. Depth first
-    if (_currentNode!.children.isNotEmpty) {
-      _indexStack.add(0); // Guarda índice actual antes de bajar
-      _currentNode = _currentNode!.children.first;
-      return true;
-    }
-
-    // 2. If no children, jump to next sibling or go to its parent
-    Node? node = _currentNode;
-    while (node != null && node.parent != null) {
-      final siblings = node.parent!.children;
-      final currentIndex = siblings.indexOf(node);
-
-      if (currentIndex != -1 && currentIndex < siblings.length - 1) {
-        _currentNode = siblings[currentIndex + 1];
-        if (_indexStack.isNotEmpty) {
-          _indexStack[_indexStack.length - 1] =
-              currentIndex + 1; // Actualiza índice
+    if (node.children.isNotEmpty) {
+      _currentNode = node.first;
+    } else if (node.next != null) {
+      _currentNode = node.next!;
+    } else if (node.parent == null) {
+      _currentNode = null;
+      return false;
+    } else {
+      while (node.parent != null) {
+        node = node.parent!;
+        final Node? nextOfParent = node.next;
+        if (nextOfParent == null) {
+          _currentNode = null;
+        } else {
+          _currentNode = nextOfParent;
+          break;
         }
-        return true;
-      } else {
-        node = node.parent;
-        if (_indexStack.isNotEmpty) _indexStack.removeLast();
       }
     }
 
-    _currentNode = null;
-    return false;
+    return _currentNode != null;
   }
 
   List<Node> toList() {
