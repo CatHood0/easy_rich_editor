@@ -90,11 +90,29 @@ extension NodeOperations on Node {
     // if this is just a [Line] or a [EmbedLine]
     if (delta.newLength == 0 && hasDefinedValue && !isBlockNode) {
       final int lineOffset = offset;
-      // literally, we are selecting the whole line,
-      // so, we will remove it
-      if (delta.start == lineOffset &&
-          delta.end == lineOffset &&
-          removedIfRequired) {
+      // if we are selecting the whole line
+      // and the content before this one
+      // delete this [Node]
+      if (delta.start == lineOffset && delta.end == lineOffset) {
+        _value = <TextFragment>[];
+        // this will be transformed in a new-line
+        _dataLength = 1;
+        final Node sourceParent = jumpToParentExceptRoot()!;
+        // jump directly to [Root]
+        jumpToParent()
+          // saves the content that changes
+          ..metadata['requires_rebuild'] =
+              HashMap<String, int>.from(<String, int>{
+            sourceParent.id: 1,
+          })
+          // notify to the render editor
+          // to take care about the metadata
+          // that we passes and just rebuild this
+          ..notify();
+        return;
+      }
+
+      if (delta.start < lineOffset && delta.end >= lineOffset) {
         unlink();
         invalidateDataOffset();
         invalidateCache();
