@@ -1,4 +1,5 @@
 import '../../../../../easy_rich_editor.dart';
+import '../../../exceptions/illegal_node_exception.dart';
 
 /// [NodeIterator] is used to traverse the nodes in visual order (depth-first).
 class NodeIterator implements Iterator<Node> {
@@ -38,26 +39,40 @@ class NodeIterator implements Iterator<Node> {
       return false;
     }
 
-    if (node.children.isNotEmpty) {
-      _currentNode = node.first;
-    } else if (node.next != null) {
-      _currentNode = node.next!;
-    } else if (node.parent == null) {
-      _currentNode = null;
+    _currentNode = node.isNotEmpty ? node.first : node.next;
+
+    // there's no chance where we can move
+    // to a next place
+    if (_currentNode == null) {
       return false;
-    } else {
-      while (node.parent != null) {
-        node = node.parent!;
-        final Node? nextOfParent = node.next;
-        if (nextOfParent == null) {
-          _currentNode = null;
-        } else {
-          _currentNode = nextOfParent;
-          break;
-        }
-      }
     }
 
+    // this never happen
+    if (node.parent == null && !node.isRootOwner) {
+      throw IllegalNodeException(
+          node: node,
+          message: 'Illegal-Node => Only root can '
+              'contain a nullable parent reference');
+    }
+
+    if (node.isRootOwner) {
+      return false;
+    }
+
+    final Node parent = node.jumpToParent(stopAt: (Node node) {
+      return node.next != null;
+    });
+
+    // if was no found any parent at this point with a next
+    // sibling, probably just will return the Root Node,
+    // so, we just prefer indicating that there's no way
+    // to be moved to next place
+    if (parent.isRootOwner) {
+      _currentNode = null;
+      return false;
+    }
+
+    _currentNode = parent.next;
     return _currentNode != null;
   }
 
