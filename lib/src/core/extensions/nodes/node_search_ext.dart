@@ -17,8 +17,24 @@ extension NodeSearchExt on Node {
   /// Returns `true` if this node contains character at specified [offset] in
   /// the document.
   bool containsOffset(int offset) {
-    final int o = globalOffset;
-    return o <= offset && offset < o + length;
+    final int globalOff = globalOffset;
+    final int localOff = offset;
+    return globalOff <= localOff && localOff < (globalOff + dataLength);
+  }
+
+  bool containsSelection(NodeSelection selection) {
+    final int nodeStart = globalOffset;
+    final int nodeEnd = nodeStart + dataLength;
+    return selection.start.position >= nodeStart &&
+        selection.end.position <= nodeEnd;
+  }
+
+  bool inSelection(NodeSelection selection) {
+    if (selection.start.path <= selection.end.path) {
+      return selection.start.path <= deepPath && deepPath <= selection.end.path;
+    } else {
+      return selection.end.path <= deepPath && deepPath <= selection.start.path;
+    }
   }
 
   Node? findById(String id, {bool deep = true}) {

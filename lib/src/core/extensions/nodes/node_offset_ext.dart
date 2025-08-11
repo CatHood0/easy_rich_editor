@@ -65,8 +65,4 @@ extension NodeOffsetExt on Node {
   int get endOffset {
     return offset + dataLength;
   }
-
-  bool containsSelection(NodeSelection selection) {
-    return false;
-  }
 }

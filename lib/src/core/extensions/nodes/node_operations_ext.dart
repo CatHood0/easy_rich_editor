@@ -103,6 +103,10 @@ extension NodeOperations on Node {
         // this will be transformed in a new-line
         _dataLength = 1;
         final Node sourceParent = jumpToParentExceptRoot()!;
+        EasyEditorLogger.treeOperations.info(
+          "Saving what nodes "
+          "changing: [${sourceParent.id}]",
+        );
         // jump directly to [Root]
         jumpToParent()
           // saves the content that changes
@@ -117,10 +121,7 @@ extension NodeOperations on Node {
         return DeltaChangeResult(removed: true, executed: true);
       }
 
-      if (isBlankText &&
-          delta.isCollapsed &&
-          delta.isDeletion &&
-          delta.newLength <= 0) {
+      if (isBlankText && delta.isCollapsed && delta.isDeletion) {
         unlink();
         invalidateDataOffset();
         invalidateCache();
@@ -180,7 +181,11 @@ extension NodeOperations on Node {
         throw IllegalNodeException(node: block, message: "Invalid Parent");
       }
 
-      deleteAtNode(this, delta.start, delta.end);
+      if (delta.isDeletion) {
+        deleteAtNode(this, delta.start, delta.end);
+      } else if (delta.isInsertion) {
+        insertAtNode(this, delta.start, delta.end);
+      }
 
       block._dataLength = block.dataLength + deltaLength;
 
@@ -272,6 +277,22 @@ extension NodeOperations on Node {
   /// ranges and need a convertion to be relative.
   void deleteAtNode(Node line, int from, int to, {bool global = false}) {
     assert(line.hasDirectValue(), 'node must contain a value to modify it');
+  }
+
+  /// Simplifies the insertion, it mades the operation directly at the node
+  /// passed. The node passed must contain a value
+  void insertAtNode(Node line, int offset, Object data, {int? endOffset}) {
+    assert(!line.isBlockNode, 'node must contain a value to modify it');
+
+    if (line.containsOffset(offset)) {
+
+    }
+  }
+
+  /// Simplifies the replace, it mades the operation directly at the node
+  /// passed. The node passed must contain a value
+  void replaceAtNode(Node line, int offset, int endOffset, Object data) {
+    assert(!line.isBlockNode, 'node must contain a value to modify it');
   }
 
   void insert(int offset, Object data, {int? endOffset}) {}

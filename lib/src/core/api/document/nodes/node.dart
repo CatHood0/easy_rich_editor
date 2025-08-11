@@ -15,6 +15,7 @@ import 'package:easy_rich_editor/internal.dart';
 import 'package:easy_rich_editor/easy_rich_editor.dart';
 import 'package:meta/meta.dart';
 
+import '../../../common/selectable_mixin.dart';
 import '../../../exceptions/illegal_node_exception.dart';
 import 'node_iterator.dart';
 
@@ -338,10 +339,19 @@ final class Node extends ChangeNotifier {
 
   int get depthLevel => _deepPath.length - 1;
 
-  /// Simplifies the insertion, it mades the operation directly at the node
-  /// passed. The node passed must contain a value
-  void insertAtNode(Node line, int offset, Object data, {int? endOffset}) {
-    assert(line.value != null, 'node must contain a value to modify it');
+  Node? queryPath(NodeDepthPath path) {
+    Node? node = this;
+    assert(path.isNotEmpty, 'path cannot be empty');
+    for (int p in path) {
+      if (node == null) {
+        return null;
+      }
+      // traverse always getting the child at the path
+      // and setting the child as the new node result
+      node = node.elementAtOrNull(p);
+    }
+
+    return node;
   }
 
   // FIXME: probably we can found a better way to cache the data length
@@ -642,7 +652,13 @@ class DeltaNode {
   /// Returns a Boolean indicating whether the selection start and ends in the same place.
   bool get isCollapsed => start == end;
 
-  bool get isDeletion => inserted == null && (newLength - oldLength) < 0;
+  bool get isDeletion =>
+      // when newLength is less than
+      // zero, is considered as this Delta
+      // is removing something
+      newLength < 0 || inserted == null && (newLength - oldLength) < 0;
+
+  bool get isInsertion => inserted != null && inserted is String;
 
   /// Returns a normalized selection that direction is forward.
   DeltaNode get normalized => isBackward

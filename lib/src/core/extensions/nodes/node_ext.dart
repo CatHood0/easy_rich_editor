@@ -1,6 +1,22 @@
 part of 'package:easy_rich_editor/src/core/api/document/nodes/node.dart';
 
 extension NodeExt on Node {
+  RenderBox? get renderBox =>
+      key.currentContext?.findRenderObject()?.castOrNull<RenderBox>();
+
+  BuildContext? get context => key.currentContext;
+
+  SelectableMixin? get selectable =>
+      key.currentState?.castOrNull<SelectableMixin>();
+
+  Rect get rect {
+    if (renderBox != null) {
+      final Offset boxOffset = renderBox!.localToGlobal(Offset.zero);
+      return boxOffset & renderBox!.size;
+    }
+    return Rect.zero;
+  }
+
   bool get hasDefinedValue => value != null && value is List<TextFragment>;
   bool get isBlockNode => metadata['block'] as bool? ?? !hasDefinedValue;
 
@@ -8,20 +24,20 @@ extension NodeExt on Node {
       value != null &&
       value is List<TextFragment> &&
       value!.cast<List<TextFragment>>().isNotEmpty &&
-      value!.cast<List<TextFragment>>().first.data.runtimeType == String;
+      value!.cast<List<TextFragment>>().first.data is String;
 
   bool get isBlankText =>
       value != null &&
       value is List<TextFragment> &&
       value!.cast<List<TextFragment>>().isEmpty;
-  
+
   bool get isNotBlankText => !isBlankText;
 
   bool get hasEmbed =>
       value != null &&
       value is List<TextFragment> &&
       value!.cast<List<TextFragment>>().isNotEmpty &&
-      value!.cast<List<TextFragment>>().first.data.runtimeType == Map;
+      value!.cast<List<TextFragment>>().first.data is Map<String, dynamic>;
 
   bool get isBlank => value == null;
 }
@@ -71,12 +87,8 @@ extension NodeUtilities on Node {
       id: id,
       type: type,
       value: value,
-      parent: parent,
-      children: children
-          .map(
-            (e) => e.copyWith(),
-          )
-          .toList(),
+      parent: parent?.copyWith(),
+      children: children.map<Node>((Node e) => e.deepCopy()).toList(),
       metadata: <String, dynamic>{...metadata},
     );
   }
