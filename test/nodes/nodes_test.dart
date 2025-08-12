@@ -50,6 +50,5 @@ void main() {
     );
 
     paragraph.insertNode(node, path: 0, after: false);
-    print(root.dumpTreeStr(currentPath: node.deepPath));
   });
 }

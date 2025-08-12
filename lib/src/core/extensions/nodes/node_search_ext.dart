@@ -191,7 +191,7 @@ extension NodeSearchExt on Node {
             NodeLocation(path: <int>[...lastNode.deepPath], node: lastNode),
         fragmentIndex: -1,
         fragmentOffset: -1,
-        locationOffset: lastNode.offset,
+        locationOffset: lastNode.dataLength,
       );
     }
 
@@ -230,8 +230,8 @@ extension NodeSearchExt on Node {
 
         return NodeCursorPosLocation(
           location: NodeLocation(path: <int>[...node.deepPath], node: node),
-          fragmentIndex: 0,
-          fragmentOffset: 0,
+          fragmentIndex: -1,
+          fragmentOffset: -1,
           locationOffset: localOffset,
         );
       } else if (includeLastNode &&
@@ -239,7 +239,7 @@ extension NodeSearchExt on Node {
           mid == length - 1) {
         return NodeCursorPosLocation(
           location: NodeLocation(path: <int>[...node.deepPath], node: node),
-          locationOffset: node.offset,
+          locationOffset: node.dataLength,
         );
       } else if (cursorPos < actualStart) {
         high = mid - 1;

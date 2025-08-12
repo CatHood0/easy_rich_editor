@@ -16,12 +16,12 @@ extension NodeValueModifications on Node {
     }
 
     final List<TextFragment> fragments = value!.castToFragments().toList();
-    final bool nodeIsNewLine = fragments.isEmpty;
+    final bool nodeIsEmpty = fragments.isEmpty;
     int offset = jumpedOffset;
-    int? oldParentLength = parent?._dataLength != null && nodeIsNewLine
+    int? oldParentLength = parent?._dataLength != null && nodeIsEmpty
         ? parent!._dataLength!.toInt() - 1
         : parent?._dataLength;
-    int? oldDataLength = _dataLength != null && nodeIsNewLine ? 0 : _dataLength;
+    int? oldDataLength = _dataLength != null && nodeIsEmpty ? 0 : _dataLength;
     String? oldParentText = parent?._text;
     String? oldText = _text;
     // normally, when a node with values is empty
@@ -48,7 +48,7 @@ extension NodeValueModifications on Node {
       );
     }
 
-    if (nodeIsNewLine) {
+    if (nodeIsEmpty) {
       fragments.add(
         TextFragment(
           data: obj,
@@ -67,11 +67,6 @@ extension NodeValueModifications on Node {
       final TextFragment fragment = fragments[i];
       final int fragLength = fragment.length;
       final int nextOffset = offset + fragLength;
-
-      if (start > offset) {
-        offset += fragLength;
-        continue;
-      }
 
       if (nextOffset > start) {
         final FragmentChangeContext result = _tryInsertAtFragmentBoundary(
@@ -92,6 +87,11 @@ extension NodeValueModifications on Node {
         }
 
         offset += fragLength;
+      }
+
+      if (start > offset) {
+        offset += fragLength;
+        continue;
       }
     }
 
@@ -130,14 +130,13 @@ extension NodeValueModifications on Node {
 
     // convert global ranges to local (from global offsets into the list
     // to local range into this TextFragment)
-    final int effectiveStart = (start - offset).nonNegative;
     final String text = fragment.getTextValue();
 
     // if both are zero, means that we are directly
     // in the end of this operation, and must modify or
     // return no execusasation
     fragments[index] = TextFragment(
-      data: '${text.left(effectiveStart)}$obj',
+      data: '${text.left(start)}$obj${text.right(start)}',
       attributes: attrs ?? fragment.attributes,
     );
 

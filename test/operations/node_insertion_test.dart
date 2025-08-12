@@ -11,8 +11,8 @@ void main() {
   final Node root = DocumentToNodesParser.documentParse(commonDoc);
   test('insertText', () {
     debugPrint(
-      root.queryPath(<int>[0, 0])!.dumpTreeStr(
-        currentPath: <int>[0, 0],
+      root.queryPath(<int>[2, 0])!.dumpTreeStr(
+        currentPath: <int>[2, 0],
       ),
     );
     final EasyLoggerConfiguration config = EasyLoggerConfiguration()
@@ -21,12 +21,12 @@ void main() {
         print(message);
       };
     final FragmentChangeContext context = root.insert(
-      0,
+      7,
       'My text',
     );
     debugPrint(
-      root.queryPath(<int>[0, 0])!.dumpTreeStr(
-        currentPath: <int>[0, 0],
+      root.queryPath(<int>[2, 0])!.dumpTreeStr(
+        currentPath: <int>[2, 0],
       ),
     );
   });

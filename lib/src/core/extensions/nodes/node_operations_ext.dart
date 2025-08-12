@@ -326,67 +326,97 @@ extension NodeOperations on Node {
     int fragmentPosition = 0,
     //TODO: implement this property
     int stringLimitLength = 300,
+    bool needQueryPosition = true,
   }) {
     if (isBlockNode || isRootOwner) {
+      EasyEditorLogger.tree.info('searching at $start '
+          'into $type($id)');
       final NodeCursorPosLocation location = queryPosition(
         start,
         includeLastNode: false,
       );
+      EasyEditorLogger.tree.info('Location: $location');
       // we directly ignore at this point this
       if (location.notFoundLocation) return _defaultNonExecutedContext;
       EasyEditorLogger.tree.info('Following query '
           'at ${location.locationOffset} '
           'into ${location.node?.type}(${location.node?.id})');
-      return location.node!.insert(location.locationOffset, data);
-    }
 
-    // [INFO][tree]: 2025-08-12 03:12:04.467620: Following query at 0 into Paragraph(new line 1)
-    // [INFO][tree]: 2025-08-12 03:12:04.470178: Following query at 0 into Line(BC457B2C)
-    // [INFO][tree]: 2025-08-12 03:12:04.470735: First try of location: NodeValueLocation(index: -1, offset: -1, locationOffset: -1, location: null)
-    assert(hasDefinedValue, 'value must be defined');
-
-    NodeCursorPosLocation location = queryPosition(
-      start,
-      includeLastNode: false,
-    );
-
-    EasyEditorLogger.tree.info('First try of location: $location');
-
-    if (location.notFoundLocation) return _defaultNonExecutedContext;
-
-    if (location.foundButNotFragment) {
-      EasyEditorLogger.tree.info(
-        'Will try five '
-        'attemps to get the '
-        'exact fragment '
-        'where is the cursor',
+      final FragmentChangeContext context = location.node!.insert(
+        location.locationOffset,
+        data,
+        fragmentPosition: fragmentPosition,
+        stringLimitLength: stringLimitLength,
+        needQueryPosition: !location.found,
       );
-      int attemps = 0;
-      while (!location.found) {
-        if (attemps <= 5 || location.notFoundLocation) {
-          EasyEditorLogger.tree.error(
-            'The Node at $start was not '
-            'founded as expected. '
-            'Current pos: $type("$id", $deepPath)',
-          );
-          return _defaultNonExecutedContext;
-        }
-        location = location.node!.queryPosition(
-          location.locationOffset,
-          includeLastNode: false,
-        );
-        attemps++;
+      if (context.executed && isBlockNode) {
+        jumpToParent().rebuildNodes(changes: <String, int>{id: 1});
+        notify();
       }
+      return context;
     }
 
-    final FragmentChangeContext context =
-        location.location!.node.insertValueWithContextAt(
-      data,
-      location.locationOffset,
-      fragmentPath: location.fragmentIndex,
-      jumpedOffset: location.locationOffset,
-      stringLimitLength: stringLimitLength,
-    );
+    assert(hasDefinedValue, 'value must be defined');
+    FragmentChangeContext? context;
+    if (needQueryPosition) {
+      NodeCursorPosLocation location = queryPosition(
+        start,
+        includeLastNode: false,
+      );
+
+      EasyEditorLogger.tree.info('Location: $location');
+
+      if (location.notFoundLocation) {
+        EasyEditorLogger.tree.warn(
+          'The Node at $start was not '
+          'founded as expected. '
+          'Current pos: $type("$id", $deepPath)',
+        );
+        return _defaultNonExecutedContext;
+      }
+
+      if (location.foundButNotFragment) {
+        EasyEditorLogger.tree.info(
+          'Will try five '
+          'attemps to get the '
+          'exact fragment '
+          'where is the cursor',
+        );
+        int attemps = 0;
+        while (!location.found) {
+          if (attemps <= 5 || location.notFoundLocation) {
+            EasyEditorLogger.tree.error(
+              'The Node at $start was not '
+              'founded as expected. '
+              'Current pos: $type("$id", $deepPath)',
+            );
+            return _defaultNonExecutedContext;
+          }
+          location = location.node!.queryPosition(
+            location.locationOffset,
+            includeLastNode: false,
+          );
+          attemps++;
+        }
+      }
+
+      context = location.location!.node.insertValueWithContextAt(
+        data,
+        location.locationOffset,
+        fragmentPath: location.fragmentIndex,
+        jumpedOffset: location.locationOffset,
+        stringLimitLength: stringLimitLength,
+      );
+    } else {
+      context = insertValueWithContextAt(
+        data,
+        start,
+        //FIXME: use fragmentPosition
+        fragmentPath: 0,
+        jumpedOffset: 0,
+        stringLimitLength: stringLimitLength,
+      );
+    }
     EasyEditorLogger.tree.info('$context');
 
     // no common, but, can happen when
@@ -399,8 +429,8 @@ extension NodeOperations on Node {
         parent.convertToGlobal(context.remainingRanges!.start),
         parent.convertToGlobal(context.remainingRanges!.end),
       );
+      return context;
     }
-
     return context;
   }
 

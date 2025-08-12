@@ -9,6 +9,13 @@ extension CastExt on Object {
   String castString() => cast<String>();
 }
 
+extension DynamicCast on dynamic {
+  T cast<T>() => this as T;
+  T? castOrNull<T>() => this is T ? this as T : null;
+  List<TextFragment> castToFragments() => cast<List<TextFragment>>();
+  String castString() => cast<String>();
+}
+
 extension EasyObjects on Object {
   int get length => this is String ? castString().length : 1;
 

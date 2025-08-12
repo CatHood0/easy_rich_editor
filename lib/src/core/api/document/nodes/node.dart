@@ -306,8 +306,35 @@ final class Node extends ChangeNotifier {
     return _text = '$buffer';
   }
 
+  void rebuildNodes({Map<String, int>? changes}) {
+    // merge new changes with the current ones
+    // if required
+    //
+    // Tipically this never happen, since render
+    // editor, clear automatically after render
+    if (hasChanges && changes != null) {
+      metadata[Node.requireRebuildKey] =
+          HashMap<String, int>.from(<String, int>{
+        ...this.changes!,
+        ...changes,
+      });
+      return;
+    }
+    metadata[Node.requireRebuildKey] =
+        changes == null ? null : HashMap<String, int>.from(changes);
+  }
+
+  @internal
+  static const String requireRebuildKey = 'requires_build';
+
   bool get canAddOrRemovedChildren =>
       metadata['can_modify_children_length'] as bool? ?? true;
+
+  bool get hasChanges =>
+      isRootOwner && (changes != null && changes!.isNotEmpty);
+
+  HashMap<String, int>? get changes =>
+      metadata[Node.requireRebuildKey] as HashMap<String, int>?;
 
   bool get isReadOnly => metadata['read-only'] as bool? ?? false;
 
