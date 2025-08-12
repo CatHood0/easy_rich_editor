@@ -40,11 +40,11 @@ void main() {
       expect(location.found, isTrue);
       expect(location.location, isNotNull);
       expect(location.location!.path, isNotEmpty);
-      expect(location.location!.path, [3, 0]);
+      expect(location.location!.path, [4, 0]);
       expect(
           location.location!.node,
           tree.queryPath(
-            [3, 0],
+            [4, 0],
           ));
 
       expect(location.location!.node.type, ParagraphKeys.lineKey);

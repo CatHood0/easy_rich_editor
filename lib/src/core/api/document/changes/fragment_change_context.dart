@@ -41,4 +41,13 @@ class FragmentChangeContext {
       lastFragmentLength: lastFragmentLength ?? this.lastFragmentLength,
     );
   }
+
+  @override
+  String toString() {
+    return 'FragmentChangeContext(executed: $executed, '
+        'pathChanges: $paths, '
+        'size: $insertionSize, '
+        'oldFragmentLength: $lastFragmentLength, '
+        'remainingRanges: $remainingRanges)';
+  }
 }

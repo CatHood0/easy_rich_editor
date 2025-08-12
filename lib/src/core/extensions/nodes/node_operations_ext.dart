@@ -317,6 +317,9 @@ extension NodeOperations on Node {
     return _defaultNonExecutedContext;
   }
 
+  //FIXME: when we insert raw newlines in a string
+  // them are passed directly to the fragment
+  // and are not being converted to a [Line] node
   FragmentChangeContext insert(
     int start,
     Object data, {
@@ -324,32 +327,52 @@ extension NodeOperations on Node {
     //TODO: implement this property
     int stringLimitLength = 300,
   }) {
-    assert(hasDefinedValue, 'value must be defined');
-    if (isBlockNode) {
+    if (isBlockNode || isRootOwner) {
       final NodeCursorPosLocation location = queryPosition(
         start,
         includeLastNode: false,
       );
       // we directly ignore at this point this
       if (location.notFoundLocation) return _defaultNonExecutedContext;
-      return location.location!.node.insert(location.locationOffset, data);
+      EasyEditorLogger.tree.info('Following query '
+          'at ${location.locationOffset} '
+          'into ${location.node?.type}(${location.node?.id})');
+      return location.node!.insert(location.locationOffset, data);
     }
+
+    // [INFO][tree]: 2025-08-12 03:12:04.467620: Following query at 0 into Paragraph(new line 1)
+    // [INFO][tree]: 2025-08-12 03:12:04.470178: Following query at 0 into Line(BC457B2C)
+    // [INFO][tree]: 2025-08-12 03:12:04.470735: First try of location: NodeValueLocation(index: -1, offset: -1, locationOffset: -1, location: null)
+    assert(hasDefinedValue, 'value must be defined');
 
     NodeCursorPosLocation location = queryPosition(
       start,
       includeLastNode: false,
     );
 
+    EasyEditorLogger.tree.info('First try of location: $location');
+
     if (location.notFoundLocation) return _defaultNonExecutedContext;
 
     if (location.foundButNotFragment) {
+      EasyEditorLogger.tree.info(
+        'Will try five '
+        'attemps to get the '
+        'exact fragment '
+        'where is the cursor',
+      );
       int attemps = 0;
       while (!location.found) {
         if (attemps <= 5 || location.notFoundLocation) {
+          EasyEditorLogger.tree.error(
+            'The Node at $start was not '
+            'founded as expected. '
+            'Current pos: $type("$id", $deepPath)',
+          );
           return _defaultNonExecutedContext;
         }
         location = location.node!.queryPosition(
-          start,
+          location.locationOffset,
           includeLastNode: false,
         );
         attemps++;
@@ -364,11 +387,14 @@ extension NodeOperations on Node {
       jumpedOffset: location.locationOffset,
       stringLimitLength: stringLimitLength,
     );
+    EasyEditorLogger.tree.info('$context');
 
     // no common, but, can happen when
     // the stringLimitLength is overlapped
     if (context.remainingRanges != null) {
       final Node? parent = jumpToParentExceptRoot();
+      EasyEditorLogger.tree.info('The range need to remove '
+          'some text between ${context.remainingRanges}');
       parent?.delete(
         parent.convertToGlobal(context.remainingRanges!.start),
         parent.convertToGlobal(context.remainingRanges!.end),

@@ -175,6 +175,15 @@ extension NodeSearchExt on Node {
       return NodeCursorPosLocation.notFound();
     }
 
+    if (cursorPos >= 0 && isBlankText) {
+      return NodeCursorPosLocation(
+        location: NodeLocation(path: <int>[...deepPath], node: this),
+        fragmentIndex: 0,
+        fragmentOffset: 0,
+        locationOffset: 0,
+      );
+    }
+
     if (includeLastNode && cursorPos == dataLength && isNotEmpty) {
       final Node lastNode = children.last;
       return NodeCursorPosLocation(
@@ -182,7 +191,7 @@ extension NodeSearchExt on Node {
             NodeLocation(path: <int>[...lastNode.deepPath], node: lastNode),
         fragmentIndex: -1,
         fragmentOffset: -1,
-        locationOffset: lastNode.dataLength,
+        locationOffset: lastNode.offset,
       );
     }
 
@@ -195,12 +204,12 @@ extension NodeSearchExt on Node {
 
       // FIXME: is sure that we can just ignore global start
       // since this is literally converting the ranges in local
-      final int actualStart = node.globalStart - globalStart;
-      final int actualEnd = node.globalEnd - globalStart;
+      final int actualStart = node.offset;
+      final int actualEnd = node.endOffset;
 
       if (cursorPos >= actualStart && cursorPos < actualEnd) {
         final int localOffset = (cursorPos - actualStart).nonNegative;
-        if (node.hasDefinedValue) {
+        if (node.hasDefinedValue && !node.isBlankText) {
           final List<TextFragment> frags = node.value!.castToFragments();
           int fragOffset = 0;
           for (int i = 0; i < frags.length; i++) {
@@ -221,6 +230,8 @@ extension NodeSearchExt on Node {
 
         return NodeCursorPosLocation(
           location: NodeLocation(path: <int>[...node.deepPath], node: node),
+          fragmentIndex: 0,
+          fragmentOffset: 0,
           locationOffset: localOffset,
         );
       } else if (includeLastNode &&
@@ -228,7 +239,7 @@ extension NodeSearchExt on Node {
           mid == length - 1) {
         return NodeCursorPosLocation(
           location: NodeLocation(path: <int>[...node.deepPath], node: node),
-          locationOffset: node.dataLength,
+          locationOffset: node.offset,
         );
       } else if (cursorPos < actualStart) {
         high = mid - 1;

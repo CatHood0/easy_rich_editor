@@ -16,12 +16,19 @@ extension NodeValueModifications on Node {
     }
 
     final List<TextFragment> fragments = value!.castToFragments().toList();
+    final bool nodeIsNewLine = fragments.isEmpty;
     int offset = jumpedOffset;
-    int? oldParentLength = parent?._dataLength;
-    int? oldDataLength = _dataLength;
+    int? oldParentLength = parent?._dataLength != null && nodeIsNewLine
+        ? parent!._dataLength!.toInt() - 1
+        : parent?._dataLength;
+    int? oldDataLength = _dataLength != null && nodeIsNewLine ? 0 : _dataLength;
     String? oldParentText = parent?._text;
     String? oldText = _text;
-    _dataLength = dataLength + obj.length;
+    // normally, when a node with values is empty
+    // means that this is a new line and manually we set
+    // a length of 1 to let to the editor think
+    // that we are really in a new line
+    _dataLength = fragments.isEmpty ? obj.length : dataLength + obj.length;
     parent?.invalidateDataOffset();
     if (oldParentLength != null && oldDataLength != null) {
       parent?._dataLength = (oldParentLength - oldDataLength) + _dataLength!;
@@ -38,6 +45,22 @@ extension NodeValueModifications on Node {
         start,
         start,
         obj.text(),
+      );
+    }
+
+    if (nodeIsNewLine) {
+      fragments.add(
+        TextFragment(
+          data: obj,
+          attributes: attrs,
+        ),
+      );
+      value = <TextFragment>[...fragments];
+      return FragmentChangeContext(
+        executed: true,
+        insertionSize: obj.length,
+        lastFragmentLength: 0,
+        paths: <int>[0],
       );
     }
     for (int i = fragmentPath; i < fragments.length; i++) {

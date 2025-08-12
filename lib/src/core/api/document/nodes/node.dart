@@ -44,7 +44,7 @@ final class Node extends ChangeNotifier {
   /// synced with the elements of the LinkedList, and must share the same
   /// memory reference for any instance (so, we never must put a copy
   /// of an instance here)
-  final HashMap<String, Node> _fastIndexTreePart = HashMap();
+  final HashMap<String, Node> _fastIndexTreePart = HashMap<String, Node>();
 
   // Refer to https://www.fileformat.info/info/unicode/char/fffc/index.htm
   static const String kObjectReplacementCharacter = '\uFFFC';
