@@ -24,4 +24,4 @@ linter:
     use_string_buffers: false 
     valid_regexps: true
     control_flow_in_finally: true
-    always_specify_types: false 
+    always_specify_types: true 

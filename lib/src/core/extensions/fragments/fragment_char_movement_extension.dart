@@ -1,3 +1,4 @@
+import 'package:easy_rich_editor/src/core/extensions/fragments/text_fragment_ext.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_quill_delta_easy_parser/flutter_quill_delta_easy_parser.dart';
 
@@ -41,16 +42,5 @@ extension TextFragmentMovementExt on List<TextFragment> {
     return map<String>(
       (TextFragment e) => e.toPlain(),
     ).join();
-  }
-}
-
-extension TextFragmentExt on TextFragment {
-  static const String _kObjectReplacementCharacter = '\uFFFC';
-
-  /// Converts the operation to its plain text representation.
-  String toPlain({String Function(Object embedData)? embedBuilder}) {
-    return data is String
-        ? '$data'
-        : embedBuilder?.call(data) ?? _kObjectReplacementCharacter;
   }
 }

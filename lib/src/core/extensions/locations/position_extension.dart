@@ -1,4 +1,4 @@
-import 'package:easy_rich_editor/src/core/extensions/fragments/fragment_extension.dart';
+import 'package:easy_rich_editor/src/core/extensions/fragments/fragment_char_movement_extension.dart';
 import 'package:easy_rich_editor/src/core/extensions/object_ext.dart';
 import 'package:flutter/material.dart';
 import '../../../../easy_rich_editor.dart';

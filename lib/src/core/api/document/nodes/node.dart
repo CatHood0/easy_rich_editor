@@ -3,6 +3,7 @@ import 'dart:convert';
 
 import 'package:collection/collection.dart';
 import 'package:easy_rich_editor/src/core/api/document/path/path.dart';
+import 'package:easy_rich_editor/src/core/extensions/fragments/text_fragment_ext.dart';
 import 'package:easy_rich_editor/src/core/extensions/object_ext.dart';
 import 'package:easy_rich_editor/src/core/logger/editor_logger.dart';
 import 'package:easy_rich_editor/src/utils/background_isolate_runner/isolate_runner.dart';
@@ -19,6 +20,7 @@ import '../../../common/selectable_mixin.dart';
 import '../../../exceptions/illegal_node_exception.dart';
 import 'node_iterator.dart';
 
+part 'package:easy_rich_editor/src/core/extensions/fragments/fragments_extension.dart';
 part 'package:easy_rich_editor/src/core/extensions/nodes/node_ext.dart';
 part 'package:easy_rich_editor/src/core/extensions/nodes/node_offset_ext.dart';
 part 'package:easy_rich_editor/src/core/extensions/nodes/node_search_ext.dart';

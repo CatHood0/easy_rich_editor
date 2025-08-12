@@ -49,8 +49,19 @@ mixin SelectableMixin on State<StatefulWidget> {
     bool shiftWithBaseOffset = false,
   });
 
+  /// Returns the relative start position from its parent
   NodePosition start();
+
+  /// Returns the relative position from its parent
   NodePosition end();
+
+  /// Returns the global start position of the [Node]
+  // normally are not required, we commonly just use
+  // relative offsets
+  NodePosition globalStart();
+
+  /// Returns the global end position of the [Node]
+  NodePosition globalEnd();
 
   /// For [TextNode] only.
   ///

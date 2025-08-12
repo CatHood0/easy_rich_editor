@@ -275,30 +275,75 @@ extension NodeOperations on Node {
   ///
   /// - [global]: indicates to the method if the [from] and [to] passed are in global
   /// ranges and need a convertion to be relative.
-  void deleteAtNode(Node line, int from, int to, {bool global = false}) {
-    assert(line.hasDirectValue(), 'node must contain a value to modify it');
+  void deleteAtNode(Node node, int start, int end, {bool global = false}) {
+    assert(start >= end, 'start and end offsets must be normalized');
+    // the current node is the parent
+    if (node.isBlockNode) {
+      if (node.isInRange(start, end)) {
+        delete(start, end);
+      }
+      return;
+    }
+    if (!global) {
+      if (isLocalInRange(start, end)) {
+        return;
+      }
+      final Node? block = node.jumpToParentExceptRoot();
+      if (block == null) return;
+      if (block.isLocalInRange(start, end)) {
+        block.delete(
+          start,
+          end,
+          global: false,
+        );
+      }
+      return;
+    }
+
+    final Node? block = node.jumpToParentExceptRoot();
+    if (block == null) return;
+    if (block.isInRange(start, end)) {
+      block.delete(
+        block.convertToLocal(start),
+        block.convertToLocal(end),
+        global: false,
+      );
+    }
   }
 
   /// Simplifies the insertion, it mades the operation directly at the node
   /// passed. The node passed must contain a value
-  void insertAtNode(Node line, int offset, Object data, {int? endOffset}) {
-    assert(!line.isBlockNode, 'node must contain a value to modify it');
-
-    if (line.containsOffset(offset)) {
-
-    }
+  void insertAtNode(
+    Node node,
+    int start,
+    Object data, {
+    int? end,
+    bool justReplaceRange = false,
+  }) {
+    // the current node is the parent
+    if (node.isBlockNode) {}
+    // the current node is the Line or EmbedLine
+    if (node.jumpToParentExceptRoot()!.containsOffset(offset)) {}
   }
 
-  /// Simplifies the replace, it mades the operation directly at the node
-  /// passed. The node passed must contain a value
-  void replaceAtNode(Node line, int offset, int endOffset, Object data) {
-    assert(!line.isBlockNode, 'node must contain a value to modify it');
-  }
-
-  void insert(int offset, Object data, {int? endOffset}) {}
+  void insert(
+    int start,
+    Object data, {
+    int? end,
+    bool global = false,
+  }) {}
 
   /// Retain is used commonly to apply styles into the subNodes
-  void retain() {}
+  void retain(
+    Map<String, dynamic> attributes,
+    int start, {
+    int? end,
+    bool passToBlockAttributesIfWrapEntireBlock = false,
+  }) {}
 
-  void delete(int from, int to) {}
+  void delete(
+    int start,
+    int end, {
+    bool global = false,
+  }) {}
 }

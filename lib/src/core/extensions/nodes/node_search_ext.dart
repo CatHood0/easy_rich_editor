@@ -14,12 +14,34 @@ extension NodeSearchExt on Node {
 
   bool contains(String id) => _fastIndexTreePart[id] != null;
 
+  /// Determines if inside this node the range is valid
+  bool isLocalInRange(int start, int end) {
+    final bool startInRange = start >= 0 && start < dataLength;
+    final bool endInRange = end >= start && end < dataLength;
+
+    return startInRange && endInRange;
+  }
+
+  int convertToLocal(int offset) {
+    final int effectiveLocal = (globalOffset - offset);
+    return effectiveLocal < 0 ? 0 : effectiveLocal;
+  }
+
+  /// Determines if inside this node the global range is valid
+  bool isInRange(int start, int end) {
+    final int globalOff = globalOffset;
+    final bool startInRange =
+        globalOff <= start && start < (globalOff + dataLength);
+    final bool endInRange = globalOff <= end && end < (globalOff + dataLength);
+
+    return startInRange && endInRange;
+  }
+
   /// Returns `true` if this node contains character at specified [offset] in
   /// the document.
   bool containsOffset(int offset) {
     final int globalOff = globalOffset;
-    final int localOff = offset;
-    return globalOff <= localOff && localOff < (globalOff + dataLength);
+    return globalOff <= offset && offset < (globalOff + dataLength);
   }
 
   bool containsSelection(NodeSelection selection) {

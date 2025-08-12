@@ -6,3 +6,8 @@ extension CastExt on Object {
   List<TextFragment> castToFragments() => cast<List<TextFragment>>();
   String castString() => cast<String>();
 }
+
+extension StringSubExt on String {
+  String left(int offset) => substring(0, offset);
+  String right(int offset) => substring(offset);
+}
