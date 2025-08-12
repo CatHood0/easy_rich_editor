@@ -7,6 +7,12 @@ extension CastExt on Object {
   String castString() => cast<String>();
 }
 
+extension EasyLength on Object {
+  int get length => this is String
+      ? castString().length
+      : 1;
+}
+
 extension StringSubExt on String {
   String left(int offset) => substring(0, offset);
   String right(int offset) => substring(offset);

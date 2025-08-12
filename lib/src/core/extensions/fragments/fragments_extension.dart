@@ -19,17 +19,16 @@ extension TextFragmentsModificationsExt on Node {
 
     // in some cases, if we pass an end that is out this Node (the sibling
     // also will be affected by the range)
-    final int outOfBlockEnd = end >= dataLength ? end - dataLength : 0;
-    final int contextEnd = outOfBlockEnd > 0 ? dataLength - 1 : end;
+    final int outOfBlockEnd = end > dataLength ? end - dataLength : 0;
+    final int deleteRange = end - start;
+    final int newNodeLength = (dataLength + obj.length) - deleteRange;
     final List<TextFragment> fragments = value!.castToFragments().toList();
     final List<int> paths = <int>[];
     int offset = 0;
     int remainingEnd = end;
     bool insertedElement = false;
-
-    //TODO: make an fast update of the dataLength in this Node
-    // and its direct parent to avoid save the time of making
-    // two computation when we can just make it here
+    _dataLength = newNodeLength;
+    parent?.invalidateDataOffset(willBeAfter: false);
     for (int i = fragmentPath; i < fragments.length; i++) {
       final TextFragment fragment = fragments[i];
       final int fragLength = fragment.length;
@@ -40,10 +39,11 @@ extension TextFragmentsModificationsExt on Node {
         continue;
       }
 
-      // basically, if we are the start and end are into the
-      // character range of this Fragment, just make the modification
+      // basically, if the start and end are into the
+      // character range of this TextFragment, just make the modification
       if (!insertedElement &&
           _canInsertInFragment(fragment, start, end, offset)) {
+          value = <TextFragment>[...fragments];
         return _handleInsertionInFragment(
           fragments: fragments,
           index: i,
@@ -53,10 +53,18 @@ extension TextFragmentsModificationsExt on Node {
           end: end,
           offset: offset,
           attrs: attrs,
+        ).copyWith(
+          remainingRanges: outOfBlockEnd == 0
+              ? null
+              : TextRange(
+                  start: 0,
+                  end: outOfBlockEnd,
+                ),
         );
       }
 
       if (nextOffset > start) {
+        //TODO: implement replace logic here
         if (insertedElement) {
           offset += fragLength;
           continue;
@@ -80,10 +88,10 @@ extension TextFragmentsModificationsExt on Node {
                 result.remainingRanges!.end <= 0)) {
           value = <TextFragment>[...fragments];
           return result.copyWith(
-            remainingRanges: outOfBlockEnd != 0
+            remainingRanges: outOfBlockEnd > 0
                 ? TextRange(
-                    start: dataLength,
-                    end: contextEnd,
+                    start: 0,
+                    end: outOfBlockEnd,
                   )
                 : null,
           );
@@ -292,4 +300,10 @@ class FragmentChangeContext {
 
 extension NonNegativeInt on int {
   int get nonNegative => this < 0 ? 0 : this;
+}
+
+extension on int? {
+  int? operator +(int other) {
+    return this == null ? other : this + other;
+  }
 }
