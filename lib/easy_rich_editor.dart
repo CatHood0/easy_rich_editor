@@ -5,7 +5,8 @@ export 'package:easy_rich_editor/src/core/api/document/document.dart';
 export 'package:easy_rich_editor/src/core/api/document/operations/operation.dart';
 export 'package:easy_rich_editor/src/core/api/document/operations/fixed_list_length.dart';
 // core -> Nodes
-export 'package:easy_rich_editor/src/core/api/document/nodes/node.dart';
+export 'package:easy_rich_editor/src/core/api/document/nodes/node.dart'
+    hide NodeValueModifications;
 // core -> Parsers
 export 'package:easy_rich_editor/src/core/parser/document_to_nodes.dart';
 // core -> Selection
@@ -29,6 +30,6 @@ export 'package:easy_rich_editor/src/core/extractors/node_extractor_base.dart';
 export 'package:easy_rich_editor/src/core/extractors/paragraph/paragraph_node_extractor.dart';
 export 'package:easy_rich_editor/src/core/extractors/table/table_node_extractor.dart';
 export 'package:easy_rich_editor/src/core/extractors/embed/embed_node_extractor.dart';
-// core -> Editor -> Cursor 
+// core -> Editor -> Cursor
 export 'package:easy_rich_editor/src/editor/cursor/event/cursor_event_context.dart';
 export 'package:easy_rich_editor/src/editor/cursor/state/cursor_state.dart';

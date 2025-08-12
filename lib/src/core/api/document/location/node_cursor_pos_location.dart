@@ -22,9 +22,9 @@ class NodeCursorPosLocation {
 
   NodeCursorPosLocation({
     required this.location,
-    required this.fragmentIndex,
-    required this.fragmentOffset,
     required this.locationOffset,
+    this.fragmentIndex = -1,
+    this.fragmentOffset = -1,
   });
 
   NodeCursorPosLocation.notFound()
@@ -44,6 +44,8 @@ class NodeCursorPosLocation {
   /// at the specified [Offset]
   bool get foundButNotFragment =>
       location != null && fragmentOffset <= -1 && fragmentIndex <= -1;
+
+  Node? get node => location?.node;
 
   /// Determines if we found the [Node] and the [TextFragment] at the
   /// specified [offset]

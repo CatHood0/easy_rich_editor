@@ -264,86 +264,135 @@ extension NodeOperations on Node {
     return DeltaChangeResult.noExecution();
   }
 
+  static const FragmentChangeContext _defaultNonExecutedContext =
+      FragmentChangeContext.noExecuted();
+
   /// Simplifies the deletion, it mades the operation directly at the node
   /// passed. The node passed must contain a value
   ///
   /// - [line]: the [Node] that will be modified.
   ///
-  /// - [from]: the start offset.
+  /// - [from]: the relative start offset.
   ///
-  /// - [to]: the end offset.
-  ///
-  /// - [global]: indicates to the method if the [from] and [to] passed are in global
-  /// ranges and need a convertion to be relative.
-  void deleteAtNode(Node node, int start, int end, {bool global = false}) {
+  /// - [to]: the relative end offset.
+  static FragmentChangeContext deleteAtNode(
+    Node node,
+    int start,
+    int end,
+  ) {
     assert(start >= end, 'start and end offsets must be normalized');
-    // the current node is the parent
-    if (node.isBlockNode) {
-      if (node.isInRange(start, end)) {
-        delete(start, end);
-      }
-      return;
-    }
-    if (!global) {
-      if (isLocalInRange(start, end)) {
-        return;
-      }
-      final Node? block = node.jumpToParentExceptRoot();
-      if (block == null) return;
-      if (block.isLocalInRange(start, end)) {
-        block.delete(
-          start,
-          end,
-          global: false,
-        );
-      }
-      return;
-    }
 
+    if (node.isLocalInRange(start, end)) {
+      return node.delete(start, end);
+    }
     final Node? block = node.jumpToParentExceptRoot();
-    if (block == null) return;
-    if (block.isInRange(start, end)) {
-      block.delete(
-        block.convertToLocal(start),
-        block.convertToLocal(end),
-        global: false,
+    if (block == null) return _defaultNonExecutedContext;
+    if (block.isLocalInRange(start, end)) {
+      return block.delete(
+        start,
+        end,
       );
     }
+    return _defaultNonExecutedContext;
   }
 
   /// Simplifies the insertion, it mades the operation directly at the node
   /// passed. The node passed must contain a value
-  void insertAtNode(
+  static FragmentChangeContext insertAtNode(
     Node node,
     int start,
-    Object data, {
-    int? end,
-    bool justReplaceRange = false,
-  }) {
+    Object data,
+  ) {
     // the current node is the parent
-    if (node.isBlockNode) {}
-    // the current node is the Line or EmbedLine
-    if (node.jumpToParentExceptRoot()!.containsOffset(offset)) {}
+    assert(start >= 0, 'start positive');
+
+    if (node.isLocalInRange(start, start)) {
+      return node.insert(start, data);
+    }
+    final Node? block = node.jumpToParentExceptRoot();
+    if (block == null) return _defaultNonExecutedContext;
+    if (block.isLocalInRange(start, start)) {
+      return block.insert(start, data);
+    }
+    return _defaultNonExecutedContext;
   }
 
-  void insert(
+  FragmentChangeContext insert(
     int start,
     Object data, {
-    int? end,
-    bool global = false,
-  }) {}
+    int fragmentPosition = 0,
+    //TODO: implement this property
+    int stringLimitLength = 300,
+  }) {
+    assert(hasDefinedValue, 'value must be defined');
+    if (isBlockNode) {
+      final NodeCursorPosLocation location = queryPosition(
+        start,
+        includeLastNode: false,
+      );
+      // we directly ignore at this point this
+      if (location.notFoundLocation) return _defaultNonExecutedContext;
+      return location.location!.node.insert(location.locationOffset, data);
+    }
+
+    NodeCursorPosLocation location = queryPosition(
+      start,
+      includeLastNode: false,
+    );
+
+    if (location.notFoundLocation) return _defaultNonExecutedContext;
+
+    if (location.foundButNotFragment) {
+      int attemps = 0;
+      while (!location.found) {
+        if (attemps <= 5 || location.notFoundLocation) {
+          return _defaultNonExecutedContext;
+        }
+        location = location.node!.queryPosition(
+          start,
+          includeLastNode: false,
+        );
+        attemps++;
+      }
+    }
+
+    final FragmentChangeContext context =
+        location.location!.node.insertValueWithContextAt(
+      data,
+      location.locationOffset,
+      fragmentPath: location.fragmentIndex,
+      jumpedOffset: location.locationOffset,
+      stringLimitLength: stringLimitLength,
+    );
+
+    // no common, but, can happen when
+    // the stringLimitLength is overlapped
+    if (context.remainingRanges != null) {
+      final Node? parent = jumpToParentExceptRoot();
+      parent?.delete(
+        parent.convertToGlobal(context.remainingRanges!.start),
+        parent.convertToGlobal(context.remainingRanges!.end),
+      );
+    }
+
+    return context;
+  }
 
   /// Retain is used commonly to apply styles into the subNodes
-  void retain(
+  FragmentChangeContext retain(
     Map<String, dynamic> attributes,
     int start, {
     int? end,
     bool passToBlockAttributesIfWrapEntireBlock = false,
-  }) {}
+  }) {
+    return _defaultNonExecutedContext;
+  }
 
-  void delete(
+  FragmentChangeContext delete(
     int start,
     int end, {
     bool global = false,
-  }) {}
+  }) {
+    return _defaultNonExecutedContext;
+  }
 }

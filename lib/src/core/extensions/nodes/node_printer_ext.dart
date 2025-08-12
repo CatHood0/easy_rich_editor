@@ -2,13 +2,13 @@ part of 'package:easy_rich_editor/src/core/api/document/nodes/node.dart';
 
 extension NodeTreeDumperExt on Node {
   String toPlainText({
-    String? Function(Node node, Object value)? onDetectEmbed,
+    String Function(Node node, Object value)? onDetectEmbed,
   }) {
     final StringBuffer buffer = StringBuffer();
     // means that we are into a parent
     if (!isBlockNode) {
       forEach((Node n, int index) {
-        buffer.write(n.toPlainText(onDetectEmbed: onDetectEmbed));
+        buffer.write(n.toPlainText(embedBuilder: onDetectEmbed));
       });
       return buffer.toString();
     }

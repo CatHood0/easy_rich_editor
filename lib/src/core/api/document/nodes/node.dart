@@ -2,6 +2,7 @@ import 'dart:collection';
 import 'dart:convert';
 
 import 'package:collection/collection.dart';
+import 'package:easy_rich_editor/src/core/api/document/changes/fragment_change_context.dart';
 import 'package:easy_rich_editor/src/core/api/document/path/path.dart';
 import 'package:easy_rich_editor/src/core/extensions/fragments/text_fragment_ext.dart';
 import 'package:easy_rich_editor/src/core/extensions/object_ext.dart';
@@ -18,9 +19,10 @@ import 'package:meta/meta.dart';
 
 import '../../../common/selectable_mixin.dart';
 import '../../../exceptions/illegal_node_exception.dart';
+import '../changes/delta_node.dart';
 import 'node_iterator.dart';
 
-part 'package:easy_rich_editor/src/core/extensions/fragments/fragments_extension.dart';
+part 'package:easy_rich_editor/src/core/extensions/fragments/node_fragment_modifier_extension.dart';
 part 'package:easy_rich_editor/src/core/extensions/nodes/node_ext.dart';
 part 'package:easy_rich_editor/src/core/extensions/nodes/node_offset_ext.dart';
 part 'package:easy_rich_editor/src/core/extensions/nodes/node_search_ext.dart';
@@ -59,6 +61,8 @@ final class Node extends ChangeNotifier {
 
   static const int _notFoundPath = -1;
 
+  //FIXME: implement this
+  String? _text;
   Object? _value;
 
   /// Offset only works for parents like [Paragraph], [Embed], or [Table]
@@ -80,14 +84,14 @@ final class Node extends ChangeNotifier {
   bool needsComputeFullPath = true;
 
   Node.root({
-    List<Node> children = const [],
+    List<Node> children = const <Node>[],
     Map<String, dynamic>? metadata,
   })  : type = Node.rootId,
         id = Node.rootId,
         parent = null,
         _value = null {
     metadata ??= <String, dynamic>{};
-    this.metadata = {
+    this.metadata = <String, dynamic>{
       ...metadata,
       'root': true,
     };
@@ -102,7 +106,7 @@ final class Node extends ChangeNotifier {
     String? id,
     bool canModifyChildrenLength = true,
     Map<String, dynamic>? blockAttributes,
-    List<Node> children = const [],
+    List<Node> children = const <Node>[],
   }) {
     this.value = value;
     this.id = id ?? nanoid(8);
@@ -135,7 +139,7 @@ final class Node extends ChangeNotifier {
       final Node line = Node(
         type: EmbedKeys.childrenKey,
         value: <TextFragment>[...child.fragments],
-        children: [],
+        children: <Node>[],
         parent: this,
         id: child.id,
         canModifyChildrenLength: false,
@@ -246,7 +250,9 @@ final class Node extends ChangeNotifier {
     if (isBlockNode) {
       _dataLength ??= children.fold<int>(
         0,
-        (int prev, Node n) => prev + n.dataLength,
+        (int prev, Node n) {
+          return prev + n.dataLength;
+        },
       );
       return _dataLength!;
     }
@@ -259,10 +265,45 @@ final class Node extends ChangeNotifier {
 
     int length = 0;
     for (TextFragment frag in _value!.castToFragments()) {
-      length += frag.isText ? frag.data.castString().length : 1;
+      length += frag.length;
+      if (_text == "" || _text == null) {
+        _text = "${_text.orEmpty}"
+            "${frag.isText ? frag.getTextValue() : Node.kObjectReplacementCharacter}";
+      }
     }
 
     return _dataLength = length;
+  }
+
+  String toPlainText({String Function(Node node, Object fr)? embedBuilder}) {
+    if (_text != null) return _text!;
+    final StringBuffer buffer = StringBuffer();
+    if (isBlockNode || !hasDefinedValue) {
+      for (final Node node in children) {
+        buffer.write(node.toPlainText(embedBuilder: embedBuilder));
+      }
+      _text = '$buffer';
+      return _text!;
+    }
+
+    int length = 0;
+    for (TextFragment frag in _value!.castToFragments()) {
+      if (_dataLength == null) {
+        length += frag.length;
+      }
+      buffer.write(
+        frag.text(
+          ifNotBuilder: embedBuilder == null
+              ? null
+              : (Object e) => embedBuilder(
+                    this,
+                    e,
+                  ),
+        ),
+      );
+    }
+    _dataLength ??= length;
+    return _text = '$buffer';
   }
 
   bool get canAddOrRemovedChildren =>
@@ -297,6 +338,7 @@ final class Node extends ChangeNotifier {
   /// - [willBeAfter]: indicates that the invalidation of the offset will be after this [Node], and not at this one.
   void invalidateDataOffset({bool willBeAfter = false}) {
     _dataLength = null;
+    _text = null;
     if (!willBeAfter) _offset = null;
     parent?.invalidateDataOffset();
   }
@@ -520,7 +562,7 @@ final class Node extends ChangeNotifier {
     if (!needsComputeFullPath) return _deepPath;
     if (parent == null) return <int>[];
 
-    final List<int> path = [this.path];
+    final List<int> path = <int>[this.path];
 
     Node? curParent = parent!;
 
@@ -554,8 +596,9 @@ final class Node extends ChangeNotifier {
       value = values["value"];
     }
     if (values["attributes_change"] != null) {
-      final newAttributes = values["attributes_change"] as Map<String, dynamic>;
-      metadata = {...metadata, ...newAttributes};
+      final Map<String, dynamic> newAttributes =
+          values["attributes_change"] as Map<String, dynamic>;
+      metadata = <String, dynamic>{...metadata, ...newAttributes};
     }
     // here we need to take a look to verify some things
     return this;
@@ -589,7 +632,7 @@ final class Node extends ChangeNotifier {
     );
     if (kDebugMode) {
       EasyEditorLogger.treeBackgroundRunners
-          .debug("Params for resetting paths: ${{
+          .debug("Params for resetting paths: ${<String, Object?>{
         "parent": parent?.id,
         "currentNode": node.id,
         "last_path": curPath,
@@ -623,73 +666,4 @@ final class Node extends ChangeNotifier {
   String toString() {
     return 'Node(type=$type,value=$value,metadata=$metadata,children=$children)';
   }
-}
-
-/// Represents the granular change do it to a particular [Node]
-class DeltaNode {
-  // Represents where ends the change
-  final int end;
-  // Represents where starts the change
-  //
-  // Must be relative
-  final int start;
-  final int newLength;
-  final int oldLength;
-  final Object? inserted;
-
-  DeltaNode({
-    required this.oldLength,
-    required this.newLength,
-    required this.inserted,
-    required this.start,
-    required this.end,
-  });
-
-  /// Returns a Boolean indicating whether the selection is backward.
-  bool get isBackward => start < end;
-
-  /// Returns a Boolean indicating whether the selection is forward/normalized.
-  bool get isNormalized => start > end;
-
-  /// Returns a Boolean indicating whether the selection start and ends in the same place.
-  bool get isCollapsed => start == end;
-
-  bool get isDeletion =>
-      // when newLength is less than
-      // zero, is considered as this Delta
-      // is removing something
-      newLength < 0 || inserted == null && (newLength - oldLength) < 0;
-
-  bool get isInsertion => inserted != null && inserted is String;
-
-  /// Returns a normalized selection that direction is forward.
-  DeltaNode get normalized => isBackward
-      ? this
-      : DeltaNode(
-          oldLength: oldLength,
-          newLength: newLength,
-          inserted: inserted,
-          start: end,
-          end: start,
-        );
-}
-
-class DeltaChangeResult {
-  final bool removed;
-  final bool executed;
-  final bool inserted;
-  final bool removedEntireNode;
-
-  DeltaChangeResult({
-    this.removed = false,
-    this.executed = true,
-    this.inserted = false,
-    this.removedEntireNode = false,
-  });
-
-  DeltaChangeResult.noExecution()
-      : removed = false,
-        executed = false,
-        inserted = false,
-        removedEntireNode = false;
 }

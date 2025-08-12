@@ -4,6 +4,7 @@ import 'package:flutter/foundation.dart';
 import '../../../../../easy_rich_editor.dart';
 
 typedef NodeDepthPath = List<int>;
+typedef FragmentPath = List<int>;
 
 extension MinimalPathExtension on int {
   int get prev => this - 1;

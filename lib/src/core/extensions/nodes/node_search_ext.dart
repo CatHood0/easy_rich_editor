@@ -22,9 +22,14 @@ extension NodeSearchExt on Node {
     return startInRange && endInRange;
   }
 
-  int convertToLocal(int offset) {
-    final int effectiveLocal = (globalOffset - offset);
-    return effectiveLocal < 0 ? 0 : effectiveLocal;
+  int convertToLocal(int point) {
+    final int effectiveLocal = globalOffset - point;
+    return effectiveLocal.nonNegative;
+  }
+
+  int convertToGlobal(int point) {
+    final int effectiveLocal = point + globalOffset;
+    return effectiveLocal;
   }
 
   /// Determines if inside this node the global range is valid
@@ -188,24 +193,25 @@ extension NodeSearchExt on Node {
       final int mid = (low + high) ~/ 2;
       final Node node = children[mid];
 
+      // FIXME: is sure that we can just ignore global start
+      // since this is literally converting the ranges in local
       final int actualStart = node.globalStart - globalStart;
       final int actualEnd = node.globalEnd - globalStart;
 
       if (cursorPos >= actualStart && cursorPos < actualEnd) {
-        final int localOffset = cursorPos - actualStart;
+        final int localOffset = (cursorPos - actualStart).nonNegative;
         if (node.hasDefinedValue) {
           final List<TextFragment> frags = node.value!.castToFragments();
           int fragOffset = 0;
           for (int i = 0; i < frags.length; i++) {
-            final frag = frags[i];
-            final fragmentLength =
-                frag.data is String ? frag.data.castString().length : 1;
+            final int fragmentLength = frags[i].length;
 
-            if (localOffset < fragOffset + fragmentLength) {
+            if (localOffset < (fragOffset + fragmentLength)) {
               return NodeCursorPosLocation(
-                location: NodeLocation(path: [...node.deepPath], node: node),
+                location:
+                    NodeLocation(path: <int>[...node.deepPath], node: node),
                 fragmentIndex: i,
-                fragmentOffset: localOffset - fragOffset,
+                fragmentOffset: (localOffset - fragOffset).nonNegative,
                 locationOffset: localOffset,
               );
             }
@@ -214,18 +220,14 @@ extension NodeSearchExt on Node {
         }
 
         return NodeCursorPosLocation(
-          location: NodeLocation(path: [...node.deepPath], node: node),
-          fragmentIndex: -1,
-          fragmentOffset: -1,
+          location: NodeLocation(path: <int>[...node.deepPath], node: node),
           locationOffset: localOffset,
         );
       } else if (includeLastNode &&
           cursorPos == actualEnd &&
           mid == length - 1) {
         return NodeCursorPosLocation(
-          location: NodeLocation(path: [...node.deepPath], node: node),
-          fragmentIndex: -1,
-          fragmentOffset: -1,
+          location: NodeLocation(path: <int>[...node.deepPath], node: node),
           locationOffset: node.dataLength,
         );
       } else if (cursorPos < actualStart) {
