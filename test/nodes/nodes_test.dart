@@ -13,10 +13,11 @@ void main() {
     final Node node = Node(
       type: ParagraphKeys.lineKey,
       value: <pr.TextFragment>[
-        pr.TextFragment(data: "This is my example text bitch. "),
+        pr.TextFragment(data: "This is my example text "),
         pr.TextFragment(data: "So, i want to know "),
         pr.TextFragment(
-            data: "why (2)", attributes: <String, dynamic>{'bold': true}),
+            data: "if is this good?",
+            attributes: <String, dynamic>{'bold': true}),
       ],
       id: 'Test id',
       canModifyChildrenLength: false,
@@ -36,10 +37,11 @@ void main() {
     final Node node = Node(
       type: ParagraphKeys.lineKey,
       value: <pr.TextFragment>[
-        pr.TextFragment(data: "This is my example text bitch. "),
+        pr.TextFragment(data: "This is my example text "),
         pr.TextFragment(data: "So, i want to know "),
         pr.TextFragment(
-            data: "why", attributes: <String, dynamic>{'bold': true}),
+            data: "if is this good?",
+            attributes: <String, dynamic>{'bold': true}),
       ],
       id: 'Test id',
       canModifyChildrenLength: false,
