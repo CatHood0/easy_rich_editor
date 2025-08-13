@@ -78,7 +78,7 @@ final class Node extends ChangeNotifier {
   int _path = -1;
 
   // current full path of this node
-  NodeDepthPath _deepPath = <int>[-1];
+  NodeDepthPath _deepPath = <int>[];
 
   bool needsComputePath = true;
   bool needsComputeFullPath = true;
@@ -409,8 +409,8 @@ final class Node extends ChangeNotifier {
   void invalidateCache({bool justCache = false}) {
     _cachedLength = null;
     if (!justCache) {
-      needsComputePath = true;
-      needsComputeFullPath = true;
+      path = -1;
+      deepPath = <int>[];
     }
   }
 
@@ -472,7 +472,7 @@ final class Node extends ChangeNotifier {
       // to avoid recomputing of a knowed path
       // just set it
       ..path = lastPathKnowed++
-      ..deepPath = <int>[...parent!._deepPath, path];
+      ..deepPath = <int>[...parent!.deepPath, path];
     final int? cachedLength = parent!._cachedLength;
     parent!.invalidateCache(justCache: true);
     if (cachedLength != null) {
@@ -506,7 +506,7 @@ final class Node extends ChangeNotifier {
       // to avoid recomputing of a knowed path
       // just set it
       ..path = lastPathKnowed
-      ..deepPath = <int>[..._deepPath];
+      ..deepPath = <int>[...parent!.deepPath, lastPathKnowed];
     _fastIndexTreePart[entry.id] = entry;
     final int? cachedLength = parent!._cachedLength;
     parent!.invalidateCache(justCache: true);
@@ -629,16 +629,12 @@ final class Node extends ChangeNotifier {
 
   set path(int path) {
     _path = path;
-    needsComputePath = false;
-
-    if (_deepPath.isNotEmpty && _deepPath.first != -1) {
-      _deepPath[_deepPath.length - 1] = path;
-    }
+    needsComputePath = path < 0;
   }
 
   set deepPath(NodeDepthPath path) {
     _deepPath = <int>[...path];
-    needsComputeFullPath = false;
+    needsComputeFullPath = path.isEmpty;
   }
 
   /// Get a normalized list of paths where this Node is
@@ -648,18 +644,25 @@ final class Node extends ChangeNotifier {
 
     final List<int> path = <int>[this.path];
 
-    Node? curParent = parent!;
-
-    while (curParent != null) {
-      // we ignore always the root
-      if (curParent.isRootOwner) {
-        break;
-      }
-      path.add(curParent.path);
-      curParent = curParent.parent;
-    }
+    jumpToParentExceptRootCaller((Node n) {
+      path.add(
+        n.path,
+      );
+    });
 
     _deepPath = <int>[...path.reversed];
+
+    // is not a direct parent
+    if (path.length == 1 && !isBlockNode) {
+      EasyEditorLogger.treeFailures.info(
+        'Couldn\'t be getted the '
+        'correct full deep path of $type(id: $id, offset: $globalStart). '
+        'Extra => Most nearest node to the Root: ${jumpToParentExceptRoot()}',
+      );
+      throw Exception(
+        'By some reason, we cannot get the full deep path of $this',
+      );
+    }
 
     return _deepPath;
   }

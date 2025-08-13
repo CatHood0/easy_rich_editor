@@ -38,7 +38,7 @@ class NodeCursorPosLocation {
       location == null && fragmentIndex <= -1 && locationOffset <= -1;
 
   /// Determines if we found the [Node]
-  bool get found => !notFoundLocation;
+  bool get found => location != null && fragmentIndex > -1 && locationOffset > -1;
 
   /// Determines if we found the [Node] but not the [TextFragment]
   /// at the specified [Offset]

@@ -2,7 +2,7 @@ part of 'package:easy_rich_editor/src/core/api/document/nodes/node.dart';
 
 extension NodeOperations on Node {
   void insertNode(Node child, {int? path, bool after = false}) {
-    if (!canAddOrRemovedChildren) return;
+    if (!canAddOrRemovedChildren || contains(child.id)) return;
     child
       ..invalidateDataOffset()
       ..invalidateCache()
@@ -10,9 +10,11 @@ extension NodeOperations on Node {
       ..unlinkIfNeeded();
 
     if (path == null || path >= length || isEmpty) {
-      child
-        ..path = length
-        ..deepPath = <int>[...deepPath, length];
+      if (!needsComputeFullPath && !needsComputePath) {
+        child
+          ..path = length
+          ..deepPath = <int>[...deepPath, length];
+      }
       _fastIndexTreePart[child.id] = child;
       children.add(child);
       invalidateCache(justCache: true);
@@ -59,7 +61,7 @@ extension NodeOperations on Node {
     if (sibling != null) {
       sibling
         ..path = path.prev.nonNegative
-        ..deepPath = <int>[...parent!._deepPath, path.prev.nonNegative];
+        ..deepPath = <int>[...parent!.deepPath, path.prev.nonNegative];
       invalidateCacheOfSiblings(
         node: sibling,
         after: true,
@@ -238,7 +240,9 @@ extension NodeOperations on Node {
         return DeltaChangeResult(executed: true);
       }
       final NodeCursorPosLocation startLoc = queryPosition(delta.start);
+      // ignore: unnecessary_nullable_for_final_variable_declarations
       final NodeCursorPosLocation? endLoc = queryPosition(delta.end);
+      // ignore: unused_local_variable
       final List<Node> selectedNodes = NodeIterator(
         startNode: startLoc.location!.node,
         endNode: endLoc?.location?.node,

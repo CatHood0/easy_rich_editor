@@ -98,6 +98,17 @@ extension NodeSearchExt on Node {
     return jumpToParent(stopAt: (Node n) => n.parent?.isRootOwner ?? false);
   }
 
+  /// Jump each parent to get more closer at the Root node
+  /// and let us know what is the current parent where we
+  /// are jumping
+  Node? jumpToParentExceptRootCaller(void Function(Node node) callback) {
+    if (isRootOwner || parent == null) return null;
+    return jumpToParent(stopAt: (Node n) {
+      callback(n);
+      return n.parent?.isRootOwner ?? false;
+    });
+  }
+
   /// Queries the child [Node] at [offset] in this [Node].
   ///
   /// The result may contain the found node or `null` if no node is found
@@ -176,7 +187,6 @@ extension NodeSearchExt on Node {
     if (cursorPos < 0 || cursorPos > dataLength) {
       return NodeCursorPosLocation.notFound();
     }
-
     if (cursorPos >= 0 && isBlankText) {
       return NodeCursorPosLocation(
         location: NodeLocation(path: <int>[...deepPath], node: this),
@@ -209,7 +219,7 @@ extension NodeSearchExt on Node {
       final int actualStart = node.offset;
       final int actualEnd = node.endOffset;
 
-      if (cursorPos >= actualStart && cursorPos <= actualEnd) {
+      if (cursorPos >= actualStart && cursorPos < actualEnd) {
         final int localOffset = (cursorPos - actualStart).nonNegative;
         EasyEditorLogger.cursor.info('Cursor(pos: $cursorPos, '
             'localOff: $localOffset, '
@@ -265,6 +275,7 @@ extension NodeSearchExt on Node {
 
     final List<TextFragment> frags = value!.castToFragments();
     int fragOffset = 0;
+
     for (int i = 0; i < frags.length; i++) {
       final TextFragment frag = frags[i];
       final int fragmentLength = frag.length;

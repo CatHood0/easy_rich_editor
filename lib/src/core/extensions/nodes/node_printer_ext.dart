@@ -39,6 +39,7 @@ extension NodeTreeDumperExt on Node {
     bool applyJustIndents = false,
     int applyJustBefore = 0,
     List<int> currentPath = const <int>[0],
+    bool showFullDeepPaths = false,
   }) {
     paths ??= <int>[];
 
@@ -60,9 +61,12 @@ extension NodeTreeDumperExt on Node {
     }
 
     final Limiter? limiter = Tree.getLimiter(type);
+    final List<int> nodePath = showFullDeepPaths ? deepPath : <int>[path];
     final StringBuffer buffer = StringBuffer("")
-      ..write(
-          "$type(${id.substring(0, 4).trim()}-[$path]): Offset(start: $globalOffset, end: $globalEnd)");
+      ..write("$type(${id.substring(0, 4).trim()}"
+          "-"
+          "$nodePath): "
+          "Offset(start: ${isBlockNode ? globalOffset : offset}, end: ${isBlockNode ? globalEnd : endOffset}) ");
     if (listEquals(currentPath, deepPath)) {
       buffer.write(" < Cursor position");
     }
@@ -104,6 +108,7 @@ extension NodeTreeDumperExt on Node {
               applyJustIndents: i + 1 >= length,
               applyJustBefore: tab,
               currentPath: currentPath,
+              showFullDeepPaths: showFullDeepPaths,
             ),
           );
       }

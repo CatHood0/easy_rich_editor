@@ -25,7 +25,7 @@ class ParagraphNodeExtractor extends NodeExtractor<TextFragment> {
   List<String> formatObjectToStr(Object obj) {
     assert(obj is Iterable<TextFragment> || obj is TextFragment,
         "The value passed must be a list of fragments or just TextFragment");
-    return [
+    return <String>[
       if (obj is TextFragment) _formatFragment(obj),
       if (obj is Iterable<TextFragment>)
         ...obj.map<String>((TextFragment fr) {
@@ -46,7 +46,7 @@ class ParagraphNodeExtractor extends NodeExtractor<TextFragment> {
     bool Function(Node value)? filter,
     bool needsTraverse = true,
   }) {
-    final List<TextFragment> fragments = [];
+    final List<TextFragment> fragments = <TextFragment>[];
 
     if (needsTraverse) {
       if (node.isEmpty) return fragments;
@@ -114,12 +114,12 @@ class ParagraphNodeExtractor extends NodeExtractor<TextFragment> {
       final List<NodeValueLocation> locations = <NodeValueLocation>[];
 
       for (final Node child in node.children) {
-        child.updatePathsIfNeeded(index, [...path, index]);
+        child.updatePathsIfNeeded(index, <int>[...path, index]);
         final List<NodeValueLocation> location = getLocationsOfValue(
           child,
           value,
           limiter,
-          path: [...path, index],
+          path: <int>[...path, index],
           caseSensitive: caseSensitive,
         );
 

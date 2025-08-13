@@ -107,20 +107,20 @@ class Tree extends ValueNotifier<Node> implements TreeOperations {
         includeLastNode: false,
       );
 
-      if (parentLocation.notFoundLocation) {
+      if (parentLocation.notFoundLocation || parentLocation.found) {
         return parentLocation;
       }
 
       // at this point, we get the line that contains our
       // value
       final NodeCursorPosLocation childLocation =
-          parentLocation.location!.node.queryPosition(
+          parentLocation.node!.queryPosition(
         parentLocation.locationOffset,
         includeLastNode: true,
       );
 
-      if (childLocation.notFoundLocation) {
-        return parentLocation;
+      if (childLocation.notFoundLocation || childLocation.found) {
+        return childLocation;
       }
 
       // if found the node, but not the fragment

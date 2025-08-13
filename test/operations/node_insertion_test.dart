@@ -10,25 +10,15 @@ import '../resources/doc_rs.dart';
 void main() {
   final Node root = DocumentToNodesParser.documentParse(commonDoc);
   test('insertText', () {
-    debugPrint(
-      root.queryPath(<int>[2, 0])!.dumpTreeStr(
-        currentPath: <int>[2, 0],
-      ),
-    );
-    final EasyLoggerConfiguration config = EasyLoggerConfiguration()
-      ..level = EasyLogLevel.all
-      ..handler = (String message) {
-        print(message);
-      };
-    final FragmentChangeContext context = root.insert(
-      50,
-      'My text',
-    );
-    debugPrint(
-      root.dumpTreeStr(
-        currentPath: <int>[2, 0],
-      ),
-    );
+    // final EasyLoggerConfiguration config = EasyLoggerConfiguration()
+    //   ..level = EasyLogLevel.all
+    //   ..handler = (String message) {
+    //     print(message);
+    //   };
+    // final FragmentChangeContext context = root.insert(
+    //   50,
+    //   'My text',
+    // );
   });
   test('insertNode', () {});
 }

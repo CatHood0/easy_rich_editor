@@ -34,22 +34,17 @@ void main() {
     });
     test('Get the new line at offset 110', () async {
       final NodeCursorPosLocation location = tree.queryOffset(
-        111,
+        110,
         strict: true,
       );
       expect(location.found, isTrue);
       expect(location.location, isNotNull);
       expect(location.location!.path, isNotEmpty);
-      expect(location.location!.path, <int>[4, 0],
-          reason: 'Expected: [4,0] was found: ${location.node}');
+      expect(location.location!.path, <int>[3, 0],
+          reason: 'Expected: [3,0]. Actual location info: $location');
       expect(location.node!.toPlainText(), equals('\n'),
           reason: 'Expected: "\\n" was found: ${location.node!.toPlainText()}');
-      expect(
-          location.location!.node,
-          tree.queryPath(
-            <int>[4, 0],
-          ));
-
+      expect(location.location!.node, tree.queryPath(<int>[3, 0]));
       expect(location.location!.node.type, ParagraphKeys.lineKey);
     });
   });
