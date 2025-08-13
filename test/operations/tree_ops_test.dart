@@ -15,7 +15,7 @@ void main() {
       expect(node!.id, id);
     });
     test('Query Node by full path', () {
-      final Node? node = tree.queryPath([5, 0]);
+      final Node? node = tree.queryPath(<int>[5, 0]);
       expect(node, isNotNull);
     });
     test('Query List of locations by the given text', () {
@@ -34,17 +34,20 @@ void main() {
     });
     test('Get the new line at offset 110', () async {
       final NodeCursorPosLocation location = tree.queryOffset(
-        110,
+        111,
         strict: true,
       );
       expect(location.found, isTrue);
       expect(location.location, isNotNull);
       expect(location.location!.path, isNotEmpty);
-      expect(location.location!.path, [4, 0]);
+      expect(location.location!.path, <int>[4, 0],
+          reason: 'Expected: [4,0] was found: ${location.node}');
+      expect(location.node!.toPlainText(), equals('\n'),
+          reason: 'Expected: "\\n" was found: ${location.node!.toPlainText()}');
       expect(
           location.location!.node,
           tree.queryPath(
-            [4, 0],
+            <int>[4, 0],
           ));
 
       expect(location.location!.node.type, ParagraphKeys.lineKey);
@@ -54,11 +57,11 @@ void main() {
   group('Add nodes', () {
     test('insert node at start', () {
       final Node node = randomNode;
-      tree.addNode(node, after: false, paths: [0]);
+      tree.addNode(node, after: false, paths: <int>[0]);
 
       expect(node.parent, isNotNull);
       expect(node.parent, tree.root);
-      expect(tree.queryPath([0]), node);
+      expect(tree.queryPath(<int>[0]), node);
     });
     test('insert node at end', () {});
     test('insert node at path', () {});

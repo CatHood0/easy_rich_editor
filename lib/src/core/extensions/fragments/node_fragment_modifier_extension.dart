@@ -85,14 +85,8 @@ extension NodeValueModifications on Node {
           //TODO: implement stringLimitLength capabilities
           return result.copyWith();
         }
-
-        offset += fragLength;
       }
-
-      if (start > offset) {
-        offset += fragLength;
-        continue;
-      }
+      offset += fragLength;
     }
 
     return FragmentChangeContext.noExecuted();

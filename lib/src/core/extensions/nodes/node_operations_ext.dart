@@ -3,14 +3,17 @@ part of 'package:easy_rich_editor/src/core/api/document/nodes/node.dart';
 extension NodeOperations on Node {
   void insertNode(Node child, {int? path, bool after = false}) {
     if (!canAddOrRemovedChildren) return;
-    if (child.parent != null && child.parent != this) {
-      child.unlink();
-    }
+    child
+      ..invalidateDataOffset()
+      ..invalidateCache()
+      ..parent = this
+      ..unlinkIfNeeded();
 
-    child.parent = this;
-    _fastIndexTreePart[child.id] = child;
-
-    if (path == null || path >= length) {
+    if (path == null || path >= length || isEmpty) {
+      child
+        ..path = length
+        ..deepPath = <int>[...deepPath, length];
+      _fastIndexTreePart[child.id] = child;
       children.add(child);
       invalidateCache(justCache: true);
       parent?.invalidateDataOffset();
@@ -30,8 +33,7 @@ extension NodeOperations on Node {
     }
     invalidateCache(justCache: true);
     parent?.invalidateDataOffset();
-    // reset the current path of the node
-    after ? entry.path = path + 1 : child.path = path - 1;
+    _fastIndexTreePart[child.id] = child;
     invalidateCacheOfSiblings(
       node: after ? entry : child,
       after: true,
@@ -42,24 +44,26 @@ extension NodeOperations on Node {
   void removeNode(Node node) {
     if (!canAddOrRemovedChildren) return;
     assert(
-      node.parent == this || contains(node.id),
+      node.parent == this,
       "The node passed must be at the same Parent of $id",
     );
+    if (!contains(node.id)) return;
     final int path = node.path;
-    Node? sibling = path + 1 >= length ? null : node.parent!.children[path + 1];
+    Node? sibling = node.next;
 
-    node.unlink();
+    children.removeAt(path);
     invalidateCache(justCache: true);
+    invalidateDataOffset();
+    _fastIndexTreePart.remove(node.id);
 
     if (sibling != null) {
-      sibling.path = path == 0 ? 0 : path - 1;
-      final List<int> effectiveDeepPath = <int>[...sibling._deepPath]
-        ..[sibling._deepPath.length - 1] = path == 0 ? 0 : path - 1;
-      sibling.deepPath = effectiveDeepPath;
+      sibling
+        ..path = path.prev.nonNegative
+        ..deepPath = <int>[...parent!._deepPath, path.prev.nonNegative];
       invalidateCacheOfSiblings(
         node: sibling,
         after: true,
-        curPath: path == 0 ? 0 : path - 1,
+        curPath: path.prev.nonNegative,
       );
     }
   }

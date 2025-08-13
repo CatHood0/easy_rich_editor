@@ -14,10 +14,11 @@ class IsolateRunner<Req, Res> {
   bool isRunning = false;
   final bool restartIfAlreadyIsRunning;
   late IsolateManager<Res, Req>? _isolateManager;
+  IsolateRunnable<Req, Res> runnable;
 
   IsolateRunner(
     this.name,
-    IsolateRunnable<Req, Res> runnable, {
+    this.runnable, {
     this.restartIfAlreadyIsRunning = false,
     int concurrent = 1,
   }) {
@@ -29,7 +30,8 @@ class IsolateRunner<Req, Res> {
     );
   }
 
-  void run(Req req, {IsolateCallback<Res>? callback}) async {
+  void run(Req req,
+      {IsolateCallback<Res>? callback, bool useMainThreadIf = false}) async {
     if (_closed) {
       return;
     }
@@ -43,6 +45,12 @@ class IsolateRunner<Req, Res> {
       }
     }
     isRunning = true;
+    if (useMainThreadIf) {
+      final Res res = runnable.call(req);
+      callback?.call(res);
+      isRunning = false;
+      return;
+    }
     _isolateManager?.compute(req, callback: (message) async {
       if (_closed) {
         isRunning = false;

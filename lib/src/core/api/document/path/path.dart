@@ -27,8 +27,8 @@ extension PathExtensions on NodeDepthPath {
     if (equals(other)) {
       return false;
     }
-    final length = min(this.length, other.length);
-    for (var i = 0; i < length; i++) {
+    final int length = min(this.length, other.length);
+    for (int i = 0; i < length; i++) {
       if (this[i] < other[i]) {
         return false;
       } else if (this[i] > other[i]) {
@@ -52,8 +52,8 @@ extension PathExtensions on NodeDepthPath {
     if (equals(other)) {
       return false;
     }
-    final length = min(this.length, other.length);
-    for (var i = 0; i < length; i++) {
+    final int length = min(this.length, other.length);
+    for (int i = 0; i < length; i++) {
       if (this[i] > other[i]) {
         return false;
       } else if (this[i] < other[i]) {
@@ -71,7 +71,7 @@ extension PathExtensions on NodeDepthPath {
     if (isEmpty) {
       return nextPath;
     }
-    final last = nextPath.last;
+    final int last = nextPath.last;
     return nextPath
       ..removeLast()
       ..add(last + 1);
@@ -82,7 +82,7 @@ extension PathExtensions on NodeDepthPath {
     if (isEmpty) {
       return nextPath;
     }
-    final last = nextPath.last;
+    final int last = nextPath.last;
     return nextPath
       ..removeLast()
       ..add(last + n);
@@ -97,7 +97,7 @@ extension PathExtensions on NodeDepthPath {
     if (isEmpty) {
       return previousPath;
     }
-    final last = previousPath.last;
+    final int last = previousPath.last;
     return previousPath
       ..removeLast()
       ..add(max(0, last - 1));
@@ -108,7 +108,7 @@ extension PathExtensions on NodeDepthPath {
     if (isEmpty) {
       return previousPath;
     }
-    final last = previousPath.last;
+    final int last = previousPath.last;
     return previousPath
       ..removeLast()
       ..add(max(0, last - n));
@@ -131,7 +131,7 @@ extension PathExtensions on NodeDepthPath {
     if (length >= other.length) {
       return false;
     }
-    for (var i = 0; i < length; i++) {
+    for (int i = 0; i < length; i++) {
       if (this[i] != other[i]) {
         return false;
       }

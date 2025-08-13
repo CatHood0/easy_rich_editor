@@ -83,7 +83,7 @@ class IsolateNodeCacheInvalidator {
         'from $curPath until ${payload.node.parent?.length} path',
       );
       for (int i = curPath;
-          payload.after ? i > payload.root.length : i > 0;
+          payload.after ? i < payload.root.length : i > 0;
           payload.after ? i++ : i--) {
         payload.root.children[i].path = curPath;
         if (payload.endPath != -1 && payload.endPath == curPath) break;

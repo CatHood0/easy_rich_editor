@@ -22,11 +22,13 @@ extension NodeSearchExt on Node {
     return startInRange && endInRange;
   }
 
+  /// Transform a global point, to a relative point to the parent
   int convertToLocal(int point) {
     final int effectiveLocal = globalOffset - point;
     return effectiveLocal.nonNegative;
   }
 
+  /// Transform a relative point, to a global point in the `Document`
   int convertToGlobal(int point) {
     final int effectiveLocal = point + globalOffset;
     return effectiveLocal;
@@ -49,11 +51,11 @@ extension NodeSearchExt on Node {
     return globalOff <= offset && offset < (globalOff + dataLength);
   }
 
+  /// Returns `true` if this [Node] contains the relative character [offset]
+  /// in the document.
   bool containsSelection(NodeSelection selection) {
-    final int nodeStart = globalOffset;
-    final int nodeEnd = nodeStart + dataLength;
-    return selection.start.position >= nodeStart &&
-        selection.end.position <= nodeEnd;
+    final int nodeEnd = dataLength;
+    return selection.start.position >= 0 && selection.end.position <= nodeEnd;
   }
 
   bool inSelection(NodeSelection selection) {
@@ -207,8 +209,11 @@ extension NodeSearchExt on Node {
       final int actualStart = node.offset;
       final int actualEnd = node.endOffset;
 
-      if (cursorPos >= actualStart && cursorPos < actualEnd) {
+      if (cursorPos >= actualStart && cursorPos <= actualEnd) {
         final int localOffset = (cursorPos - actualStart).nonNegative;
+        EasyEditorLogger.cursor.info('Cursor(pos: $cursorPos, '
+            'localOff: $localOffset, '
+            'node: $node)');
         if (node.hasDefinedValue && !node.isBlankText) {
           final List<TextFragment> frags = node.value!.castToFragments();
           int fragOffset = 0;
@@ -262,7 +267,7 @@ extension NodeSearchExt on Node {
     int fragOffset = 0;
     for (int i = 0; i < frags.length; i++) {
       final TextFragment frag = frags[i];
-      final int fragmentLength = frag.isText ? frag.getTextValue().length : 1;
+      final int fragmentLength = frag.length;
 
       final int effectivePosition = fragOffset + fragmentLength;
       // if the cursor is in this exact fragment

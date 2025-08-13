@@ -168,11 +168,9 @@ final class Node extends ChangeNotifier {
         type: ParagraphKeys.lineKey,
         // we will never accept new lines
         // as fragments
-        value: paragraph.isNewLine || paragraph.isNewLineWithBlockAttributes
-            ? <TextFragment>[]
-            : <TextFragment>[
-                ...line.fragments,
-              ],
+        value: <TextFragment>[
+          ...line.fragments,
+        ],
         children: <Node>[],
         parent: this,
         id: line.id,
@@ -232,16 +230,22 @@ final class Node extends ChangeNotifier {
     notifyListeners();
   }
 
-  Node? get next => parent == null || path.next >= parent!.length
+  Node? get next => parent == null ||
+          _path == -1 ||
+          !parent!.contains(id) ||
+          path.next >= parent!.length
       ? null
-      : parent!.children[path.next];
+      : parent!.children[_path.next];
 
   Node? get previous =>
-      parent == null || path.prev < 0 ? null : parent!.children[path.prev];
+      parent == null || path.prev < 0 || path.prev >= parent!.length
+          ? null
+          : parent!.children[path.prev];
 
   set value(Object? v) {
     // calculate the diff between change to avoid recomputing
     _value = v;
+    _dataLength = null;
     parent?.invalidateDataOffset();
   }
 
@@ -250,28 +254,24 @@ final class Node extends ChangeNotifier {
     if (isBlockNode) {
       _dataLength ??= children.fold<int>(
         0,
-        (int prev, Node n) {
-          return prev + n.dataLength;
-        },
+        (int prev, Node n) => prev + n.dataLength,
       );
       return _dataLength!;
     }
 
-    if (_value == null) return 0;
     if (_dataLength != null) return _dataLength!;
-    if (_value is! List<TextFragment>) return _dataLength ??= 0;
-    // we count all blank lines as new lines
-    if (isBlankText) return _dataLength ??= 1;
+    if (_value is! List<TextFragment>) {
+      throw Exception('Only List<TextFragment> are accepted');
+    }
 
     int length = 0;
     for (TextFragment frag in _value!.castToFragments()) {
       length += frag.length;
       if (_text == "" || _text == null) {
         _text = "${_text.orEmpty}"
-            "${frag.isText ? frag.getTextValue() : Node.kObjectReplacementCharacter}";
+            "${frag.text(ifNot: Node.kObjectReplacementCharacter)}";
       }
     }
-
     return _dataLength = length;
   }
 
@@ -307,6 +307,7 @@ final class Node extends ChangeNotifier {
   }
 
   void rebuildNodes({Map<String, int>? changes}) {
+    assert(isRootOwner, 'Only root node can set a list of changes');
     // merge new changes with the current ones
     // if required
     //
@@ -342,20 +343,40 @@ final class Node extends ChangeNotifier {
 
   void unSetReadonly() => metadata['read-only'] = false;
 
-  void adoptChild(Node child, int path) {
-    if (child.parent != null) child.unlink();
-    child
-      ..parent = this
-      ..path = path;
-    _fastIndexTreePart[child.id] = child;
-    children.add(child);
+  void adoptChild(Node child, [int? path]) {
+    insertNode(child, path: path, after: true);
+  }
+
+  bool swapNodes(Node node, int to) {
+    if (contains(node.id)) {
+      final Node? toSwapNode = elementAtOrNull(to);
+      if (toSwapNode == null) {
+        return false;
+      }
+      // if them are at the same place,
+      // we consider it as they are already
+      // swapped
+      if (toSwapNode == node) {
+        return true;
+      }
+      bool isLast = toSwapNode.next == null;
+      toSwapNode.unlink();
+      node
+        ..insertBefore(toSwapNode)
+        ..unlink();
+      isLast
+          ? insertNode(node, after: true)
+          : elementAt(to).insertAfter(
+              node,
+            );
+      return true;
+    }
+    return false;
   }
 
   void adoptChildren(List<Node> nodes) {
-    for (int i = 0; i < nodes.length; i++) {
-      final Node child = nodes[i];
-      _fastIndexTreePart[child.id] = child;
-      adoptChild(child, i);
+    for (Node node in nodes) {
+      adoptChild(node);
     }
   }
 
@@ -363,11 +384,18 @@ final class Node extends ChangeNotifier {
   /// and of its direct parent
   ///
   /// - [willBeAfter]: indicates that the invalidation of the offset will be after this [Node], and not at this one.
-  void invalidateDataOffset({bool willBeAfter = false}) {
+  void invalidateDataOffset({bool willBeAfter = false, bool noText = false}) {
     _dataLength = null;
-    _text = null;
+    if (!noText) _text = null;
     if (!willBeAfter) _offset = null;
-    parent?.invalidateDataOffset();
+    if (parent != null) {
+      if (isBlockNode) {
+        next?.invalidateDataOffset(noText: true);
+      }
+      if (parent!._dataLength != null || parent!._text != null) {
+        parent!.invalidateDataOffset();
+      }
+    }
   }
 
   /// When a node is added, moved, or deleted
@@ -380,7 +408,6 @@ final class Node extends ChangeNotifier {
   /// we don't need recompute the path really
   void invalidateCache({bool justCache = false}) {
     _cachedLength = null;
-    parent?._cachedLength = null;
     if (!justCache) {
       needsComputePath = true;
       needsComputeFullPath = true;
@@ -399,10 +426,10 @@ final class Node extends ChangeNotifier {
   Node get last => lastChild!;
 
   /// Returns `true` if this node is the first node in the [parent] list.
-  bool get isFirst => parent?.first == this;
+  bool get isFirst => parent?.firstChild == this;
 
   /// Returns `true` if this node is the last node in the [parent] list.
-  bool get isLast => parent?.last == this;
+  bool get isLast => parent != null && parent!.last == this;
 
   bool get isEmpty => length < 1;
 
@@ -428,24 +455,32 @@ final class Node extends ChangeNotifier {
   // FIXME: probably we can found a better way to cache the data length
   // instead of invalidating always the parent
   void insertAfter(Node entry) {
+    if (parent == null) {
+      throw Exception('Cannot '
+          'insert any child after '
+          'this since has '
+          'no parent relationship');
+    }
     // since we insert an element after this
     // the path changes, and we need a new reallocation
     int lastPathKnowed = path;
-    final List<int> effectiveDeepPath = <int>[..._deepPath];
-    _deepPath[_deepPath.length - 1] = lastPathKnowed + 1;
     isLast
         ? parent!.children.add(entry)
-        : parent!.children.insert(lastPathKnowed + 1, entry);
+        : parent!.children.insert(lastPathKnowed.next, entry);
     entry
       ..parent = parent
       // to avoid recomputing of a knowed path
       // just set it
       ..path = lastPathKnowed++
-      ..deepPath = effectiveDeepPath;
-    invalidateCache();
+      ..deepPath = <int>[...parent!._deepPath, path];
+    final int? cachedLength = parent!._cachedLength;
+    parent!.invalidateCache(justCache: true);
+    if (cachedLength != null) {
+      parent!._cachedLength = cachedLength + 1;
+    }
     parent!.invalidateDataOffset();
     _fastIndexTreePart[entry.id] = entry;
-    if (lastPathKnowed + 1 < length) {
+    if (entry.next != null) {
       // reset the current path of the node
       invalidateCacheOfSiblings(
         node: entry,
@@ -456,12 +491,16 @@ final class Node extends ChangeNotifier {
   }
 
   void insertBefore(Node entry) {
+    if (parent == null) {
+      throw Exception('Cannot '
+          'insert any child after '
+          'this since has '
+          'no parent relationship');
+    }
     // since we insert an element before this
     // the path changes, and we need a new reallocation
     int lastPathKnowed = path;
-    isLast
-        ? parent!.children.add(entry)
-        : parent!.children.insert(lastPathKnowed, entry);
+    parent!.children.insert(lastPathKnowed, entry);
     entry
       ..parent = parent
       // to avoid recomputing of a knowed path
@@ -469,20 +508,32 @@ final class Node extends ChangeNotifier {
       ..path = lastPathKnowed
       ..deepPath = <int>[..._deepPath];
     _fastIndexTreePart[entry.id] = entry;
-    invalidateCache();
+    final int? cachedLength = parent!._cachedLength;
+    parent!.invalidateCache(justCache: true);
+    if (cachedLength != null) {
+      parent!._cachedLength = cachedLength + 1;
+    }
     parent!.invalidateDataOffset();
     lastPathKnowed++;
-    final List<int> effectiveDeepPath = <int>[..._deepPath]
-      ..[_deepPath.length - 1] = lastPathKnowed;
     path = lastPathKnowed;
-    deepPath = effectiveDeepPath;
+    deepPath = <int>[
+      ...parent!._deepPath,
+      lastPathKnowed,
+    ];
     if (next != null) {
-      // reset the current path of the node
       invalidateCacheOfSiblings(
         node: this,
         after: true,
         curPath: lastPathKnowed,
       );
+    }
+  }
+
+  void unlinkIfNeeded() {
+    if (isRootOwner) return;
+    if (parent == null) return;
+    if (parent!.contains(id)) {
+      unlink();
     }
   }
 
@@ -492,10 +543,9 @@ final class Node extends ChangeNotifier {
         'unlink cannot be executed if '
         'there\'s no parent relationship');
     parent!.removeNode(this);
-    parent!._removeCached(this);
-    parent!.invalidateDataOffset();
     parent = null;
     invalidateCache();
+    invalidateDataOffset();
   }
 
   void updatePathsIfNeeded(int path, List<int> fullPath) {
@@ -509,11 +559,8 @@ final class Node extends ChangeNotifier {
 
   /// Get the relative path to this node from its parent
   int get path {
-    if (id == Node.rootId || type == Node.rootId) {
-      return -1;
-    }
-
-    if (!needsComputePath || parent == null) return _path;
+    if (isRootOwner) return -1;
+    if (!needsComputePath) return _path;
 
     assert(
         parent != null,
@@ -528,22 +575,32 @@ final class Node extends ChangeNotifier {
 
     while (low <= high) {
       int mid = (low + high) ~/ 2;
-      Node child = parent!.children[mid];
+      final Node child = parent!.children[mid];
+      final int childOffset = child.offset;
 
-      if (child.globalStart == globalStart) {
+      if (childOffset == offset) {
         if (child.id != id) {
+          EasyEditorLogger.tree.error(
+            'Computing path for $type(id: $id, offset: $_offset) '
+            'do a wrong match with a Node that '
+            'has the same offset '
+            '${child.type}(id: ${child.id}, offset: $childOffset). '
+            'Both share the same parent: '
+            '${parent!.type}(id: ${parent!.id}, '
+            'path: ${parent!.deepPath})',
+          );
           break;
         }
         _path = mid;
         break;
-      } else if (child.globalStart < globalStart) {
+      } else if (childOffset < offset) {
         low = mid + 1;
       } else {
         high = mid - 1;
       }
     }
 
-    /// Try to make an linear search in case that
+    /// Try to make a linear search in case that
     /// binary search does not found the path
     if (_path == _notFoundPath) {
       for (int i = 0; i < parent!.length; i++) {
@@ -587,7 +644,7 @@ final class Node extends ChangeNotifier {
   /// Get a normalized list of paths where this Node is
   List<int> get deepPath {
     if (!needsComputeFullPath) return _deepPath;
-    if (parent == null) return <int>[];
+    if (parent == null || !parent!.contains(id)) return <int>[];
 
     final List<int> path = <int>[this.path];
 
@@ -631,7 +688,8 @@ final class Node extends ChangeNotifier {
     return this;
   }
 
-  void _removeCached(Node node) {
+  @internal
+  void removeCached(Node node) {
     _fastIndexTreePart.remove(node.id);
   }
 
@@ -669,6 +727,10 @@ final class Node extends ChangeNotifier {
 
     isolate.run(
       payload,
+      // we prefer just using main thread when the length
+      // is less than 130, because is a small amount of nodes
+      // to process
+      useMainThreadIf: (parent ?? this).length <= 130,
       callback: (NodePathCacheResult result) {},
     );
   }

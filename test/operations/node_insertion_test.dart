@@ -21,11 +21,11 @@ void main() {
         print(message);
       };
     final FragmentChangeContext context = root.insert(
-      7,
+      50,
       'My text',
     );
     debugPrint(
-      root.queryPath(<int>[2, 0])!.dumpTreeStr(
+      root.dumpTreeStr(
         currentPath: <int>[2, 0],
       ),
     );

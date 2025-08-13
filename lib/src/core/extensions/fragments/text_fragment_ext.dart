@@ -14,9 +14,10 @@ extension TextFragmentExt on TextFragment {
 
   int get length => isText ? data.castString().length : 1;
 
-  String text(
-          {String ifNot = Node.kObjectReplacementCharacter,
-          String Function(Object d)? ifNotBuilder}) =>
+  String text({
+    String ifNot = Node.kObjectReplacementCharacter,
+    String Function(Object d)? ifNotBuilder,
+  }) =>
       isText ? getTextValue() : ifNotBuilder?.call(data) ?? ifNot;
 
   bool get hasAttributes => attributes != null && attributes!.isNotEmpty;

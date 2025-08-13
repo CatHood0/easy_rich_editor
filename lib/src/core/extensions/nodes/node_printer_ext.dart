@@ -38,7 +38,7 @@ extension NodeTreeDumperExt on Node {
     List<int>? paths,
     bool applyJustIndents = false,
     int applyJustBefore = 0,
-    List<int> currentPath = const <int>[],
+    List<int> currentPath = const <int>[0],
   }) {
     paths ??= <int>[];
 
@@ -62,7 +62,7 @@ extension NodeTreeDumperExt on Node {
     final Limiter? limiter = Tree.getLimiter(type);
     final StringBuffer buffer = StringBuffer("")
       ..write(
-          "$type(${id.substring(0, 4).trim()}-[$path]): Offset(g: $globalOffset, l: $dataLength)");
+          "$type(${id.substring(0, 4).trim()}-[$path]): Offset(start: $globalOffset, end: $globalEnd)");
     if (listEquals(currentPath, deepPath)) {
       buffer.write(" < Cursor position");
     }
@@ -100,7 +100,7 @@ extension NodeTreeDumperExt on Node {
           ..write(
             child.dumpTreeStr(
               tab: tab + 1,
-              paths: i + 1 < length ? [...paths, tab] : paths,
+              paths: i + 1 < length ? <int>[...paths, tab] : paths,
               applyJustIndents: i + 1 >= length,
               applyJustBefore: tab,
               currentPath: currentPath,
