@@ -103,10 +103,12 @@ extension NodeSearchExt on Node {
   /// are jumping
   Node? jumpToParentExceptRootCaller(void Function(Node node) callback) {
     if (isRootOwner || parent == null) return null;
-    return jumpToParent(stopAt: (Node n) {
-      callback(n);
-      return n.parent?.isRootOwner ?? false;
-    });
+    callback(this);
+    if (parent!.isRootOwner) {
+      return this;
+    }
+
+    return parent?.jumpToParentExceptRootCaller(callback);
   }
 
   /// Queries the child [Node] at [offset] in this [Node].

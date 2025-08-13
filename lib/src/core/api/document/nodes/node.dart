@@ -231,7 +231,7 @@ final class Node extends ChangeNotifier {
   }
 
   Node? get next => parent == null ||
-          _path == -1 ||
+          path == -1 ||
           !parent!.contains(id) ||
           path.next >= parent!.length
       ? null
@@ -246,6 +246,7 @@ final class Node extends ChangeNotifier {
     // calculate the diff between change to avoid recomputing
     _value = v;
     _dataLength = null;
+    _text = null;
     parent?.invalidateDataOffset();
   }
 
@@ -615,7 +616,7 @@ final class Node extends ChangeNotifier {
     /// is `true`, it means that the Node was moved, and requires
     /// a new value to be catched
     if (_path == _notFoundPath) {
-      throw Exception(
+      EasyEditorLogger.treeFailures.warn(
         "Not found "
         "child("
         "${id.substring(0, id.length > 5 ? 6 : 4)}) "
@@ -642,13 +643,9 @@ final class Node extends ChangeNotifier {
     if (!needsComputeFullPath) return _deepPath;
     if (parent == null || !parent!.contains(id)) return <int>[];
 
-    final List<int> path = <int>[this.path];
+    final List<int> path = <int>[];
 
-    jumpToParentExceptRootCaller((Node n) {
-      path.add(
-        n.path,
-      );
-    });
+    jumpToParentExceptRootCaller((Node n) => path.add(n.path));
 
     _deepPath = <int>[...path.reversed];
 

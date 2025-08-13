@@ -10,11 +10,6 @@ extension NodeOperations on Node {
       ..unlinkIfNeeded();
 
     if (path == null || path >= length || isEmpty) {
-      if (!needsComputeFullPath && !needsComputePath) {
-        child
-          ..path = length
-          ..deepPath = <int>[...deepPath, length];
-      }
       _fastIndexTreePart[child.id] = child;
       children.add(child);
       invalidateCache(justCache: true);

@@ -141,10 +141,12 @@ void main() {
         parent: paragraph2,
         canModifyChildrenLength: false,
       );
-      paragraph2.adoptChildren(<Node>[line]);
+      paragraph2.adoptChild(line);
 
       expect(
-          line.deepPath, equals(<int>[1, 0])); // [paragraph2 index, line index]
+        line.deepPath,
+        equals(<int>[1, 0]),
+      ); // [paragraph2 index, line index]
     });
 
     test('Path invalidation on insertion', () async {
