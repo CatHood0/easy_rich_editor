@@ -34,7 +34,7 @@ void main() {
     });
     test('Get the new line at offset 117', () async {
       final NodeCursorPosLocation location = tree.queryOffset(
-        117,
+        114,
         strict: true,
       );
       expect(location.found, isTrue);

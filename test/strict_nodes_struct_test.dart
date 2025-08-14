@@ -54,18 +54,29 @@ void main() {
     });
 
     test('Global offsets for simple structure', () {
+      // This is how looks the tree when you analyze it
+      // root 
+      // │ Paragraph(0DDF): Global Offset(start: 0, end: 6)  < Cursor position
+      // │ │
+      // │ └─ Line(D4EB): Relative Offset(start: 0, end: 5)
+      // │     -> [TextFragment: "Hello"]
+      // └─ Paragraph(389A): Global Offset(start: 6, end: 12)
+      //    │
+      //    └─ Line(70DE): Relative Offset(start: 0, end: 5)
+      //       -> [TextFragment: "World"]
       expect(root.globalOffset, equals(0));
       expect(paragraph1.globalOffset, equals(0));
       expect(line1.globalOffset, equals(0));
-      expect(paragraph2.globalOffset, equals(5)); // 'Hello' = 5 chars
-      expect(line2.globalOffset, equals(5));
+      expect(paragraph2.globalOffset, equals(6)); // 'Hello' = 5 chars
+      expect(line2.globalOffset, equals(6)); // each block has a extra pos point
     });
 
     test('End offsets calculation', () {
       expect(line1.globalEnd, equals(5));
-      expect(paragraph1.globalEnd, equals(5));
-      expect(line2.globalEnd, equals(10)); // 'HelloWorld' = 10 chars
-      expect(paragraph2.globalEnd, equals(10));
+      expect(paragraph1.globalEnd, equals(6));
+      expect(line2.globalEnd, equals(11)); // 'HelloWorld' = 10 chars
+      // each block has a extra pos point
+      expect(paragraph2.globalEnd, equals(12));
     });
 
     test('Offset invalidation', () {
@@ -75,7 +86,9 @@ void main() {
       ]; // Change from 'Hello' to 'Hi'
 
       expect(line2.globalOffset, isNot(equals(initialOffset)));
-      expect(line2.globalOffset, equals(2)); // 'Hi' = 2 chars
+      // 'Hi' = 2 chars but every block has a extra char pos, so, for line2
+      // exact start position in global should be 3
+      expect(line2.globalOffset, equals(3));
     });
   });
 

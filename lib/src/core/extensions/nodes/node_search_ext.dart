@@ -188,8 +188,17 @@ extension NodeSearchExt on Node {
     return NodeCursorPosLocation.notFound();
   }
 
-  /// The same than [queryPositionLinear] but applying
-  /// **binary search algorithm**
+  /// Queries the child [Node] at [offset] in this [Node] using binary search algorithm.
+  ///
+  /// The result may contain the found node or `null` if no node is found
+  /// at specified offset.
+  ///
+  /// - [NodeCursorPosLocation.fragmentIndex] is set to relative fragment index
+  /// within returned child node
+  /// - [NodeCursorPosLocation.fragmentOffset] is set to relative offset into the fragments
+  /// within returned child node which points at the same character position in the document
+  /// - [NodeCursorPosLocation.locationOffset] is set to a valid offset that can be used to make any operation into 
+  /// the node where the [cursorPos] match
   NodeCursorPosLocation queryPosition(
     int cursorPos, {
     bool inclusive = false,
@@ -197,13 +206,9 @@ extension NodeSearchExt on Node {
     if (cursorPos < 0 || cursorPos > dataLength) {
       return NodeCursorPosLocation.notFound();
     }
-    if (isBlankText) {
-      return NodeCursorPosLocation(
-        location: NodeLocation(path: <int>[...deepPath], node: this),
-        fragmentIndex: 0,
-        fragmentOffset: 0,
-        locationOffset: 0,
-      );
+
+    if (hasDefinedValue) {
+      return queryFragments(cursorPos, inclusive: true);
     }
 
     int low = 0;
@@ -217,7 +222,7 @@ extension NodeSearchExt on Node {
       if (node.containsOffset(
         cursorPos,
         local: true,
-        inclusive: inclusive,
+        inclusive: !node.isBlockNode,
       )) {
         foundNode = node;
         localOffset = cursorPos - node.offset;

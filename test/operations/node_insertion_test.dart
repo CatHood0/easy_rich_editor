@@ -12,7 +12,9 @@ void main() {
       '|',
     );
 
-    print(root.dumpTreeStr(currentPath: [2, 0]));
+    expect(context.executed, isTrue);
+    expect(context.insertionSize, equals(1));
+    expect(context.paths, equals(<int>[0]));
   });
   test('insertNode', () {});
 }
