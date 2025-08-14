@@ -18,6 +18,118 @@ extension NodeValueModifications on Node {
     final List<TextFragment> fragments = value!.castToFragments().toList();
     final bool nodeIsEmpty = fragments.isEmpty;
     int offset = jumpedOffset;
+    _computeNewCacheValues(
+      fragments,
+      nodeIsEmpty,
+      start,
+      obj,
+    );
+
+    if (nodeIsEmpty) {
+      fragments.add(
+        TextFragment(
+          data: obj,
+          attributes: attrs,
+        ),
+      );
+      value = <TextFragment>[...fragments];
+      return FragmentChangeContext(
+        executed: true,
+        node: this,
+        insertionSize: obj.length,
+        lastFragmentLength: 0,
+        paths: <int>[0],
+      );
+    }
+    for (int i = fragmentPath; i < fragments.length; i++) {
+      final TextFragment fragment = fragments[i];
+      final int fragLength = fragment.length;
+      final int nextOffset = offset + fragLength;
+      offset += fragLength;
+
+      if (nextOffset >= start) {
+        final FragmentChangeContext result = _tryInsertAtFragmentBoundary(
+          fragments: fragments,
+          index: i,
+          fragment: fragment,
+          obj: obj,
+          start: start,
+          offset: offset,
+          fragmentLength: fragLength,
+          attrs: attrs,
+        );
+
+        if (result.executed) {
+          value = <TextFragment>[...fragments];
+          //TODO: implement stringLimitLength capabilities
+          return result.copyWith();
+        }
+      }
+    }
+
+    return FragmentChangeContext.noExecuted();
+  }
+
+  FragmentChangeContext _tryInsertAtFragmentBoundary({
+    required List<TextFragment> fragments,
+    required int index,
+    required TextFragment fragment,
+    required Object obj,
+    required int start,
+    required int offset,
+    required int fragmentLength,
+    Map<String, dynamic>? attrs,
+  }) {
+    if (fragment.isEmbedFragment || obj is! String) {
+      fragments.insert(
+        index.next,
+        TextFragment(
+          data: obj,
+          attributes: attrs,
+        ),
+      );
+      return FragmentChangeContext(
+        executed: true,
+        node: this,
+        paths: <int>[index.next],
+        insertionSize: fragments[index.next].length,
+        lastFragmentLength: fragmentLength,
+        //FIXME: requires to pass remaining ranges
+        // when the stringLimitLength is overlapped by
+        // the new text
+        remainingRanges: null,
+      );
+    }
+
+    // convert global ranges to local (from global offsets into the list
+    // to local range into this TextFragment)
+    final String text = fragment.getTextValue();
+    print(start);
+
+    // if both are zero, means that we are directly
+    // in the end of this operation, and must modify or
+    // return no execusasation
+    fragments[index] = TextFragment(
+      data: '${text.left(start)}$obj${text.right(start)}',
+      attributes: attrs ?? fragment.attributes,
+    );
+
+    return FragmentChangeContext(
+      executed: true,
+      insertionSize: obj.length,
+      node: this,
+      lastFragmentLength: fragmentLength,
+      remainingRanges: null,
+      paths: <int>[index],
+    );
+  }
+
+  void _computeNewCacheValues(
+    List<TextFragment> fragments,
+    bool nodeIsEmpty,
+    int start,
+    Object obj,
+  ) {
     int? oldParentLength = parent?._dataLength != null && nodeIsEmpty
         ? parent!._dataLength!.toInt() - 1
         : parent?._dataLength;
@@ -47,100 +159,6 @@ extension NodeValueModifications on Node {
         obj.text(),
       );
     }
-
-    if (nodeIsEmpty) {
-      fragments.add(
-        TextFragment(
-          data: obj,
-          attributes: attrs,
-        ),
-      );
-      value = <TextFragment>[...fragments];
-      return FragmentChangeContext(
-        executed: true,
-        insertionSize: obj.length,
-        lastFragmentLength: 0,
-        paths: <int>[0],
-      );
-    }
-    for (int i = fragmentPath; i < fragments.length; i++) {
-      final TextFragment fragment = fragments[i];
-      final int fragLength = fragment.length;
-      final int nextOffset = offset + fragLength;
-
-      if (nextOffset > start) {
-        final FragmentChangeContext result = _tryInsertAtFragmentBoundary(
-          fragments: fragments,
-          index: i,
-          fragment: fragment,
-          obj: obj,
-          start: start,
-          offset: offset,
-          fragmentLength: fragLength,
-          attrs: attrs,
-        );
-
-        if (result.executed) {
-          value = <TextFragment>[...fragments];
-          //TODO: implement stringLimitLength capabilities
-          return result.copyWith();
-        }
-      }
-      offset += fragLength;
-    }
-
-    return FragmentChangeContext.noExecuted();
-  }
-
-  FragmentChangeContext _tryInsertAtFragmentBoundary({
-    required List<TextFragment> fragments,
-    required int index,
-    required TextFragment fragment,
-    required Object obj,
-    required int start,
-    required int offset,
-    required int fragmentLength,
-    Map<String, dynamic>? attrs,
-  }) {
-    if (fragment.isEmbedFragment || obj is! String) {
-      fragments.insert(
-        index.next,
-        TextFragment(
-          data: obj,
-          attributes: attrs,
-        ),
-      );
-      return FragmentChangeContext(
-        executed: true,
-        paths: <int>[index.next],
-        insertionSize: fragments[index.next].length,
-        lastFragmentLength: fragmentLength,
-        //FIXME: requires to pass remaining ranges
-        // when the stringLimitLength is overlapped by
-        // the new text
-        remainingRanges: null,
-      );
-    }
-
-    // convert global ranges to local (from global offsets into the list
-    // to local range into this TextFragment)
-    final String text = fragment.getTextValue();
-
-    // if both are zero, means that we are directly
-    // in the end of this operation, and must modify or
-    // return no execusasation
-    fragments[index] = TextFragment(
-      data: '${text.left(start)}$obj${text.right(start)}',
-      attributes: attrs ?? fragment.attributes,
-    );
-
-    return FragmentChangeContext(
-      executed: true,
-      insertionSize: obj.length,
-      lastFragmentLength: fragmentLength,
-      remainingRanges: null,
-      paths: <int>[index],
-    );
   }
 }
 

@@ -327,99 +327,40 @@ extension NodeOperations on Node {
     int start,
     Object data, {
     int fragmentPosition = 0,
-    //TODO: implement this property
+    int jumpOffset = 0,
     int stringLimitLength = 300,
-    bool needQueryPosition = true,
   }) {
     if (isBlockNode || isRootOwner) {
-      EasyEditorLogger.tree.info('searching at $start '
-          'into $type($id)');
-      final NodeCursorPosLocation location = queryPosition(
-        start,
-        includeLastNode: false,
-      );
-      EasyEditorLogger.tree.info('Location: $location');
-      // we directly ignore at this point this
+      final NodeCursorPosLocation location =
+          queryPosition(start, inclusive: true);
       if (location.notFoundLocation) return _defaultNonExecutedContext;
-      EasyEditorLogger.tree.info('Following query '
-          'at ${location.locationOffset} '
-          'into ${location.node?.type}(${location.node?.id})');
 
       final FragmentChangeContext context = location.node!.insert(
         location.locationOffset,
         data,
         fragmentPosition: fragmentPosition,
+        jumpOffset: location.jumpOffset.nonNegative,
         stringLimitLength: stringLimitLength,
-        needQueryPosition: !location.found,
       );
+
       if (context.executed && isBlockNode) {
-        jumpToParent().rebuildNodes(changes: <String, int>{id: 1});
-        notify();
+        jumpToParent()
+          ..rebuildNodes(changes: <String, int>{id: 1})
+          ..notify();
       }
       return context;
     }
 
     assert(hasDefinedValue, 'value must be defined');
-    FragmentChangeContext? context;
-    if (needQueryPosition) {
-      NodeCursorPosLocation location = queryPosition(
-        start,
-        includeLastNode: false,
-      );
-
-      EasyEditorLogger.tree.info('Location: $location');
-
-      if (location.notFoundLocation) {
-        EasyEditorLogger.tree.warn(
-          'The Node at $start was not '
-          'founded as expected. '
-          'Current pos: $type("$id", $deepPath)',
-        );
-        return _defaultNonExecutedContext;
-      }
-
-      if (location.foundButNotFragment) {
-        EasyEditorLogger.tree.info(
-          'Will try five '
-          'attemps to get the '
-          'exact fragment '
-          'where is the cursor',
-        );
-        int attemps = 0;
-        while (!location.found) {
-          if (attemps <= 5 || location.notFoundLocation) {
-            EasyEditorLogger.tree.error(
-              'The Node at $start was not '
-              'founded as expected. '
-              'Current pos: $type("$id", $deepPath)',
-            );
-            return _defaultNonExecutedContext;
-          }
-          location = location.node!.queryPosition(
-            location.locationOffset,
-            includeLastNode: false,
-          );
-          attemps++;
-        }
-      }
-
-      context = location.location!.node.insertValueWithContextAt(
-        data,
-        location.locationOffset,
-        fragmentPath: location.fragmentIndex,
-        jumpedOffset: location.locationOffset,
-        stringLimitLength: stringLimitLength,
-      );
-    } else {
-      context = insertValueWithContextAt(
-        data,
-        start,
-        //FIXME: use fragmentPosition
-        fragmentPath: 0,
-        jumpedOffset: 0,
-        stringLimitLength: stringLimitLength,
-      );
-    }
+    assert(start >= 0 && start <= dataLength.next,
+        'start: $start is out of range => 0 to ${dataLength.next}');
+    final FragmentChangeContext context = insertValueWithContextAt(
+      data,
+      start,
+      fragmentPath: fragmentPosition,
+      jumpedOffset: jumpOffset,
+      stringLimitLength: stringLimitLength,
+    );
     EasyEditorLogger.tree.info('$context');
 
     // no common, but, can happen when

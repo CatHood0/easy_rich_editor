@@ -4,7 +4,7 @@ import 'package:easy_rich_editor/easy_rich_editor.dart';
 /// the current ranges that matches with
 /// the values of these Nodes
 class NodeCursorPosLocation {
-  /// The exact location where we can found this [Node] 
+  /// The exact location where we can found this [Node]
   /// conformed by a full path and the [Node]
   final NodeLocation? location;
 
@@ -20,9 +20,14 @@ class NodeCursorPosLocation {
   /// into the [Line] that satifies the tests
   final int locationOffset;
 
+  /// The exact offset where the matched 
+  /// fragment start
+  final int jumpOffset;
+
   NodeCursorPosLocation({
     required this.location,
     required this.locationOffset,
+    this.jumpOffset = -1,
     this.fragmentIndex = -1,
     this.fragmentOffset = -1,
   });
@@ -30,6 +35,7 @@ class NodeCursorPosLocation {
   NodeCursorPosLocation.notFound()
       : location = null,
         fragmentOffset = -1,
+        jumpOffset = -1,
         locationOffset = -1,
         fragmentIndex = -1;
 
@@ -38,7 +44,9 @@ class NodeCursorPosLocation {
       location == null && fragmentIndex <= -1 && locationOffset <= -1;
 
   /// Determines if we found the [Node]
-  bool get found => location != null && fragmentIndex > -1 && locationOffset > -1;
+  bool get found =>
+      location != null && fragmentIndex > -1 && locationOffset > -1 ||
+      location != null && node!.hasDefinedValue;
 
   /// Determines if we found the [Node] but not the [TextFragment]
   /// at the specified [Offset]

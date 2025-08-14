@@ -254,9 +254,12 @@ final class Node extends ChangeNotifier {
     // This means that we are into a Parent
     if (isBlockNode) {
       _dataLength ??= children.fold<int>(
-        0,
-        (int prev, Node n) => prev + n.dataLength,
-      );
+            0,
+            (int prev, Node n) => prev + n.dataLength,
+          ) +
+          1;
+      // required to let the end of the node to
+      // be selected by query methods
       return _dataLength!;
     }
 
@@ -307,6 +310,7 @@ final class Node extends ChangeNotifier {
     return _text = '$buffer';
   }
 
+  @internal
   void rebuildNodes({Map<String, int>? changes}) {
     assert(isRootOwner, 'Only root node can set a list of changes');
     // merge new changes with the current ones
@@ -332,9 +336,11 @@ final class Node extends ChangeNotifier {
   bool get canAddOrRemovedChildren =>
       metadata['can_modify_children_length'] as bool? ?? true;
 
+  @internal
   bool get hasChanges =>
       isRootOwner && (changes != null && changes!.isNotEmpty);
 
+  @internal
   HashMap<String, int>? get changes =>
       metadata[Node.requireRebuildKey] as HashMap<String, int>?;
 
@@ -410,9 +416,13 @@ final class Node extends ChangeNotifier {
   void invalidateCache({bool justCache = false}) {
     _cachedLength = null;
     if (!justCache) {
-      path = -1;
-      deepPath = <int>[];
+      invalidatePaths();
     }
+  }
+
+  void invalidatePaths() {
+    path = -1;
+    deepPath = <int>[];
   }
 
   int get length => _cachedLength ??= children.length;

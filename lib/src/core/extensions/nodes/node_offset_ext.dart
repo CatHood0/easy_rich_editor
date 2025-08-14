@@ -7,7 +7,7 @@ extension NodeOffsetExt on Node {
   int get offset {
     if (_offset != null) return _offset!;
 
-    if (parent == null || isFirst) {
+    if ((parent == null || isFirst) && isBlockNode) {
       _offset = 0;
       return _offset!;
     }
@@ -26,12 +26,10 @@ extension NodeOffsetExt on Node {
     // so, we just prefer computing each time the offset of these
     // nodes, just invalidating the block offsets
     // (avoid double invalidation checking: block children and block siblings invalidations)
-    if (isBlockNode) {
-      _offset = offset;
-    } else {
-      _offset = null;
-    }
-    return _offset ?? offset;
+    if (!isBlockNode) return offset;
+
+    _offset = offset;
+    return _offset!;
   }
 
   /// Offset in characters of this node in the Tree.

@@ -32,9 +32,9 @@ void main() {
         <int>[5, 2],
       );
     });
-    test('Get the new line at offset 110', () async {
+    test('Get the new line at offset 117', () async {
       final NodeCursorPosLocation location = tree.queryOffset(
-        110,
+        117,
         strict: true,
       );
       expect(location.found, isTrue);

@@ -102,10 +102,8 @@ class Tree extends ValueNotifier<Node> implements TreeOperations {
     if (strict) {
       // at this point, we get just the parent that contains
       // the node for this offset
-      final NodeCursorPosLocation parentLocation = root.queryPosition(
-        cursorPos,
-        includeLastNode: false,
-      );
+      final NodeCursorPosLocation parentLocation =
+          root.queryPosition(cursorPos, inclusive: true);
 
       if (parentLocation.notFoundLocation || parentLocation.found) {
         return parentLocation;
@@ -113,11 +111,8 @@ class Tree extends ValueNotifier<Node> implements TreeOperations {
 
       // at this point, we get the line that contains our
       // value
-      final NodeCursorPosLocation childLocation =
-          parentLocation.node!.queryPosition(
-        parentLocation.locationOffset,
-        includeLastNode: true,
-      );
+      final NodeCursorPosLocation childLocation = parentLocation.node!
+          .queryPosition(parentLocation.locationOffset, inclusive: true);
 
       if (childLocation.notFoundLocation || childLocation.found) {
         return childLocation;
@@ -138,10 +133,7 @@ class Tree extends ValueNotifier<Node> implements TreeOperations {
       return childLocation;
     }
 
-    return root.queryPosition(
-      cursorPos,
-      includeLastNode: false,
-    );
+    return root.queryPosition(cursorPos);
   }
 
   @override

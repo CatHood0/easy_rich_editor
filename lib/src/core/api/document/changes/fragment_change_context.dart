@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:meta/meta.dart';
 
+import '../../../../../easy_rich_editor.dart';
 import '../path/path.dart';
 
 @internal
@@ -10,10 +11,12 @@ class FragmentChangeContext {
   final FragmentPath paths;
   final int insertionSize;
   final int lastFragmentLength;
+  final Node? node;
 
   const FragmentChangeContext({
     required this.executed,
     required this.paths,
+    required this.node,
     this.insertionSize = -1,
     this.lastFragmentLength = -1,
     this.remainingRanges,
@@ -22,6 +25,7 @@ class FragmentChangeContext {
   const FragmentChangeContext.noExecuted()
       : executed = false,
         insertionSize = -1,
+        node = null,
         lastFragmentLength = -1,
         remainingRanges = null,
         paths = const <int>[];
@@ -32,10 +36,12 @@ class FragmentChangeContext {
     FragmentPath? paths,
     int? insertionSize,
     int? lastFragmentLength,
+    Node? node,
   }) {
     return FragmentChangeContext(
       executed: executed ?? this.executed,
       paths: paths ?? this.paths,
+      node: node ?? this.node,
       remainingRanges: remainingRanges ?? this.remainingRanges,
       insertionSize: insertionSize ?? this.insertionSize,
       lastFragmentLength: lastFragmentLength ?? this.lastFragmentLength,
@@ -47,6 +53,7 @@ class FragmentChangeContext {
     return 'FragmentChangeContext(executed: $executed, '
         'pathChanges: $paths, '
         'size: $insertionSize, '
+        'node: $node, '
         'oldFragmentLength: $lastFragmentLength, '
         'remainingRanges: $remainingRanges)';
   }

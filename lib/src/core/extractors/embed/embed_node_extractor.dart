@@ -69,7 +69,7 @@ class EmbedNodeExtractor extends NodeExtractor<TextFragment> {
       }
       return fragments;
     }
-    if (node.type == ParagraphKeys.lineKey) {
+    if (node.type == EmbedKeys.childrenKey) {
       if (node.value == null) return fragments;
       if (node.value is! Iterable<TextFragment>) {
         throw UnsupportedError(
