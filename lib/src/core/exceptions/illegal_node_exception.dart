@@ -11,8 +11,9 @@ class IllegalNodeException implements Exception {
 
   @override
   String toString() {
-    return 'IllegalNodeException: found ${node.type}(${node.id} - '
-        '[${node.globalStart}, ${node.globalEnd}]) that has '
-        'no parent when is required. $message';
+    return 'IllegalNodeException: found '
+        '${node.type}(id: ${node.id}, '
+        'start: ${node.globalOffset}, end: ${node.globalEnd}). '
+        'Cause of error: $message';
   }
 }

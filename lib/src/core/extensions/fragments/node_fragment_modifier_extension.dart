@@ -1,7 +1,7 @@
 part of '../../api/document/nodes/node.dart';
 
 @internal
-extension NodeValueModifications on Node {
+extension NodeInsertValueModifications on Node {
   @internal
   FragmentChangeContext insertValueWithContextAt(
     Object obj,
@@ -104,7 +104,6 @@ extension NodeValueModifications on Node {
     // convert global ranges to local (from global offsets into the list
     // to local range into this TextFragment)
     final String text = fragment.getTextValue();
-    print(start);
 
     // if both are zero, means that we are directly
     // in the end of this operation, and must modify or

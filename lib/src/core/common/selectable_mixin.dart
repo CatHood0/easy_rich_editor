@@ -56,8 +56,6 @@ mixin SelectableMixin on State<StatefulWidget> {
   NodePosition end();
 
   /// Returns the global start position of the [Node]
-  // normally are not required, we commonly just use
-  // relative offsets
   NodePosition globalStart();
 
   /// Returns the global end position of the [Node]

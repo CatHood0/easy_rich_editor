@@ -1,6 +1,15 @@
 part of 'package:easy_rich_editor/src/core/api/document/nodes/node.dart';
 
 extension NodeTreeDumperExt on Node {
+  String shortInfo() {
+    return '$type(id: $id, ${shortOffsetInfo(global: true)}, path: $deepPath)';
+  }
+
+  String shortOffsetInfo({bool global = false}) {
+    return 'offset(start: ${global ? globalOffset : offset}, '
+        'end: ${global ? globalEnd : endOffset})';
+  }
+
   String toPlainText({
     String Function(Node node, Object value)? onDetectEmbed,
   }) {

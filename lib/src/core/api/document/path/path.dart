@@ -8,6 +8,7 @@ typedef FragmentPath = List<int>;
 
 extension MinimalPathExtension on int {
   int get prev => this - 1;
+  int get decr => this - 1;
   int get next => this + 1;
 }
 

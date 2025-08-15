@@ -8,13 +8,14 @@ void main() {
   final Node root = DocumentToNodesParser.documentParse(commonDoc);
   test('insertText', () {
     final FragmentChangeContext context = root.insert(
-      1,
+      0,
       '|',
     );
 
     expect(context.executed, isTrue);
     expect(context.insertionSize, equals(1));
     expect(context.paths, equals(<int>[0]));
+    expect(context.node!.deepPath, equals(<int>[0, 0]));
   });
   test('insertNode', () {});
 }

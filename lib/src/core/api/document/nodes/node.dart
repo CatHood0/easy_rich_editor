@@ -250,6 +250,26 @@ final class Node extends ChangeNotifier {
     parent?.invalidateDataOffset();
   }
 
+  @internal
+  void setDataLength(int? dataLength, {bool invalidate = true}) {
+    if (_dataLength == dataLength) return;
+    _dataLength = dataLength;
+    _text = null;
+    if (invalidate) {
+      parent?.invalidateDataOffset();
+    }
+  }
+
+  @internal
+  void setText(String? text, {bool invalidate = true}) {
+    if (_text == text) return;
+    _text = text;
+    _dataLength ??= text?.length;
+    if (invalidate) {
+      parent?.invalidateDataOffset();
+    }
+  }
+
   int get dataLength {
     // This means that we are into a Parent
     if (isBlockNode) {
@@ -311,7 +331,7 @@ final class Node extends ChangeNotifier {
   }
 
   @internal
-  void rebuildNodes({Map<String, int>? changes}) {
+  void rebuildNodes({Map<String, int>? changes, bool shouldNotify = false}) {
     assert(isRootOwner, 'Only root node can set a list of changes');
     // merge new changes with the current ones
     // if required
@@ -324,10 +344,12 @@ final class Node extends ChangeNotifier {
         ...this.changes!,
         ...changes,
       });
+      if (shouldNotify) notify();
       return;
     }
     metadata[Node.requireRebuildKey] =
         changes == null ? null : HashMap<String, int>.from(changes);
+    if (shouldNotify) notify();
   }
 
   @internal
@@ -546,6 +568,14 @@ final class Node extends ChangeNotifier {
     if (parent!.contains(id)) {
       unlink();
     }
+  }
+
+  void clearBlock() {
+    if (!isBlockNode) return;
+    children.clear();
+    _fastIndexTreePart.clear();
+    invalidateDataOffset(willBeAfter: true);
+    invalidateCache(justCache: true);
   }
 
   void unlink() {
