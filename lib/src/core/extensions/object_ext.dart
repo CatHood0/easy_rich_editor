@@ -1,3 +1,4 @@
+import 'package:easy_rich_editor/src/core/api/document/path/path.dart';
 import 'package:flutter_quill_delta_easy_parser/flutter_quill_delta_easy_parser.dart';
 
 import '../../../easy_rich_editor.dart';
@@ -19,10 +20,25 @@ extension DynamicCast on dynamic {
 extension EasyObjects on Object {
   int get length => this is String ? castString().length : 1;
 
-  String text(
-          {String ifNot = Node.kObjectReplacementCharacter,
-          String Function(Object d)? ifNotBuilder}) =>
+  String text({
+    String ifNot = Node.kObjectReplacementCharacter,
+    String Function(Object d)? ifNotBuilder,
+  }) =>
       this is String ? castString() : ifNotBuilder?.call(this) ?? ifNot;
+}
+
+extension NonNegativeInt on int {
+  int get nonNegative => this < 0 ? 0 : this;
+}
+
+extension IntList on int {
+  List<int> until(int end) {
+    List<int> nums = <int>[this];
+    for (int i = next; i < end; i++) {
+      nums.add(i);
+    }
+    return nums;
+  }
 }
 
 extension StringSubExt on String {

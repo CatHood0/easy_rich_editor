@@ -3,7 +3,7 @@ part of '../../api/document/nodes/node.dart';
 @internal
 extension NodeInsertValueModifications on Node {
   @internal
-  FragmentChangeContext insertValueWithContextAt(
+  FragmentChangeContext insertValueAt(
     Object obj,
     int start, {
     Map<String, dynamic>? attrs,
@@ -18,12 +18,6 @@ extension NodeInsertValueModifications on Node {
     final List<TextFragment> fragments = value!.castToFragments().toList();
     final bool nodeIsEmpty = fragments.isEmpty;
     int offset = jumpedOffset;
-    _computeNewCacheValues(
-      fragments,
-      nodeIsEmpty,
-      start,
-      obj,
-    );
 
     if (nodeIsEmpty) {
       fragments.add(
@@ -32,11 +26,11 @@ extension NodeInsertValueModifications on Node {
           attributes: attrs,
         ),
       );
-      value = <TextFragment>[...fragments];
+      unsafeValue = <TextFragment>[...fragments];
       return FragmentChangeContext(
         executed: true,
         node: this,
-        insertionSize: obj.length,
+        changeSize: obj.length,
         lastFragmentLength: 0,
         paths: <int>[0],
       );
@@ -45,9 +39,29 @@ extension NodeInsertValueModifications on Node {
       final TextFragment fragment = fragments[i];
       final int fragLength = fragment.length;
       final int nextOffset = offset + fragLength;
-      offset += fragLength;
 
       if (nextOffset >= start) {
+        if (fragment.isEmbedFragment || obj is! String) {
+          fragments.insert(
+            start == offset ? i.decr.nonNegative : i.next,
+            TextFragment(
+              data: obj,
+              attributes: attrs,
+            ),
+          );
+          unsafeValue = fragments;
+          //FIXME: requires to pass remaining ranges
+          // when the stringLimitLength is overlapped by
+          // the new text
+          return FragmentChangeContext(
+            executed: true,
+            node: this,
+            paths: <int>[i.next],
+            changeSize: obj.length,
+            lastFragmentLength: fragLength,
+            remainingRanges: null,
+          );
+        }
         final FragmentChangeContext result = _tryInsertAtFragmentBoundary(
           fragments: fragments,
           index: i,
@@ -60,11 +74,13 @@ extension NodeInsertValueModifications on Node {
         );
 
         if (result.executed) {
-          value = <TextFragment>[...fragments];
+          unsafeValue = <TextFragment>[...fragments];
           //TODO: implement stringLimitLength capabilities
           return result.copyWith();
         }
+        return FragmentChangeContext.noExecuted();
       }
+      offset += fragLength;
     }
 
     return FragmentChangeContext.noExecuted();
@@ -80,27 +96,6 @@ extension NodeInsertValueModifications on Node {
     required int fragmentLength,
     Map<String, dynamic>? attrs,
   }) {
-    if (fragment.isEmbedFragment || obj is! String) {
-      fragments.insert(
-        index.next,
-        TextFragment(
-          data: obj,
-          attributes: attrs,
-        ),
-      );
-      return FragmentChangeContext(
-        executed: true,
-        node: this,
-        paths: <int>[index.next],
-        insertionSize: fragments[index.next].length,
-        lastFragmentLength: fragmentLength,
-        //FIXME: requires to pass remaining ranges
-        // when the stringLimitLength is overlapped by
-        // the new text
-        remainingRanges: null,
-      );
-    }
-
     // convert global ranges to local (from global offsets into the list
     // to local range into this TextFragment)
     final String text = fragment.getTextValue();
@@ -115,7 +110,7 @@ extension NodeInsertValueModifications on Node {
 
     return FragmentChangeContext(
       executed: true,
-      insertionSize: obj.length,
+      changeSize: obj.length,
       node: this,
       lastFragmentLength: fragmentLength,
       remainingRanges: null,
@@ -123,50 +118,178 @@ extension NodeInsertValueModifications on Node {
     );
   }
 
-  void _computeNewCacheValues(
-    List<TextFragment> fragments,
-    bool nodeIsEmpty,
+  @internal
+  FragmentChangeContext deleteValueAt(
     int start,
-    Object obj,
-  ) {
-    int? oldParentLength = parent?._dataLength != null && nodeIsEmpty
-        ? parent!._dataLength!.toInt() - 1
-        : parent?._dataLength;
-    int? oldDataLength = _dataLength != null && nodeIsEmpty ? 0 : _dataLength;
-    String? oldParentText = parent?._text;
-    String? oldText = _text;
-    // normally, when a node with values is empty
-    // means that this is a new line and manually we set
-    // a length of 1 to let to the editor think
-    // that we are really in a new line
-    _dataLength = fragments.isEmpty ? obj.length : dataLength + obj.length;
-    parent?.invalidateDataOffset();
-    if (oldParentLength != null && oldDataLength != null) {
-      parent?._dataLength = (oldParentLength - oldDataLength) + _dataLength!;
+    int end, {
+    int fragmentPath = 0,
+    int jumpedOffset = 0,
+  }) {
+    if (isBlockNode || !hasDefinedValue || isRootOwner) {
+      return FragmentChangeContext.noExecuted();
     }
-    if (oldParentText != null) {
-      parent!._text = oldParentText.replaceRange(
-        start,
-        start,
-        obj.text(),
+
+    assert(start != end, 'start and end ranges must be different');
+
+    final List<TextFragment> fragments = value!.castToFragments().toList();
+    int offset = jumpedOffset;
+    int lengthOfDeletion = end - start;
+    int fragPosition = RangeError.checkValidIndex(fragmentPath, fragments);
+
+    int firstAffectedIndex = fragPosition;
+    int lastAffectedIndex = fragPosition;
+
+    if (start >= 0 && end >= dataLength) {
+      if (start > 0) {
+        for (int i = fragPosition; i < value!.castToFragments().length; i++) {
+          final TextFragment fragment = fragments[i];
+          final Object data = fragment.data;
+          final int fragLength = fragment.length;
+          final int currentGlobalOffset = offset + fragLength;
+          final bool isOutOfRange = currentGlobalOffset <= start;
+          if (!isOutOfRange) {
+            if (data is! String) {
+              fragments.removeAt(i);
+              fragPosition = fragPosition.decr.nonNegative;
+              unsafeValue = fragments;
+              return FragmentChangeContext(
+                executed: true,
+                paths: <int>[i],
+                changeSize: end - start,
+                lastFragmentLength: fragLength,
+                node: this,
+              );
+            }
+            final int localStartOffset = (start - offset).nonNegative;
+
+            final String str = data.left(localStartOffset);
+            fragments[i] =
+                TextFragment(data: str, attributes: fragment.attributes);
+            lengthOfDeletion = 0;
+            break;
+          }
+          offset += fragLength;
+        }
+      }
+      unsafeValue = fragments.sublist(0, fragPosition);
+      return FragmentChangeContext(
+        executed: true,
+        paths: fragPosition.until(fragments.length),
+        changeSize: lengthOfDeletion,
+        remainingRanges: end == dataLength
+            ? null
+            : TextRange(
+                start: start - lengthOfDeletion,
+                end: end - lengthOfDeletion,
+              ),
+        lastFragmentLength: -1,
+        node: this,
       );
     }
-    if (oldText != null) {
-      _text = oldText.replaceRange(
-        start,
-        start,
-        obj.text(),
+
+    for (int i = fragPosition; i < value!.castToFragments().length; i++) {
+      final TextFragment fragment = fragments[i];
+      final Object data = fragment.data;
+      final int fragLength = fragment.length;
+      final int currentGlobalOffset = offset + fragLength;
+      offset += fragLength;
+
+      if (lengthOfDeletion <= 0) break;
+      // check if we are into the range of the operation that need to be modified
+      final bool isOutOfRange = currentGlobalOffset <= start;
+      if (isOutOfRange) continue;
+
+      final int localStartOffset = (start - offset).nonNegative;
+      final int localEndOffset = (end - offset).nonNegative;
+
+      if (localStartOffset > 0 && localEndOffset <= fragLength) {
+        if (data is! String) {
+          fragments.removeAt(i);
+          fragPosition = fragPosition.decr.nonNegative;
+          unsafeValue = fragments;
+          return FragmentChangeContext(
+            executed: true,
+            paths: <int>[i],
+            changeSize: end - start,
+            lastFragmentLength: fragLength,
+            node: this,
+          );
+        }
+
+        final String strLeft = data.left(localStartOffset);
+        final String strRight = data.right(localEndOffset);
+        if (strLeft.isEmpty && strRight.isEmpty) {
+          lengthOfDeletion = 0;
+          unsafeValue = fragments;
+          return FragmentChangeContext(
+            executed: true,
+            paths: <int>[i],
+            node: this,
+          );
+        }
+        fragments[i] = TextFragment(
+            data: '$strLeft$strRight', attributes: fragment.attributes);
+        lengthOfDeletion = 0;
+        return FragmentChangeContext(
+          executed: true,
+          paths: <int>[i],
+          node: this,
+        );
+      }
+
+      if (data is! String) {
+        lengthOfDeletion--;
+        if (lengthOfDeletion <= 0) {
+          lastAffectedIndex = i;
+          break;
+        }
+        continue;
+      }
+
+      if (localStartOffset > 0 && localEndOffset >= fragLength) {
+        final String str = data.left(localStartOffset);
+        firstAffectedIndex = i;
+        if (str.isEmpty) {
+          lengthOfDeletion -= fragLength;
+          continue;
+        }
+        fragments[i] = TextFragment(data: str, attributes: fragment.attributes);
+        lengthOfDeletion -= (fragLength - str.length).nonNegative;
+        continue;
+      }
+
+      if (localEndOffset <= fragLength) {
+        final String str = data.right(localEndOffset);
+        lastAffectedIndex = i;
+        if (str.isEmpty) {
+          lengthOfDeletion = 0;
+          break;
+        }
+        fragments[i] = TextFragment(data: str, attributes: fragment.attributes);
+        lengthOfDeletion -= (fragLength - str.length).nonNegative;
+        break;
+      }
+
+      lengthOfDeletion -= fragLength;
+    }
+
+    if (lengthOfDeletion <= 0) {
+      if (firstAffectedIndex <= -1) {
+        throw 'No index was affected during deletion';
+      }
+
+      unsafeValue = <TextFragment>[
+        ...fragments.sublist(0, firstAffectedIndex),
+        ...fragments.sublist(lastAffectedIndex),
+      ];
+      return FragmentChangeContext(
+        executed: true,
+        paths: firstAffectedIndex.until(lastAffectedIndex),
+        changeSize: end - start,
+        node: this,
       );
     }
-  }
-}
 
-extension NonNegativeInt on int {
-  int get nonNegative => this < 0 ? 0 : this;
-}
-
-extension on int? {
-  int? operator +(int other) {
-    return this == null ? other : this + other;
+    return FragmentChangeContext.noExecuted();
   }
 }

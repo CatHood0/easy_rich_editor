@@ -4,9 +4,9 @@ import 'dart:convert';
 import 'package:collection/collection.dart';
 import 'package:easy_rich_editor/src/core/api/document/changes/fragment_change_context.dart';
 import 'package:easy_rich_editor/src/core/api/document/path/path.dart';
-import 'package:easy_rich_editor/src/core/extensions/fragments/text_fragment_ext.dart';
 import 'package:easy_rich_editor/src/core/extensions/object_ext.dart';
 import 'package:easy_rich_editor/src/core/logger/editor_logger.dart';
+import 'package:easy_rich_editor/src/core/modifiers/node_modifier.dart';
 import 'package:easy_rich_editor/src/utils/background_isolate_runner/isolate_runner.dart';
 import 'package:easy_rich_editor/src/utils/utils.dart';
 import 'package:flutter/foundation.dart';
@@ -18,9 +18,6 @@ import 'package:easy_rich_editor/easy_rich_editor.dart';
 import 'package:meta/meta.dart';
 
 import '../../../common/selectable_mixin.dart';
-import '../../../exceptions/illegal_node_exception.dart';
-import '../changes/delta_node.dart';
-import 'node_iterator.dart';
 
 part 'package:easy_rich_editor/src/core/extensions/fragments/node_fragment_modifier_extension.dart';
 part 'package:easy_rich_editor/src/core/extensions/nodes/node_ext.dart';
@@ -243,7 +240,6 @@ final class Node extends ChangeNotifier {
           : parent!.children[path.prev];
 
   set value(Object? v) {
-    // calculate the diff between change to avoid recomputing
     _value = v;
     _dataLength = null;
     _text = null;
@@ -261,6 +257,15 @@ final class Node extends ChangeNotifier {
   }
 
   @internal
+  String get text => _text ??= toPlainText();
+
+  @internal
+  String? get nullableText => _text;
+
+  @internal
+  int? get unsafeDataLength => _dataLength;
+
+  @internal
   void setText(String? text, {bool invalidate = true}) {
     if (_text == text) return;
     _text = text;
@@ -270,14 +275,31 @@ final class Node extends ChangeNotifier {
     }
   }
 
+  @internal
+  void unsafeSetDataLength(int? dataLength) {
+    if (_dataLength == dataLength) return;
+    _dataLength = dataLength;
+  }
+
+  @internal
+  void unsafeSetText(String? text) {
+    if (_text == text) return;
+    _text = text;
+  }
+
+  set unsafeValue(Object? v) {
+    _value = v;
+  }
+
   int get dataLength {
     // This means that we are into a Parent
     if (isBlockNode) {
-      _dataLength ??= children.fold<int>(
+      _dataLength ??= children
+          .fold<int>(
             0,
             (int prev, Node n) => prev + n.dataLength,
-          ) +
-          1;
+          )
+          .incr;
       // required to let the end of the node to
       // be selected by query methods
       return _dataLength!;

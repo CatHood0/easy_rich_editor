@@ -6,7 +6,7 @@ export 'package:easy_rich_editor/src/core/api/document/operations/operation.dart
 export 'package:easy_rich_editor/src/core/api/document/operations/fixed_list_length.dart';
 // core -> Nodes
 export 'package:easy_rich_editor/src/core/api/document/nodes/node.dart'
-    hide NodeValueModifications;
+    hide NodeInsertValueModifications;
 // core -> Parsers
 export 'package:easy_rich_editor/src/core/parser/document_to_nodes.dart';
 // core -> Selection

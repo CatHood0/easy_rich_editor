@@ -10,6 +10,7 @@ extension MinimalPathExtension on int {
   int get prev => this - 1;
   int get decr => this - 1;
   int get next => this + 1;
+  int get incr => this + 1;
 }
 
 extension PathExtensions on NodeDepthPath {

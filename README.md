@@ -4,8 +4,9 @@
 
 ## Current status ⚠️
 
-Actively in development (not production-ready) 
-🛠 More features and better documentation coming soon!  
+**Actively in development (not production-ready)** 
+
+_🛠 More features and better documentation coming soon!_  
 
 <!-- ![Editor Preview](https://via.placeholder.com/800x400?text=Easy+Rich+Editor+Preview) *(Replace with actual editor image)* -->  
 

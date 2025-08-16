@@ -1,8 +1,6 @@
-import 'package:easy_rich_editor/src/core/extensions/fragments/text_fragment_ext.dart';
 import 'package:flutter/services.dart';
-import 'package:flutter_quill_delta_easy_parser/flutter_quill_delta_easy_parser.dart';
 
-extension TextFragmentMovementExt on List<TextFragment> {
+extension RunesPositioning on String {
   /// This method will return the position of the previous rune.
   ///
   /// Since the encoding of the [String] in Dart is UTF-16.
@@ -15,7 +13,7 @@ extension TextFragmentMovementExt on List<TextFragment> {
       return pos - 1;
     }
     final int? index =
-        CharacterBoundary(_toPlainText()).getLeadingTextBoundaryAt(pos - 1);
+        CharacterBoundary(this).getLeadingTextBoundaryAt(pos - 1);
     return index ?? 0;
   }
 
@@ -27,20 +25,12 @@ extension TextFragmentMovementExt on List<TextFragment> {
   ///
   /// This method can help you to compute the position of the next character.
   int nextRunePosition(int pos) {
-    final String content = _toPlainText();
-    final int length = content.length;
     if (pos >= length - 1) {
       return length;
     }
-    final int? index = CharacterBoundary(content).getTrailingTextBoundaryAt(
+    final int? index = CharacterBoundary(this).getTrailingTextBoundaryAt(
       pos,
     );
     return index ?? length;
-  }
-
-  String _toPlainText() {
-    return map<String>(
-      (TextFragment e) => e.toPlain(),
-    ).join();
   }
 }

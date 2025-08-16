@@ -1,18 +1,23 @@
-import 'dart:collection';
-
-import 'package:collection/collection.dart';
+import 'package:easy_rich_editor/src/core/api/document/nodes/node.dart';
 import 'package:easy_rich_editor/src/core/api/document/path/path.dart';
 import 'package:easy_rich_editor/src/core/exceptions/illegal_node_exception.dart';
 import 'package:easy_rich_editor/src/core/extensions/object_ext.dart';
 import 'package:flutter_quill_delta_easy_parser/flutter_quill_delta_easy_parser.dart';
+import 'package:meta/meta.dart';
 
 import '../../../easy_rich_editor.dart';
 import '../api/document/changes/delta_node.dart';
+import '../api/document/changes/fragment_change_context.dart';
 import '../logger/editor_logger.dart';
 
 abstract class NodeModifier {
   const NodeModifier();
   static const NodeModifier defaultModifier = DefaultNodeModifier();
+
+  @protected
+  static const FragmentChangeContext defaultNonExecutedContext =
+      FragmentChangeContext.noExecuted();
+
   Map<String, int> get supportedTypes;
   bool isSupported(String type);
 
@@ -30,6 +35,31 @@ abstract class NodeModifier {
     DeltaNode delta, {
     bool removedIfRequired = false,
     bool transformOffsetWhenRequired = true,
+  });
+
+  FragmentChangeContext insert(
+    Node node,
+    int start,
+    Object data, {
+    int fragmentPosition = 0,
+    int jumpOffset = 0,
+    int stringLimitLength = 300,
+  });
+
+  FragmentChangeContext retain(
+    Node node,
+    Map<String, dynamic> attributes,
+    int start, {
+    int? end,
+    bool passToBlockAttributesIfWrapEntireBlock = false,
+  });
+
+  FragmentChangeContext delete(
+    Node node,
+    int start,
+    int end, {
+    int fragmentPosition = 0,
+    int jumpOffset = 0,
   });
 }
 
@@ -219,5 +249,184 @@ class DefaultNodeModifier extends NodeModifier {
     block.jumpToParent().rebuildNodes(changes: <String, int>{block.id: 1});
 
     return DeltaChangeResult(removed: true, executed: true);
+  }
+
+  //FIXME: when we insert raw newlines in a string
+  // them are passed directly to the fragment
+  @override
+  // and are not being converted to a [Line] node
+  FragmentChangeContext insert(
+    Node node,
+    int start,
+    Object data, {
+    int fragmentPosition = 0,
+    int jumpOffset = 0,
+    int stringLimitLength = 300,
+  }) {
+    if (node.isBlockNode || node.isRootOwner) {
+      final NodeCursorPosLocation location =
+          node.queryPosition(start, inclusive: true);
+      if (location.notFoundLocation) {
+        return NodeModifier.defaultNonExecutedContext;
+      }
+
+      final FragmentChangeContext context = location.node!.insert(
+        location.locationOffset,
+        data,
+        fragmentPosition: fragmentPosition,
+        jumpOffset: location.jumpOffset.nonNegative,
+        stringLimitLength: stringLimitLength,
+      );
+
+      if (context.executed && node.isBlockNode) {
+        node.jumpToParent()
+          ..rebuildNodes(changes: <String, int>{node.id: 1})
+          ..notify();
+      }
+      return context;
+    }
+
+    assert(node.hasDefinedValue, 'value must be defined');
+    assert(start >= 0 && start <= node.dataLength.next,
+        'start: $start is out of range => 0 to ${node.dataLength.next}');
+    final FragmentChangeContext context = node.insertValueAt(
+      data,
+      start,
+      fragmentPath: fragmentPosition,
+      jumpedOffset: jumpOffset,
+      stringLimitLength: stringLimitLength,
+    );
+    EasyEditorLogger.tree.info('$context');
+    if (context.executed) {
+      computeNewCacheValues(
+        node,
+        start,
+        start,
+        obj: data,
+      );
+    }
+
+    // no common, but, can happen when
+    // the stringLimitLength is overlapped
+    if (context.remainingRanges != null) {
+      final Node? block = node.jumpToParentExceptRoot();
+      EasyEditorLogger.tree.info('The range need to remove '
+          'some text between ${context.remainingRanges}');
+      block?.delete(
+        block.convertToGlobal(context.remainingRanges!.start),
+        block.convertToGlobal(context.remainingRanges!.end),
+      );
+      return context;
+    }
+    return context;
+  }
+
+  @override
+  FragmentChangeContext delete(
+    Node node,
+    int start,
+    int end, {
+    int fragmentPosition = 0,
+    int jumpOffset = 0,
+  }) {
+    if (node.isBlockNode || node.isRootOwner) {
+      final NodeCursorPosLocation location =
+          node.queryPosition(start, inclusive: true);
+      if (location.notFoundLocation) {
+        return NodeModifier.defaultNonExecutedContext;
+      }
+
+      final FragmentChangeContext context = location.node!.delete(
+        location.locationOffset,
+        end,
+        fragmentPosition: location.fragmentIndex.nonNegative,
+        jumpOffset: location.jumpOffset.nonNegative,
+      );
+
+      if (context.executed && node.isBlockNode) {
+        node.jumpToParent()
+          ..rebuildNodes(changes: <String, int>{node.id: 1})
+          ..notify();
+      }
+      return context;
+    }
+
+    assert(node.hasDefinedValue, 'value must be defined');
+    assert(start >= 0 && start <= node.dataLength.next,
+        'start: $start is out of range => 0 to ${node.dataLength.next}');
+    final FragmentChangeContext context = node.deleteValueAt(
+      start,
+      end,
+      fragmentPath: fragmentPosition,
+      jumpedOffset: jumpOffset,
+    );
+    EasyEditorLogger.tree.info('$context');
+    if (context.executed) {
+      computeNewCacheValues(node, start, end, obj: null);
+    }
+
+    // no common, but, can happen when
+    // the stringLimitLength is overlapped
+    if (context.remainingRanges != null) {
+      final Node? block = node.jumpToParentExceptRoot();
+      EasyEditorLogger.tree.info('The range need to remove '
+          'some text between ${context.remainingRanges}');
+      block?.delete(
+        block.convertToGlobal(context.remainingRanges!.start),
+        block.convertToGlobal(context.remainingRanges!.end),
+      );
+      return context;
+    }
+    return context;
+  }
+
+  @override
+  FragmentChangeContext retain(
+    Node node,
+    Map<String, dynamic> attributes,
+    int start, {
+    int? end,
+    bool passToBlockAttributesIfWrapEntireBlock = false,
+  }) {
+    // TODO: implement retain
+    throw UnimplementedError();
+  }
+
+  @internal
+  void computeNewCacheValues(
+    Node node,
+    int start,
+    int end, {
+    Object? obj,
+  }) {
+    obj ??= '';
+    int? oldParentLength = node.parent?.unsafeDataLength != null
+        ? node.parent!.unsafeDataLength!.toInt() - 1
+        : node.parent?.unsafeDataLength;
+    int? oldDataLength =
+        node.unsafeDataLength != null ? 0 : node.unsafeDataLength;
+    String? oldParentText = node.parent?.nullableText;
+    String? oldText = node.nullableText;
+    final int deleteDelta = end - start;
+    node.unsafeSetDataLength((node.dataLength + obj.length) - deleteDelta);
+    node.parent?.invalidateDataOffset();
+    if (oldParentLength != null && oldDataLength != null) {
+      node.parent?.unsafeSetDataLength(
+          (oldParentLength - oldDataLength) + node.unsafeDataLength!);
+    }
+    if (oldParentText != null) {
+      node.parent!.unsafeSetText(oldParentText.replaceRange(
+        start,
+        end,
+        obj.text(),
+      ));
+    }
+    if (oldText != null) {
+      node.unsafeSetText(oldText.replaceRange(
+        start,
+        end,
+        obj.text(),
+      ));
+    }
   }
 }

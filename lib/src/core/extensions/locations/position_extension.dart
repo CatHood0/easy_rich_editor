@@ -1,5 +1,4 @@
-import 'package:easy_rich_editor/src/core/extensions/fragments/fragment_char_movement_extension.dart';
-import 'package:easy_rich_editor/src/core/extensions/object_ext.dart';
+import 'package:easy_rich_editor/src/core/extensions/runes_positioning.dart';
 import 'package:flutter/material.dart';
 import '../../../../easy_rich_editor.dart';
 
@@ -43,8 +42,8 @@ extension PositionExtension on NodePosition {
             // correctly
             affinity: TextAffinity.upstream,
             position: forward
-                ? node.value!.castToFragments().prevRunePosition(position)
-                : node.value!.castToFragments().nextRunePosition(position),
+                ? node.text.prevRunePosition(position)
+                : node.text.nextRunePosition(position),
           );
         }
 
@@ -55,14 +54,12 @@ extension PositionExtension on NodePosition {
         );
       case SelectionRange.word:
         if (node.hasDefinedValue) {
-          final result = forward
+          final NodeSelection? result = forward
               ? node.selectable?.getWordBoundaryInPosition(
                   NodePosition(
                     path: path,
                     node: node,
-                    position: node.value!
-                        .castToFragments()
-                        .prevRunePosition(position),
+                    position: node.text.prevRunePosition(position),
                   ),
                 )
               : node.selectable?.getWordBoundaryInPosition(this);
