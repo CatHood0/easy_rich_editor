@@ -11,7 +11,7 @@ class PlainTextToNodesParser {
     final List<Node> nodes = <Node>[];
 
     for (String line in lines) {
-      nodes.add(Node.text(text: line));
+      nodes.add(Node.block(data: line));
     }
 
     return Node.root(children: <Node>[...nodes]);

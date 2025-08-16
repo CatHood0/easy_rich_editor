@@ -17,7 +17,6 @@ extension NodeInsertValueModifications on Node {
 
     final List<TextFragment> fragments = value!.castToFragments().toList();
     final bool nodeIsEmpty = fragments.isEmpty;
-    int offset = jumpedOffset;
 
     if (nodeIsEmpty) {
       fragments.add(
@@ -26,37 +25,39 @@ extension NodeInsertValueModifications on Node {
           attributes: attrs,
         ),
       );
-      unsafeValue = <TextFragment>[...fragments];
+      nsValue = <TextFragment>[...fragments];
       return FragmentChangeContext(
         executed: true,
         node: this,
         changeSize: obj.length,
-        lastFragmentLength: 0,
+        lastFragmentLength: -1,
         paths: <int>[0],
       );
     }
+    RangeError.checkValidIndex(fragmentPath, fragments);
+    int fragOffset = jumpedOffset;
     for (int i = fragmentPath; i < fragments.length; i++) {
       final TextFragment fragment = fragments[i];
       final int fragLength = fragment.length;
-      final int nextOffset = offset + fragLength;
+      final int nextOffset = fragOffset + fragLength;
 
       if (nextOffset >= start) {
         if (fragment.isEmbedFragment || obj is! String) {
           fragments.insert(
-            start == offset ? i.decr.nonNegative : i.next,
+            start == fragOffset ? i.decr.nonNegative : i.next,
             TextFragment(
               data: obj,
               attributes: attrs,
             ),
           );
-          unsafeValue = fragments;
+          nsValue = fragments;
           //FIXME: requires to pass remaining ranges
           // when the stringLimitLength is overlapped by
           // the new text
           return FragmentChangeContext(
             executed: true,
             node: this,
-            paths: <int>[i.next],
+            paths: <int>[start == fragOffset ? i.decr.nonNegative : i.next],
             changeSize: obj.length,
             lastFragmentLength: fragLength,
             remainingRanges: null,
@@ -68,19 +69,19 @@ extension NodeInsertValueModifications on Node {
           fragment: fragment,
           obj: obj,
           start: start,
-          offset: offset,
+          offset: fragOffset,
           fragmentLength: fragLength,
           attrs: attrs,
         );
 
         if (result.executed) {
-          unsafeValue = <TextFragment>[...fragments];
+          nsValue = <TextFragment>[...fragments];
           //TODO: implement stringLimitLength capabilities
           return result.copyWith();
         }
         return FragmentChangeContext.noExecuted();
       }
-      offset += fragLength;
+      fragOffset += fragLength;
     }
 
     return FragmentChangeContext.noExecuted();
@@ -98,13 +99,13 @@ extension NodeInsertValueModifications on Node {
   }) {
     // convert global ranges to local (from global offsets into the list
     // to local range into this TextFragment)
-    final String text = fragment.getTextValue();
+    final String fragText = fragment.getTextValue();
 
     // if both are zero, means that we are directly
     // in the end of this operation, and must modify or
     // return no execusasation
     fragments[index] = TextFragment(
-      data: '${text.left(start)}$obj${text.right(start)}',
+      data: '${fragText.left(start)}$obj${fragText.right(start)}',
       attributes: attrs ?? fragment.attributes,
     );
 
@@ -151,7 +152,7 @@ extension NodeInsertValueModifications on Node {
             if (data is! String) {
               fragments.removeAt(i);
               fragPosition = fragPosition.decr.nonNegative;
-              unsafeValue = fragments;
+              nsValue = fragments;
               return FragmentChangeContext(
                 executed: true,
                 paths: <int>[i],
@@ -171,7 +172,7 @@ extension NodeInsertValueModifications on Node {
           offset += fragLength;
         }
       }
-      unsafeValue = fragments.sublist(0, fragPosition);
+      nsValue = fragments.sublist(0, fragPosition);
       return FragmentChangeContext(
         executed: true,
         paths: fragPosition.until(fragments.length),
@@ -206,7 +207,7 @@ extension NodeInsertValueModifications on Node {
         if (data is! String) {
           fragments.removeAt(i);
           fragPosition = fragPosition.decr.nonNegative;
-          unsafeValue = fragments;
+          nsValue = fragments;
           return FragmentChangeContext(
             executed: true,
             paths: <int>[i],
@@ -220,7 +221,7 @@ extension NodeInsertValueModifications on Node {
         final String strRight = data.right(localEndOffset);
         if (strLeft.isEmpty && strRight.isEmpty) {
           lengthOfDeletion = 0;
-          unsafeValue = fragments;
+          nsValue = fragments;
           return FragmentChangeContext(
             executed: true,
             paths: <int>[i],
@@ -278,7 +279,7 @@ extension NodeInsertValueModifications on Node {
         throw 'No index was affected during deletion';
       }
 
-      unsafeValue = <TextFragment>[
+      nsValue = <TextFragment>[
         ...fragments.sublist(0, firstAffectedIndex),
         ...fragments.sublist(lastAffectedIndex),
       ];

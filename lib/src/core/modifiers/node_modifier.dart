@@ -1,3 +1,4 @@
+import 'package:collection/collection.dart';
 import 'package:easy_rich_editor/src/core/api/document/nodes/node.dart';
 import 'package:easy_rich_editor/src/core/api/document/path/path.dart';
 import 'package:easy_rich_editor/src/core/exceptions/illegal_node_exception.dart';
@@ -19,7 +20,18 @@ abstract class NodeModifier {
       FragmentChangeContext.noExecuted();
 
   Map<String, int> get supportedTypes;
+
+  /// Determines what types of nodes support values insertion
+  ///
+  /// Example:
+  ///
+  /// For [Paragraph] nodes, only we can insert [TextFragment] or [String]
+  /// values
+  Map<String, VerifyTypeFn> get supportedTypeValues;
+
   bool isSupported(String type);
+
+  bool isSupportedValue(Object data, String type);
 
   /// Receives a Delta that contains the change do it to this element
   ///
@@ -63,9 +75,27 @@ abstract class NodeModifier {
   });
 }
 
+typedef VerifyTypeFn = bool Function(Object);
+
 /// This modifier calls to both ParagraphNodeModifier and EmbedNodeModifier
 class DefaultNodeModifier extends NodeModifier {
   const DefaultNodeModifier();
+
+  static final UnmodifiableMapView<String, VerifyTypeFn> _supportMap =
+      UnmodifiableMapView<String, VerifyTypeFn>(<String, VerifyTypeFn>{
+    ParagraphKeys.key: (Object data) =>
+        data is TextFragment && data.isText || data is String,
+    ParagraphKeys.lineKey: (Object data) =>
+        data is TextFragment && data.isText || data is String,
+    EmbedKeys.key: (Object data) =>
+        data is TextFragment && data.isEmbedFragment ||
+        data is Map ||
+        data is Map<String, dynamic>,
+    EmbedKeys.childrenKey: (Object data) =>
+        data is TextFragment && data.isEmbedFragment ||
+        data is Map ||
+        data is Map<String, dynamic>,
+  });
 
   @override
   bool isSupported(String type) => supportedTypes[type] == 1;
@@ -77,6 +107,18 @@ class DefaultNodeModifier extends NodeModifier {
         EmbedKeys.key: 1,
         EmbedKeys.childrenKey: 1,
       };
+
+  @override
+  bool isSupportedValue(Object data, String type) {
+    final VerifyTypeFn? verify =
+        supportedTypeValues[type].castOrNull<VerifyTypeFn>();
+    if (verify == null) return false;
+
+    return verify(data);
+  }
+
+  @override
+  Map<String, VerifyTypeFn> get supportedTypeValues => _supportMap;
 
   @override
   DeltaChangeResult receiveDelta(
@@ -212,16 +254,20 @@ class DefaultNodeModifier extends NodeModifier {
         ) &&
         deltaLength > 0 &&
         (delta.isReplace || delta.isDeletion)) {
+      //FIXME: this is invalidating incorrectly
+      // we probably can recompute the parent plain text
+      // is it's available to be used
       node
         ..value = <TextFragment>[
           TextFragment(data: delta.isInsertion ? delta.inserted! : "")
         ]
+        ..invalidateDataOffset()
         ..setDataLength(delta.isInsertion ? delta.inserted!.length : 0)
-        ..setText("");
+        ..text = "";
       return DeltaChangeResult(
         removed: true,
-        newValidCursorPosition: lineStartOffset.decr.nonNegative,
         executed: true,
+        newValidCursorPosition: lineStartOffset.decr.nonNegative,
       );
     }
 
@@ -253,6 +299,7 @@ class DefaultNodeModifier extends NodeModifier {
 
   //FIXME: when we insert raw newlines in a string
   // them are passed directly to the fragment
+  //TODO: implement attributes capabilities
   @override
   // and are not being converted to a [Line] node
   FragmentChangeContext insert(
@@ -268,6 +315,65 @@ class DefaultNodeModifier extends NodeModifier {
           node.queryPosition(start, inclusive: true);
       if (location.notFoundLocation) {
         return NodeModifier.defaultNonExecutedContext;
+      }
+
+      if (node.isBlockNode && location.found) {
+        if (data is! String && node.type == ParagraphKeys.key) {
+          final Node embedBlock = Node.embedBlock(data: null);
+          node.insertAfter(embedBlock);
+          EasyEditorLogger.tree.debug('Inserting new $data in a'
+              'new node by an invalid data type for '
+              '${node.shortInfo()} founded. '
+              'New info ${embedBlock.shortInfo()}');
+
+          assert(
+              node.parent!.contains(embedBlock.id),
+              '${embedBlock.shortInfo()} '
+              'should be inserted already '
+              'after ${node.shortInfo()} => ${node.next?.shortInfo()} | In it\'s parent '
+              'after doing an '
+              'insertion, but was not founded in ${node.parent?.shortInfo()}'
+              '\n'
+              '${node.parent?.children.map(
+                (Node e) => e.shortInfo(),
+              )}');
+
+          EasyEditorLogger.tree.debug('Moving '
+              'start location => '
+              'relative to 0 and '
+              'global to ${embedBlock.globalStart}');
+
+          return embedBlock.insert(
+            0,
+            data,
+          );
+        }
+
+        if (data is String && node.type == EmbedKeys.key) {
+          final Node block = Node.block(data: "");
+          node.insertAfter(block);
+          EasyEditorLogger.tree.debug('Inserting new "$data" in a'
+              'new node by an invalid data type for '
+              '${node.shortInfo()} founded. '
+              'New info ${block.shortInfo()}');
+
+          assert(
+              node.parent!.contains(block.id),
+              '${block.shortInfo()} '
+              'should be inserted already '
+              'into ${node.shortInfo()} its parent after doing a '
+              'insertion, but was not founded. ${node.parent?.shortInfo()}');
+
+          EasyEditorLogger.tree.debug('Moving '
+              'start location => '
+              'relative to 0 and '
+              'global to ${block.globalStart}');
+
+          return block.insert(
+            0,
+            data,
+          );
+        }
       }
 
       final FragmentChangeContext context = location.node!.insert(
@@ -289,6 +395,19 @@ class DefaultNodeModifier extends NodeModifier {
     assert(node.hasDefinedValue, 'value must be defined');
     assert(start >= 0 && start <= node.dataLength.next,
         'start: $start is out of range => 0 to ${node.dataLength.next}');
+
+    if (!isSupportedValue(data, node.type)) {
+      // when we are into a [Line] or [EmbedLine]
+      // we prefer go to parent and trying to make
+      // an automatic split
+      return node.jumpToParentExceptRoot()!.insert(
+            // get the exact start into the block
+            node.offset + start,
+            data,
+            modifier: this,
+          );
+    }
+
     final FragmentChangeContext context = node.insertValueAt(
       data,
       start,
@@ -296,7 +415,8 @@ class DefaultNodeModifier extends NodeModifier {
       jumpedOffset: jumpOffset,
       stringLimitLength: stringLimitLength,
     );
-    EasyEditorLogger.tree.info('$context');
+
+    EasyEditorLogger.tree.debug('Context after insert $data => $context');
     if (context.executed) {
       computeNewCacheValues(
         node,
@@ -309,13 +429,13 @@ class DefaultNodeModifier extends NodeModifier {
     // no common, but, can happen when
     // the stringLimitLength is overlapped
     if (context.remainingRanges != null) {
-      final Node? block = node.jumpToParentExceptRoot();
-      EasyEditorLogger.tree.info('The range need to remove '
+      EasyEditorLogger.tree.debug('The range need to remove '
           'some text between ${context.remainingRanges}');
-      block?.delete(
-        block.convertToGlobal(context.remainingRanges!.start),
-        block.convertToGlobal(context.remainingRanges!.end),
-      );
+      // final Node? block = node.jumpToParentExceptRoot();
+      // block?.insert(
+      //   node.offset + context.remainingRanges!.end,
+      //   ,
+      // );
       return context;
     }
     return context;
@@ -400,33 +520,32 @@ class DefaultNodeModifier extends NodeModifier {
     Object? obj,
   }) {
     obj ??= '';
-    int? oldParentLength = node.parent?.unsafeDataLength != null
-        ? node.parent!.unsafeDataLength!.toInt() - 1
-        : node.parent?.unsafeDataLength;
-    int? oldDataLength =
-        node.unsafeDataLength != null ? 0 : node.unsafeDataLength;
-    String? oldParentText = node.parent?.nullableText;
-    String? oldText = node.nullableText;
     final int deleteDelta = end - start;
-    node.unsafeSetDataLength((node.dataLength + obj.length) - deleteDelta);
-    node.parent?.invalidateDataOffset();
+    int? oldParentLength = node.parent?.nsDataLength != null
+        ? node.parent!.nsDataLength!.toInt() - 1
+        : node.parent?.nsDataLength;
+    int? oldDataLength = node.nsDataLength != null ? 0 : node.nsDataLength;
+    String? oldParentText = node.parent?.nsText;
+    String? oldText = node.nsText;
+    node.dataLength = (node.dataLength + obj.length) - deleteDelta;
+    node.parent?.invalidateDataOffset(noText: false);
     if (oldParentLength != null && oldDataLength != null) {
-      node.parent?.unsafeSetDataLength(
-          (oldParentLength - oldDataLength) + node.unsafeDataLength!);
+      node.parent?.dataLength =
+          (oldParentLength - oldDataLength) + node.nsDataLength!;
     }
     if (oldParentText != null) {
-      node.parent!.unsafeSetText(oldParentText.replaceRange(
+      node.parent!.text = oldParentText.replaceRange(
         start,
         end,
         obj.text(),
-      ));
+      );
     }
     if (oldText != null) {
-      node.unsafeSetText(oldText.replaceRange(
+      node.text = oldText.replaceRange(
         start,
         end,
         obj.text(),
-      ));
+      );
     }
   }
 }

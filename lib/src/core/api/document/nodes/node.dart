@@ -4,6 +4,7 @@ import 'dart:convert';
 import 'package:collection/collection.dart';
 import 'package:easy_rich_editor/src/core/api/document/changes/fragment_change_context.dart';
 import 'package:easy_rich_editor/src/core/api/document/path/path.dart';
+import 'package:easy_rich_editor/src/core/api/editor_state/easy_state.dart';
 import 'package:easy_rich_editor/src/core/extensions/object_ext.dart';
 import 'package:easy_rich_editor/src/core/logger/editor_logger.dart';
 import 'package:easy_rich_editor/src/core/modifiers/node_modifier.dart';
@@ -178,43 +179,82 @@ final class Node extends ChangeNotifier {
     }
   }
 
-  Node.text({
+  Node.embedBlock({
     String? id,
-    this.type = ParagraphKeys.key,
-    String lineType = ParagraphKeys.lineKey,
-    Object? value,
     this.parent,
-    required String text,
+    Map<String, dynamic>? metadata,
+    Map<String, dynamic>? blockAttributes,
+    required Object? data,
+  }) : type = EmbedKeys.key {
+    assert(data is! String, 'Only non embed blocks can have text data');
+    this.id = id ?? EasyTreeState.createNodeId();
+    this.metadata = <String, dynamic>{
+      'block': true,
+      'pr_attributes': blockAttributes,
+      ...?metadata,
+    };
+    final Node lineNode = Node(
+      type: EmbedKeys.childrenKey,
+      value: data == null
+          ? <TextFragment>[]
+          : <TextFragment>[TextFragment(data: data)],
+      parent: this,
+      canModifyChildrenLength: false,
+    )..text = data?.text();
+    text = data?.text();
+    insertNode(lineNode);
+  }
+
+  Node.block({
+    String? id,
+    this.parent,
+    this.type = ParagraphKeys.key,
+    String childType = ParagraphKeys.lineKey,
+    Map<String, dynamic>? metadata,
+    Map<String, dynamic>? blockAttributes,
+    required Object data,
   }) {
     assert(type.trim().isNotEmpty, 'type cannot be empty');
-    this.value = value;
-    this.id = id ?? nanoid(8);
-    if (text.contains(Utils.CR)) {
-      final List<String> lines = LineSplitter().convert(text);
+    assert(childType.trim().isNotEmpty, 'childType cannot be empty');
+    assert(
+        data is String,
+        'Only embed blocks can '
+        'contain objects of type ${data.runtimeType}');
+    this.id = id ?? EasyTreeState.createNodeId();
+    this.metadata = <String, dynamic>{
+      'block': true,
+      'pr_attributes': blockAttributes,
+      ...?metadata,
+    };
+    //FIXME: implement a better search to know if the
+    // text contains new lines
+    if (data.castString().contains(Utils.CR)) {
+      final List<String> lines = LineSplitter().convert(data.castString());
       for (int i = 0; i < lines.length; i++) {
         final String line = lines[i];
         final Node lineNode = Node(
-          type: lineType,
+          type: childType,
           value: <TextFragment>[
             TextFragment(data: line),
           ],
           children: <Node>[],
           parent: this,
           canModifyChildrenLength: false,
-        );
+        )..text = line;
+        text = nsText == null ? line : '${nsText.orEmpty}\n$line';
         insertNode(lineNode);
-        _fastIndexTreePart[lineNode.id] = lineNode;
       }
       return;
     }
 
     final Node lineNode = Node(
-      type: lineType,
-      value: <TextFragment>[TextFragment(data: text)],
+      type: childType,
+      value: <TextFragment>[TextFragment(data: data.castString())],
       children: <Node>[],
       parent: this,
       canModifyChildrenLength: false,
-    );
+    )..text = data.castString();
+    text = data.castString();
     insertNode(lineNode);
   }
 
@@ -256,39 +296,33 @@ final class Node extends ChangeNotifier {
     }
   }
 
-  @internal
+  /// Returns the current plain text cached in this [Node]
   String get text => _text ??= toPlainText();
 
-  @internal
-  String? get nullableText => _text;
-
-  @internal
-  int? get unsafeDataLength => _dataLength;
-
-  @internal
-  void setText(String? text, {bool invalidate = true}) {
-    if (_text == text) return;
-    _text = text;
-    _dataLength ??= text?.length;
-    if (invalidate) {
-      parent?.invalidateDataOffset();
-    }
+  /// Modifies the value in this [Node]
+  /// but not invalidates any cache at
+  /// this one or the parent
+  set nsValue(Object? v) {
+    _value = v;
   }
 
-  @internal
-  void unsafeSetDataLength(int? dataLength) {
+  /// Returns the current plain text cached in this [Node]
+  ///
+  /// The difference between the [text] getter, is this
+  /// returns the direct value, without computing the
+  /// plain text when required
+  String? get nsText => _text;
+
+  int? get nsDataLength => _dataLength;
+
+  /// Set the nullable text passed to the cache property
+  set text(String? text) {
+    _text = text;
+  }
+
+  set dataLength(int? dataLength) {
     if (_dataLength == dataLength) return;
     _dataLength = dataLength;
-  }
-
-  @internal
-  void unsafeSetText(String? text) {
-    if (_text == text) return;
-    _text = text;
-  }
-
-  set unsafeValue(Object? v) {
-    _value = v;
   }
 
   int get dataLength {
@@ -522,19 +556,20 @@ final class Node extends ChangeNotifier {
     isLast
         ? parent!.children.add(entry)
         : parent!.children.insert(lastPathKnowed.next, entry);
+    lastPathKnowed++;
     entry
       ..parent = parent
       // to avoid recomputing of a knowed path
       // just set it
-      ..path = lastPathKnowed++
-      ..deepPath = <int>[...parent!.deepPath, path];
+      ..path = lastPathKnowed
+      ..deepPath = <int>[...parent!.deepPath, lastPathKnowed];
     final int? cachedLength = parent!._cachedLength;
     parent!.invalidateCache(justCache: true);
     if (cachedLength != null) {
       parent!._cachedLength = cachedLength + 1;
     }
     parent!.invalidateDataOffset();
-    _fastIndexTreePart[entry.id] = entry;
+    parent!._fastIndexTreePart[entry.id] = entry;
     if (entry.next != null) {
       // reset the current path of the node
       invalidateCacheOfSiblings(
@@ -562,7 +597,7 @@ final class Node extends ChangeNotifier {
       // just set it
       ..path = lastPathKnowed
       ..deepPath = <int>[...parent!.deepPath, lastPathKnowed];
-    _fastIndexTreePart[entry.id] = entry;
+    parent!._fastIndexTreePart[entry.id] = entry;
     final int? cachedLength = parent!._cachedLength;
     parent!.invalidateCache(justCache: true);
     if (cachedLength != null) {
