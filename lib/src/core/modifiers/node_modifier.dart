@@ -297,11 +297,8 @@ class DefaultNodeModifier extends NodeModifier {
     return DeltaChangeResult(removed: true, executed: true);
   }
 
-  //FIXME: when we insert raw newlines in a string
-  // them are passed directly to the fragment
   //TODO: implement attributes capabilities
   @override
-  // and are not being converted to a [Line] node
   FragmentChangeContext insert(
     Node node,
     int start,
