@@ -1,7 +1,8 @@
-import 'package:easy_rich_editor/src/core/logger/editor_logger.dart';
 import 'package:flutter/foundation.dart';
 import 'package:isolate_manager/isolate_manager.dart';
 import 'package:meta/meta.dart';
+
+import '../../../easy_rich_editor.dart';
 
 typedef IsolateRunnable<Req, Res> = Res Function(Req req);
 typedef IsolateCallback<Res> = void Function(Res res);

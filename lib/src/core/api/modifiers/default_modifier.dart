@@ -6,78 +6,8 @@ import 'package:easy_rich_editor/src/core/extensions/object_ext.dart';
 import 'package:flutter_quill_delta_easy_parser/flutter_quill_delta_easy_parser.dart';
 import 'package:meta/meta.dart';
 
-import '../../../easy_rich_editor.dart';
-import '../api/document/changes/delta_node.dart';
-import '../api/document/changes/fragment_change_context.dart';
-import '../logger/editor_logger.dart';
+import '../../../../easy_rich_editor.dart';
 
-abstract class NodeModifier {
-  const NodeModifier();
-  static const NodeModifier defaultModifier = DefaultNodeModifier();
-
-  @protected
-  static const FragmentChangeContext defaultNonExecutedContext =
-      FragmentChangeContext.noExecuted();
-
-  Map<String, int> get supportedTypes;
-
-  /// Determines what types of nodes support values insertion
-  ///
-  /// Example:
-  ///
-  /// For [Paragraph] nodes, only we can insert [TextFragment] or [String]
-  /// values
-  Map<String, VerifyTypeFn> get supportedTypeValues;
-
-  bool isSupported(String type);
-
-  bool isSupportedValue(Object data, String type);
-
-  /// Receives a Delta that contains the change do it to this element
-  ///
-  /// - [delta]: indicates the change into the Node where this is called. the selection must be normalized
-  /// - [removedIfRequired]: indicates if the Node will be removed completely from its parent if the deletion wraps the whole [Node]
-  /// - [transformOffsetWhenRequired]: indicates if the [offset] will be modified if requires querying ([queryPosition] method) a [Node]. Tipically, this just happen when we call this method in the Root node.
-  ///
-  /// All the changes in this [DeltaNode] must be applied just internally into this [Node]
-  /// if exceeds the [Node] length, just return [false], indicating that this operation must
-  /// be managed by the [Tree] manager
-  DeltaChangeResult receiveDelta(
-    Node node,
-    DeltaNode delta, {
-    bool removedIfRequired = false,
-    bool transformOffsetWhenRequired = true,
-  });
-
-  FragmentChangeContext insert(
-    Node node,
-    int start,
-    Object data, {
-    int fragmentPosition = 0,
-    int jumpOffset = 0,
-    int stringLimitLength = 300,
-  });
-
-  FragmentChangeContext retain(
-    Node node,
-    Map<String, dynamic> attributes,
-    int start, {
-    int? end,
-    bool passToBlockAttributesIfWrapEntireBlock = false,
-  });
-
-  FragmentChangeContext delete(
-    Node node,
-    int start,
-    int end, {
-    int fragmentPosition = 0,
-    int jumpOffset = 0,
-  });
-}
-
-typedef VerifyTypeFn = bool Function(Object);
-
-/// This modifier calls to both ParagraphNodeModifier and EmbedNodeModifier
 class DefaultNodeModifier extends NodeModifier {
   const DefaultNodeModifier();
 
@@ -315,12 +245,17 @@ class DefaultNodeModifier extends NodeModifier {
       }
 
       if (node.isBlockNode && location.found) {
-        if (data is! String && node.type == ParagraphKeys.key) {
+        final bool isParagraph = node.type == ParagraphKeys.key;
+        final bool isEmbed = node.type == EmbedKeys.key &&
+            node.isNotEmpty &&
+            !location.node!.isValueEmpty;
+        if (data is! String && (isParagraph || isEmbed)) {
           final Node embedBlock = Node.embedBlock(data: null);
           if (location.locationOffset == 0 && location.node!.isFirst) {
             node.insertBefore(embedBlock);
-          } else if (location.locationOffset == node.dataLength &&
-              location.node!.isLast) {
+          } else if ((location.locationOffset == node.dataLength &&
+                  location.node!.isLast) ||
+              isEmbed) {
             node.insertAfter(embedBlock);
           } else {
             final Node? right = split(
@@ -339,7 +274,7 @@ class DefaultNodeModifier extends NodeModifier {
               parent: node,
             );
             if (location.node!.isBlankOrEmpty) {
-              location.node!.unlink(); 
+              location.node!.unlink();
             }
             assert(
                 right != null,
@@ -378,17 +313,8 @@ class DefaultNodeModifier extends NodeModifier {
               '${node.shortInfo()} founded. '
               'New info ${embedBlock.shortInfo()}');
 
-          assert(
-              node.parent!.contains(embedBlock.id),
-              '${embedBlock.shortInfo()} '
-              'should be inserted already '
-              'after ${node.shortInfo()} => ${node.next?.shortInfo()} | In it\'s parent '
-              'after doing an '
-              'insertion, but was not founded in ${node.parent?.shortInfo()}'
-              '\n'
-              '${node.parent?.children.map(
-                (Node e) => e.shortInfo(),
-              )}');
+          assert(node.parent!.contains(embedBlock.id),
+              generalAssertNodeInfo(node, embedBlock));
 
           EasyEditorLogger.tree.debug('Moving '
               'start location => '
@@ -402,7 +328,7 @@ class DefaultNodeModifier extends NodeModifier {
         }
 
         // By now, [Embeds] can only
-        // have one [EmbedLine] 
+        // have one [EmbedLine]
         if (data is String && node.type == EmbedKeys.key) {
           final Node block = Node.block(data: "");
           if (location.locationOffset == 0) {
@@ -454,7 +380,12 @@ class DefaultNodeModifier extends NodeModifier {
     assert(start >= 0 && start <= node.dataLength.next,
         'start: $start is out of range => 0 to ${node.dataLength.next}');
 
-    if (!isSupportedValue(data, node.type)) {
+    if (!isSupportedValue(data, node.type) ||
+        // embed nodes can only have a line and fragment per
+        // block
+        data is! String &&
+            node.type == EmbedKeys.childrenKey &&
+            !node.isValueEmpty) {
       // when we are into a [Line] or [EmbedLine]
       // we prefer go to parent and trying to make
       // an automatic split

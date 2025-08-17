@@ -1,5 +1,4 @@
 import 'package:easy_rich_editor/easy_rich_editor.dart';
-import 'package:easy_rich_editor/src/core/logger/editor_logger.dart';
 import 'package:easy_rich_editor/src/tree_manager/core/cache_invalidator/node/node_paths_cache_invalidator.dart';
 import 'package:flutter_quill_delta_easy_parser/utils/nano_id_generator.dart';
 import '../../../../utils/background_isolate_runner/isolate_runner.dart';

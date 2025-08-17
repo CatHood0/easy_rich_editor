@@ -1,10 +1,7 @@
 import 'package:flutter/material.dart';
-import 'package:meta/meta.dart';
-
 import '../../../../../easy_rich_editor.dart';
 import '../path/path.dart';
 
-@internal
 class FragmentChangeContext {
   final TextRange? remainingRanges;
   final bool executed;

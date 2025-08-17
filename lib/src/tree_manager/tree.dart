@@ -1,6 +1,5 @@
 import 'package:easy_rich_editor/src/core/api/document/nodes/node_iterator.dart';
 import 'package:easy_rich_editor/src/core/api/document/path/path.dart';
-import 'package:easy_rich_editor/src/core/limiters/embed_limiter.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:easy_rich_editor/easy_rich_editor.dart';
 import 'package:meta/meta.dart';

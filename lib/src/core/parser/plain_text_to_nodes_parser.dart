@@ -1,9 +1,6 @@
 import 'dart:convert';
-
 import 'package:easy_rich_editor/easy_rich_editor.dart';
-import 'package:meta/meta.dart';
 
-@internal
 class PlainTextToNodesParser {
   static final LineSplitter _lineSplitter = LineSplitter();
   static Node parse({required String text}) {

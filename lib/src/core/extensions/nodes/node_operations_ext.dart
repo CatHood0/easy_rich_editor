@@ -5,12 +5,12 @@ extension NodeOperations on Node {
     Node child, {
     int? path,
     bool after = false,
-    bool noInvalidation = false,
   }) {
     if (!canAddOrRemovedChildren || contains(child.id)) return;
     if (child.parent != null) {
       child.unlinkIfNeeded();
     }
+
     child
       ..invalidateDataOffset()
       ..invalidateCache()
@@ -19,7 +19,9 @@ extension NodeOperations on Node {
     _fastIndexTreePart[child.id] = child;
     if (path == null || path >= length || isEmpty) {
       children.add(child);
-      invalidateCache(justCache: true);
+      if (_cachedLength != null) {
+        _cachedLength = _cachedLength! + 1;
+      }
       parent?.invalidateDataOffset();
       return;
     }
@@ -35,7 +37,9 @@ extension NodeOperations on Node {
     } else {
       entry.insertBefore(child);
     }
-    invalidateCache(justCache: true);
+    if (_cachedLength != null) {
+      _cachedLength = _cachedLength! + 1;
+    }
     parent?.invalidateDataOffset();
     invalidateCacheOfSiblings(
       node: after ? entry : child,

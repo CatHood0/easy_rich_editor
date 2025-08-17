@@ -2,12 +2,9 @@ import 'dart:collection';
 import 'dart:convert';
 
 import 'package:collection/collection.dart';
-import 'package:easy_rich_editor/src/core/api/document/changes/fragment_change_context.dart';
 import 'package:easy_rich_editor/src/core/api/document/path/path.dart';
 import 'package:easy_rich_editor/src/core/api/editor_state/easy_state.dart';
 import 'package:easy_rich_editor/src/core/extensions/object_ext.dart';
-import 'package:easy_rich_editor/src/core/logger/editor_logger.dart';
-import 'package:easy_rich_editor/src/core/modifiers/node_modifier.dart';
 import 'package:easy_rich_editor/src/utils/background_isolate_runner/isolate_runner.dart';
 import 'package:easy_rich_editor/src/utils/utils.dart';
 import 'package:flutter/foundation.dart';
@@ -18,7 +15,7 @@ import 'package:easy_rich_editor/internal.dart';
 import 'package:easy_rich_editor/easy_rich_editor.dart';
 import 'package:meta/meta.dart';
 
-import '../../../common/selectable_mixin.dart';
+import '../../../../editor/common/selectable_mixin.dart';
 
 part 'package:easy_rich_editor/src/core/extensions/fragments/node_fragment_modifier_extension.dart';
 part 'package:easy_rich_editor/src/core/extensions/nodes/node_ext.dart';
@@ -50,12 +47,6 @@ final class Node extends ChangeNotifier {
 
   @internal
   static String get rootId => 'root';
-
-  /// We cache partially some things while we are processing them
-  /// directly at this "box". This is cleaned automatically after
-  /// put them into a `NodeChange` class
-  @internal
-  static String get changeBoxKey => 'changed';
 
   static const int _notFoundPath = -1;
 
@@ -393,7 +384,7 @@ final class Node extends ChangeNotifier {
     final StringBuffer buffer = StringBuffer();
     if (isBlockNode || !hasDefinedValue) {
       for (final Node node in children) {
-        buffer.write(node.toPlainText(embedBuilder: embedBuilder));
+        buffer.writeln(node.toPlainText(embedBuilder: embedBuilder));
       }
       _text = '$buffer';
       return _text!;
@@ -404,16 +395,15 @@ final class Node extends ChangeNotifier {
       if (_dataLength == null) {
         length += frag.length;
       }
-      buffer.write(
-        frag.text(
-          ifNotBuilder: embedBuilder == null
-              ? null
-              : (Object e) => embedBuilder(
-                    this,
-                    e,
-                  ),
-        ),
+      final String obj = frag.text(
+        ifNotBuilder: embedBuilder == null
+            ? null
+            : (Object e) => embedBuilder(
+                  this,
+                  e,
+                ),
       );
+      buffer.write(obj);
     }
     _dataLength ??= length;
     return _text = '$buffer';
@@ -573,8 +563,6 @@ final class Node extends ChangeNotifier {
     return node;
   }
 
-  // FIXME: probably we can found a better way to cache the data length
-  // instead of invalidating always the parent
   void insertAfter(Node entry) {
     if (parent == null) {
       throw Exception('Cannot '
@@ -595,12 +583,11 @@ final class Node extends ChangeNotifier {
       // just set it
       ..path = lastPathKnowed
       ..deepPath = <int>[...parent!.deepPath, lastPathKnowed];
-    final int? cachedLength = parent!._cachedLength;
     parent!.invalidateCache(justCache: true);
-    if (cachedLength != null) {
-      parent!._cachedLength = cachedLength + 1;
+    if (parent!._cachedLength != null) {
+      parent!._cachedLength = parent!._cachedLength! + 1;
     }
-    parent!.invalidateDataOffset();
+    parent!.invalidateDataOffset(willBeAfter: true);
     parent!._fastIndexTreePart[entry.id] = entry;
     if (entry.next != null) {
       // reset the current path of the node

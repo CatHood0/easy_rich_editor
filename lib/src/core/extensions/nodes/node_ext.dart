@@ -20,6 +20,8 @@ extension NodeExt on Node {
   bool get hasDefinedValue => value != null && value is List<TextFragment>;
   bool get isBlockNode => metadata['block'] as bool? ?? !hasDefinedValue;
 
+  bool get isValueEmpty => isBlankText;
+
   bool get hasText =>
       value != null &&
       value is List<TextFragment> &&

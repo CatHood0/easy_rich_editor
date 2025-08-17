@@ -12,7 +12,7 @@ void main() {
     root = DocumentToNodesParser.documentParse(commonDoc);
   });
 
-  test('split to other block node is type no correspond', () {
+  test('insert embed at the left of paragraph block node', () {
     expect(root, isNotNull);
     final FragmentChangeContext context = root!.insert(
       0,
@@ -31,6 +31,22 @@ void main() {
     );
   });
 
+  test('insert embed at the right of paragraph block node', () {
+    expect(root, isNotNull);
+    final FragmentChangeContext context = root!.insert(
+      3,
+      <String, dynamic>{'image': 'path/to/image'},
+    );
+
+    expect(context.executed, isTrue);
+    expect(context.changeSize, equals(1));
+    expect(context.paths, equals(<int>[0]));
+    // must split the current node to a next one with the correct type
+    // and the context should work
+    expect(context.node!.deepPath, equals(<int>[2, 0]));
+    expect(context.node!.text, equals(Node.kObjectReplacementCharacter));
+  });
+
   test('insert text at start of a embed', () {
     expect(root, isNotNull);
     final FragmentChangeContext context = root!.insert(
@@ -42,7 +58,7 @@ void main() {
     expect(context.changeSize, equals(1));
     expect(context.paths, equals(<int>[0]));
     expect(context.node!.deepPath, equals(<int>[1, 0]));
-    expect(context.node!.toPlainText(), equals('|'));
+    expect(context.node!.text, equals('|'));
   });
 
   test('split node in middle when required', () {
@@ -66,12 +82,17 @@ void main() {
       'image': 'path/to/image'
     };
     final FragmentChangeContext context = line.insert(
-      3,
+      4,
       obj,
     );
+    final Node? rightSplitted = root!.queryPath(<int>[4]);
+    expect(rightSplitted, isNotNull);
+    expect(rightSplitted!.length, equals(2));
     // was splitted from the offset passed
-    expect(line.nsText, equals('use'));
+    expect(line.nsText, equals('use '));
     expect(line.next, isNull);
+    // and here is where end the part of the line splitted
+    expect(rightSplitted.first.text, equals("it "));
     expect(context.executed, isTrue);
     expect(context.changeSize, equals(164));
     expect(context.node, equals(block));
@@ -86,14 +107,6 @@ void main() {
     expect(
       location.node!.value.castToFragments()[location.fragmentIndex].data,
       equals(obj),
-    );
-    final Node? rightSplitted = root!.queryPath(<int>[4]);
-    expect(rightSplitted, isNotNull);
-    expect(rightSplitted!.length, equals(2));
-    // and here is where end the part of the line splitted 
-    expect(
-      rightSplitted.first.value.castToFragments().first.data,
-      equals(" it "),
     );
     expect(line.parent, block);
     expect(endLineSibling.parent, isNot(equals(block)));
