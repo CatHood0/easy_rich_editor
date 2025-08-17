@@ -540,7 +540,7 @@ final class Node extends ChangeNotifier {
   Node? get firstChild => children.firstOrNull;
   Node? firstWhere(bool Function(Node) expr) => children.firstWhereOrNull(expr);
 
-  Node? get lastChild => isEmpty ? null : children[length - 1];
+  Node? get lastChild => isEmpty ? null : children[length.decr.nonNegative];
   Node? lastWhere(bool Function(Node) expr) => children.lastWhereOrNull(expr);
 
   Node get first => firstChild!;
@@ -550,7 +550,7 @@ final class Node extends ChangeNotifier {
   bool get isFirst => parent?.firstChild == this;
 
   /// Returns `true` if this node is the last node in the [parent] list.
-  bool get isLast => parent != null && parent!.last == this;
+  bool get isLast => parent?.lastChild == this;
 
   bool get isEmpty => length < 1;
 

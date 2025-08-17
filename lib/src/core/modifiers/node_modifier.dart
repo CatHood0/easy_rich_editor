@@ -401,6 +401,8 @@ class DefaultNodeModifier extends NodeModifier {
           );
         }
 
+        // By now, [Embeds] can only
+        // have one [EmbedLine] 
         if (data is String && node.type == EmbedKeys.key) {
           final Node block = Node.block(data: "");
           if (location.locationOffset == 0) {

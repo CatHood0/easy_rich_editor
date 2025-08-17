@@ -71,6 +71,7 @@ void main() {
     );
     // was splitted from the offset passed
     expect(line.nsText, equals('use'));
+    expect(line.next, isNull);
     expect(context.executed, isTrue);
     expect(context.changeSize, equals(164));
     expect(context.node, equals(block));
