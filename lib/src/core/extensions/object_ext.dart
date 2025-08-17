@@ -39,6 +39,10 @@ extension IntList on int {
     }
     return nums;
   }
+
+  int limit(int max) {
+    return this > max ? max : this;
+  }
 }
 
 extension StringSubExt on String {

@@ -21,7 +21,7 @@ void main() {
         value: null,
       );
 
-      root.adoptChild(child);
+      root.insertNode(child);
 
       expect(child.parent, equals(root));
       expect(root.children, contains(child));
@@ -50,13 +50,13 @@ void main() {
         value: <TextFragment>[TextFragment(data: 'World')],
         canModifyChildrenLength: false,
       );
-      paragraph1.adoptChild(line1, paragraph1.length.prev.nonNegative);
-      paragraph2.adoptChild(line2, paragraph2.length.prev.nonNegative);
+      paragraph1.insertNode(line1, path: paragraph1.length.prev.nonNegative);
+      paragraph2.insertNode(line2, path: paragraph2.length.prev.nonNegative);
     });
 
     test('Global offsets for simple structure', () {
       // This is how looks the tree when you analyze it
-      // root 
+      // root
       // │ Paragraph(0DDF): Global Offset(start: 0, end: 6)  < Cursor position
       // │ │
       // │ └─ Line(D4EB): Relative Offset(start: 0, end: 5)
@@ -113,8 +113,8 @@ void main() {
         canModifyChildrenLength: false,
       );
       root.adoptChildren(<Node>[paragraph1, paragraph2]);
-      paragraph1.adoptChild(line1, paragraph1.length.prev.nonNegative);
-      paragraph2.adoptChild(line2, paragraph2.length.prev.nonNegative);
+      paragraph1.insertNode(line1, path: paragraph1.length.prev.nonNegative);
+      paragraph2.insertNode(line2, path: paragraph2.length.prev.nonNegative);
     });
 
     test('Next and previous nodes', () {
@@ -155,7 +155,7 @@ void main() {
         parent: paragraph2,
         canModifyChildrenLength: false,
       );
-      paragraph2.adoptChild(line);
+      paragraph2.insertNode(line);
 
       expect(
         line.deepPath,
@@ -186,9 +186,9 @@ void main() {
         parent: emptyParagraph,
         canModifyChildrenLength: false,
       );
-      emptyParagraph.adoptChild(
+      emptyParagraph.insertNode(
         emptyLine,
-        emptyParagraph.length.prev.nonNegative,
+        path: emptyParagraph.length.prev.nonNegative,
       );
       root.adoptChildren(<Node>[emptyParagraph]);
 
@@ -210,9 +210,9 @@ void main() {
         parent: paragraph,
         canModifyChildrenLength: false,
       );
-      paragraph.adoptChild(
+      paragraph.insertNode(
         line,
-        paragraph.length.prev.nonNegative,
+        path: paragraph.length.prev.nonNegative,
       );
       root.adoptChildren(<Node>[paragraph]);
 
@@ -230,7 +230,7 @@ void main() {
           value: null,
           parent: currentParent,
         );
-        currentParent.adoptChild(newNode);
+        currentParent.insertNode(newNode);
         currentParent = newNode;
       }
 
@@ -252,7 +252,7 @@ void main() {
         value: <TextFragment>[TextFragment(data: 'First line')],
         canModifyChildrenLength: false,
       );
-      paragraph.adoptChild(line);
+      paragraph.insertNode(line);
     });
 
     test('Insert before', () {

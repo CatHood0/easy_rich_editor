@@ -320,7 +320,62 @@ class DefaultNodeModifier extends NodeModifier {
       if (node.isBlockNode && location.found) {
         if (data is! String && node.type == ParagraphKeys.key) {
           final Node embedBlock = Node.embedBlock(data: null);
-          node.insertAfter(embedBlock);
+          if (location.locationOffset == 0 && location.node!.isFirst) {
+            node.insertBefore(embedBlock);
+          } else if (location.locationOffset == node.dataLength &&
+              location.node!.isLast) {
+            node.insertAfter(embedBlock);
+          } else {
+            final Node? right = split(
+              node,
+              start,
+              linePath: location.node!.path,
+              jumpOffset: location.jumpOffset,
+              fragmentPath: location.fragmentIndex,
+              jumpedLineOffset: location.node!.offset,
+            );
+            computeNewCacheValues(
+              location.node!,
+              start,
+              location.node!.dataLength,
+              localStart: location.locationOffset,
+              parent: node,
+            );
+            if (location.node!.isBlankOrEmpty) {
+              location.node!.unlink(); 
+            }
+            assert(
+                right != null,
+                'Node: ${node.shortInfo()} '
+                'should be splitted at ${location.locationOffset} '
+                'by unsupported type $data');
+            embedBlock
+              ..dataLength = 2
+              ..text = Node.kObjectReplacementCharacter;
+            if (embedBlock.isEmpty) {
+              embedBlock.insertNode(Node.embedChild());
+            }
+            embedBlock.children[0]
+              ..value = <TextFragment>[TextFragment(data: data)]
+              ..dataLength = 1
+              ..text = Node.kObjectReplacementCharacter;
+            node.insertAfter(embedBlock);
+            assert(node.parent!.contains(embedBlock.id),
+                generalAssertNodeInfo(node, embedBlock));
+            embedBlock.insertAfter(right!);
+            assert(node.parent!.contains(right.id),
+                generalAssertNodeInfo(embedBlock, right));
+
+            return FragmentChangeContext(
+              executed: true,
+              paths: <int>[],
+              node: node,
+              changeSize: node.dataLength.decr +
+                  embedBlock.dataLength.decr +
+                  right.dataLength.decr,
+              lastFragmentLength: -1,
+            );
+          }
           EasyEditorLogger.tree.debug('Inserting new $data in a'
               'new node by an invalid data type for '
               '${node.shortInfo()} founded. '
@@ -351,7 +406,11 @@ class DefaultNodeModifier extends NodeModifier {
 
         if (data is String && node.type == EmbedKeys.key) {
           final Node block = Node.block(data: "");
-          node.insertAfter(block);
+          if (location.locationOffset == 0) {
+            node.insertBefore(block);
+          } else {
+            node.insertAfter(block);
+          }
           EasyEditorLogger.tree.debug('Inserting new "$data" in a'
               'new node by an invalid data type for '
               '${node.shortInfo()} founded. '
@@ -512,29 +571,65 @@ class DefaultNodeModifier extends NodeModifier {
     throw UnimplementedError();
   }
 
+  /// Embeds always return null since they don't need to be splitted
+  Node? split(
+    Node node,
+    int start, {
+    int fragmentPath = 0,
+    int jumpOffset = 0,
+    int linePath = 0,
+    int jumpedLineOffset = 0,
+  }) {
+    if (node.type == EmbedKeys.key || node.type == EmbedKeys.childrenKey) {
+      return null;
+    }
+    return node.isBlockNode
+        ? node.splitLines(
+            start,
+            fragmentPath: fragmentPath,
+            jumpedOffset: jumpOffset,
+            linePath: linePath,
+            jumpLineOffset: jumpedLineOffset,
+          )
+        : node.jumpToParent(stopAt: (Node e) => e.isBlockNode).splitLines(
+              start,
+              fragmentPath: fragmentPath,
+              jumpedOffset: jumpOffset,
+              linePath: linePath,
+              jumpLineOffset: jumpedLineOffset,
+            );
+  }
+
   @internal
   void computeNewCacheValues(
     Node node,
     int start,
     int end, {
+    Node? parent,
+    int? localStart,
     Object? obj,
   }) {
     obj ??= '';
+    parent ??= node.parent!;
     final int deleteDelta = end - start;
-    int? oldParentLength = node.parent?.nsDataLength != null
-        ? node.parent!.nsDataLength!.toInt() - 1
-        : node.parent?.nsDataLength;
+    int? oldParentLength = parent.nsDataLength != null
+        ? parent.nsDataLength!.toInt() - 1
+        : parent.nsDataLength;
     int? oldDataLength = node.nsDataLength != null ? 0 : node.nsDataLength;
-    String? oldParentText = node.parent?.nsText;
+    String? oldParentText = parent.nsText;
     String? oldText = node.nsText;
-    node.dataLength = (node.dataLength + obj.length) - deleteDelta;
-    node.parent?.invalidateDataOffset(noText: false);
     if (oldParentLength != null && oldDataLength != null) {
-      node.parent?.dataLength =
-          (oldParentLength - oldDataLength) + node.nsDataLength!;
+      node.dataLength = (node.dataLength + obj.length) - deleteDelta;
+      parent
+        ..invalidateDataOffset(noText: false)
+        ..dataLength = (oldParentLength - oldDataLength) + node.nsDataLength!;
+    } else {
+      node.invalidateDataOffset();
+      parent.invalidateDataOffset();
+      return;
     }
     if (oldParentText != null) {
-      node.parent!.text = oldParentText.replaceRange(
+      parent.text = oldParentText.replaceRange(
         start,
         end,
         obj.text(),
@@ -542,10 +637,22 @@ class DefaultNodeModifier extends NodeModifier {
     }
     if (oldText != null) {
       node.text = oldText.replaceRange(
-        start,
+        localStart ?? start,
         end,
         obj.text(),
       );
     }
+  }
+
+  String generalAssertNodeInfo(Node left, Node other) {
+    return '${other.shortInfo()} '
+        'should be inserted already '
+        'after ${left.shortInfo()} => ${left.next?.shortInfo()} | In it\'s parent '
+        'after doing an '
+        'insertion, but was not founded in ${left.parent?.shortInfo()}'
+        '\n'
+        '${left.parent?.children.map(
+      (Node e) => e.shortInfo(),
+    )}';
   }
 }

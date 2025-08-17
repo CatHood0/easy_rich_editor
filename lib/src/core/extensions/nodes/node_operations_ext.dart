@@ -1,16 +1,23 @@
 part of 'package:easy_rich_editor/src/core/api/document/nodes/node.dart';
 
 extension NodeOperations on Node {
-  void insertNode(Node child, {int? path, bool after = false}) {
+  void insertNode(
+    Node child, {
+    int? path,
+    bool after = false,
+    bool noInvalidation = false,
+  }) {
     if (!canAddOrRemovedChildren || contains(child.id)) return;
+    if (child.parent != null) {
+      child.unlinkIfNeeded();
+    }
     child
       ..invalidateDataOffset()
       ..invalidateCache()
-      ..parent = this
-      ..unlinkIfNeeded();
+      ..parent = this;
 
+    _fastIndexTreePart[child.id] = child;
     if (path == null || path >= length || isEmpty) {
-      _fastIndexTreePart[child.id] = child;
       children.add(child);
       invalidateCache(justCache: true);
       parent?.invalidateDataOffset();
@@ -30,7 +37,6 @@ extension NodeOperations on Node {
     }
     invalidateCache(justCache: true);
     parent?.invalidateDataOffset();
-    _fastIndexTreePart[child.id] = child;
     invalidateCacheOfSiblings(
       node: after ? entry : child,
       after: true,
@@ -46,10 +52,15 @@ extension NodeOperations on Node {
     );
     if (!contains(node.id)) return;
     final int path = node.path;
+    final Node? find = elementAtOrNull(path);
+    if (find == null || find.id != node.id) return;
     Node? sibling = node.next;
 
     children.removeAt(path);
-    invalidateCache(justCache: true);
+
+    if (_cachedLength != null) {
+      _cachedLength = (_cachedLength! - 1).nonNegative;
+    }
     invalidateDataOffset();
     _fastIndexTreePart.remove(node.id);
 

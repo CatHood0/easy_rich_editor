@@ -37,7 +37,7 @@ extension NodeExt on Node {
       value is List<TextFragment> &&
       (value!.cast<List<TextFragment>>().isEmpty ||
           length == 1 && value!.cast<List<TextFragment>>().first.data == '');
-  
+
   bool get isBlankOrEmpty => isBlankText || isEmptyText;
 
   bool get isBlankText =>
@@ -61,7 +61,7 @@ extension NodeEquality on Iterable<Node> {
     if (length != other.length) {
       return false;
     }
-    for (var i = 0; i < length; i++) {
+    for (int i = 0; i < length; i++) {
       if (!_nodeEquals(elementAt(i), other.elementAt(i))) {
         return false;
       }
@@ -131,17 +131,21 @@ extension NodeUtilities on Node {
       value: value ?? this.value,
       id: id ?? this.id,
       parent: parent ?? this.parent,
-      children: children ?? [...this.children],
+      children: children ?? <Node>[...this.children],
     );
   }
 
   Map<String, dynamic> toJson() {
-    return {
+    return <String, dynamic>{
       "type": type,
       "id": id,
       "value": value,
       "metadata": metadata,
-      "children": children,
+      "children": children
+          .map(
+            (Node e) => e.toJson(),
+          )
+          .toList(),
     };
   }
 

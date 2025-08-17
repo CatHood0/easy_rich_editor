@@ -75,7 +75,7 @@ extension NodeTreeDumperExt on Node {
       ..write("$type(${id.substring(0, 4).trim()}"
           "-"
           "$nodePath): "
-          "Offset(start: ${isBlockNode ? globalOffset : offset}, end: ${isBlockNode ? globalEnd : endOffset}) ");
+          "Offset(start: $offset, len: ${isBlockNode ? dataLength.prev.nonNegative : dataLength}, end: $endOffset) ");
     if (listEquals(currentPath, deepPath)) {
       buffer.write(" < Cursor position");
     }

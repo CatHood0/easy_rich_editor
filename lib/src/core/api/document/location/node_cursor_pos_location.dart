@@ -20,7 +20,7 @@ class NodeCursorPosLocation {
   /// into the [Line] that satifies the tests
   final int locationOffset;
 
-  /// The exact offset where the matched 
+  /// The exact offset where the matched
   /// fragment start
   final int jumpOffset;
 
@@ -65,6 +65,7 @@ class NodeCursorPosLocation {
       fragmentIndex: fragmentIndex,
       fragmentOffset: fragmentOffset,
       locationOffset: offset,
+      jumpOffset: jumpOffset,
     );
   }
 
@@ -72,6 +73,7 @@ class NodeCursorPosLocation {
   String toString() {
     return 'NodeValueLocation(index: $fragmentIndex, '
         'offset: $fragmentOffset, '
+        'jumpOffset: $jumpOffset, '
         'locationOffset: $locationOffset, '
         'location: $location)';
   }

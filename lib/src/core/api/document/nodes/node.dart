@@ -107,7 +107,7 @@ final class Node extends ChangeNotifier {
     List<Node> children = const <Node>[],
   }) {
     this.value = value;
-    this.id = id ?? nanoid(8);
+    this.id = id ?? EasyTreeState.createNodeId();
     this.metadata = <String, dynamic>{...?metadata};
     this.metadata['can_modify_children_length'] = canModifyChildrenLength;
     this.metadata['block'] = value == null;
@@ -158,7 +158,8 @@ final class Node extends ChangeNotifier {
     _value = null;
     metadata
       ..['block'] = true
-      ..['pr_attributes'] = paragraph.blockAttributes;
+      ..['pr_attributes'] = paragraph.blockAttributes
+      ..['can_modify_children_length'] = true;
     final List<Line> lines = paragraph.unsafeLines();
     for (int i = 0; i < lines.length; i++) {
       final Line line = lines[i];
@@ -179,18 +180,43 @@ final class Node extends ChangeNotifier {
     }
   }
 
+  Node.embedChild({
+    String? id,
+    this.parent,
+    Map<String, dynamic>? metadata,
+    Map<String, dynamic>? blockAttributes,
+    Object? data,
+  }) : type = EmbedKeys.childrenKey {
+    assert(data == null || data is! String,
+        'Only non embed blocks can have text data');
+    this.id = id ?? EasyTreeState.createNodeId();
+    this.metadata = <String, dynamic>{
+      'block': true,
+      'pr_attributes': blockAttributes,
+      'can_modify_children_length': false,
+      ...?metadata,
+    };
+    _value = data == null
+        ? <TextFragment>[]
+        : <TextFragment>[TextFragment(data: data)];
+    _dataLength = data == null ? 0 : 1;
+    _text = data == null ? null : Node.kObjectReplacementCharacter;
+  }
+
   Node.embedBlock({
     String? id,
     this.parent,
     Map<String, dynamic>? metadata,
     Map<String, dynamic>? blockAttributes,
-    required Object? data,
+    Object? data,
   }) : type = EmbedKeys.key {
-    assert(data is! String, 'Only non embed blocks can have text data');
+    assert(data == null || data is! String,
+        'Only non embed blocks can have text data');
     this.id = id ?? EasyTreeState.createNodeId();
     this.metadata = <String, dynamic>{
       'block': true,
       'pr_attributes': blockAttributes,
+      'can_modify_children_length': true,
       ...?metadata,
     };
     final Node lineNode = Node(
@@ -212,12 +238,14 @@ final class Node extends ChangeNotifier {
     String childType = ParagraphKeys.lineKey,
     Map<String, dynamic>? metadata,
     Map<String, dynamic>? blockAttributes,
-    required Object data,
+    List<Node> children = const <Node>[],
+    Object? data,
+    bool noInvalidation = false,
   }) {
     assert(type.trim().isNotEmpty, 'type cannot be empty');
     assert(childType.trim().isNotEmpty, 'childType cannot be empty');
     assert(
-        data is String,
+        data == null || data is String,
         'Only embed blocks can '
         'contain objects of type ${data.runtimeType}');
     this.id = id ?? EasyTreeState.createNodeId();
@@ -228,34 +256,38 @@ final class Node extends ChangeNotifier {
     };
     //FIXME: implement a better search to know if the
     // text contains new lines
-    if (data.castString().contains(Utils.CR)) {
-      final List<String> lines = LineSplitter().convert(data.castString());
-      for (int i = 0; i < lines.length; i++) {
-        final String line = lines[i];
-        final Node lineNode = Node(
-          type: childType,
-          value: <TextFragment>[
-            TextFragment(data: line),
-          ],
-          children: <Node>[],
-          parent: this,
-          canModifyChildrenLength: false,
-        )..text = line;
-        text = nsText == null ? line : '${nsText.orEmpty}\n$line';
-        insertNode(lineNode);
+    if (data != null) {
+      if (data.castString().contains(Utils.CR)) {
+        final List<String> lines = LineSplitter().convert(data.castString());
+        for (int i = 0; i < lines.length; i++) {
+          final String line = lines[i];
+          final Node lineNode = Node(
+            type: childType,
+            value: <TextFragment>[
+              TextFragment(data: line),
+            ],
+            children: <Node>[],
+            parent: this,
+            canModifyChildrenLength: false,
+          )..text = line;
+          text = nsText == null ? line : '${nsText.orEmpty}\n$line';
+          insertNode(lineNode);
+        }
+        adoptChildren(children);
+        return;
       }
-      return;
-    }
 
-    final Node lineNode = Node(
-      type: childType,
-      value: <TextFragment>[TextFragment(data: data.castString())],
-      children: <Node>[],
-      parent: this,
-      canModifyChildrenLength: false,
-    )..text = data.castString();
-    text = data.castString();
-    insertNode(lineNode);
+      final Node lineNode = Node(
+        type: childType,
+        value: <TextFragment>[TextFragment(data: data.castString())],
+        children: <Node>[],
+        parent: this,
+        canModifyChildrenLength: false,
+      )..text = data.castString();
+      text = data.castString();
+      insertNode(lineNode);
+    }
+    adoptChildren(children);
   }
 
   Object? get value => _value;
@@ -267,17 +299,18 @@ final class Node extends ChangeNotifier {
     notifyListeners();
   }
 
-  Node? get next => parent == null ||
+  Node? get next => isLast ||
+          parent == null ||
           path == -1 ||
           !parent!.contains(id) ||
           path.next >= parent!.length
       ? null
-      : parent!.children[_path.next];
+      : parent!.elementAtOrNull(path.next);
 
   Node? get previous =>
-      parent == null || path.prev < 0 || path.prev >= parent!.length
+      isFirst || parent == null || path.prev < 0 || path.prev >= parent!.length
           ? null
-          : parent!.children[path.prev];
+          : parent!.elementAtOrNull(path.prev.nonNegative);
 
   set value(Object? v) {
     _value = v;
@@ -422,15 +455,14 @@ final class Node extends ChangeNotifier {
   HashMap<String, int>? get changes =>
       metadata[Node.requireRebuildKey] as HashMap<String, int>?;
 
+  Map<String, dynamic>? get blockAttributes =>
+      metadata['pr_attributes'] as Map<String, dynamic>?;
+
   bool get isReadOnly => metadata['read-only'] as bool? ?? false;
 
   void setReadonly() => metadata['read-only'] = true;
 
   void unSetReadonly() => metadata['read-only'] = false;
-
-  void adoptChild(Node child, [int? path]) {
-    insertNode(child, path: path, after: true);
-  }
 
   bool swapNodes(Node node, int to) {
     if (contains(node.id)) {
@@ -459,9 +491,9 @@ final class Node extends ChangeNotifier {
     return false;
   }
 
-  void adoptChildren(List<Node> nodes) {
+  void adoptChildren(List<Node> nodes, {bool noInvalidation = false}) {
     for (Node node in nodes) {
-      adoptChild(node);
+      insertNode(node, after: true);
     }
   }
 

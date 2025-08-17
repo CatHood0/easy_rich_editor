@@ -3,6 +3,137 @@ part of '../../api/document/nodes/node.dart';
 @internal
 extension NodeInsertValueModifications on Node {
   @internal
+  Node splitLines(
+    int start, {
+    int linePath = 0,
+    int jumpLineOffset = 0,
+    int fragmentPath = 0,
+    int jumpedOffset = 0,
+    bool splitContent = true,
+  }) {
+    if (!isBlockNode) {
+      return this;
+    }
+    RangeError.checkValidIndex(linePath, children);
+    int offset = jumpLineOffset;
+
+    for (int i = linePath; i < length; i++) {
+      final Node line = children[i];
+      final int currentOffset = offset + line.dataLength;
+      if (currentOffset >= start) {
+        int localOffset = (start - offset).nonNegative;
+        // the split is at the start of the line
+        // requires no split of internal values
+        final List<TextFragment> left = line.take(
+          localOffset,
+          splitContent: true,
+          jumpedOffset: jumpedOffset.nonNegative,
+          fragmentPath: fragmentPath.nonNegative,
+        );
+        final List<TextFragment> right = line.take(
+          localOffset,
+          left: false,
+          splitContent: true,
+          jumpedOffset: jumpedOffset.nonNegative,
+          fragmentPath: fragmentPath.nonNegative,
+        );
+        line.nsValue = <TextFragment>[...left];
+        final List<Node> rightLines = children.sublist(i.next.limit(length));
+        return Node.block(
+          type: type,
+          blockAttributes: blockAttributes,
+          children: <Node>[
+            Node(
+              type: line.type,
+              value: right,
+              canModifyChildrenLength: false,
+            ),
+            ...rightLines
+          ],
+          childType: line.type,
+        );
+      }
+      offset += line.dataLength;
+    }
+
+    return this;
+  }
+
+  @internal
+  List<TextFragment> take(
+    int start, {
+    bool left = true,
+    int fragmentPath = 0,
+    int jumpedOffset = 0,
+    bool splitContent = true,
+  }) {
+    if (isBlockNode ||
+        !hasDefinedValue ||
+        isRootOwner ||
+        isBlankOrEmpty ||
+        (start == 0 && left || start >= dataLength && !left)) {
+      return <TextFragment>[];
+    }
+
+    final List<TextFragment> fragments = value!.castToFragments().toList();
+    RangeError.checkValidIndex(fragmentPath, fragments);
+    int fragOffset = jumpedOffset.nonNegative;
+    for (int i = fragmentPath; i < fragments.length; i++) {
+      final TextFragment fragment = fragments[i];
+      final int fragLength = fragment.length;
+      final int nextOffset = fragOffset + fragLength;
+
+      if (nextOffset >= start) {
+        if (fragment.isEmbedFragment) {
+          return left
+              ? <TextFragment>[
+                  ...fragments.sublist(0, i.next.limit(fragments.length)),
+                ]
+              : <TextFragment>[
+                  ...fragments.sublist(i.next.limit(fragments.length)),
+                ];
+        }
+        bool removedCurrent = false;
+        if (splitContent) {
+          final String fragText = fragment.getTextValue();
+          int localStartOffset = (start - fragOffset).nonNegative;
+
+          fragments[i] = TextFragment(
+            data: fragText.left(localStartOffset),
+            attributes: fragment.attributes,
+          );
+          final String right = fragText.right(localStartOffset);
+          if (right.isNotEmpty) {
+            fragments.insert(
+              i.next.limit(fragments.length),
+              TextFragment(
+                data: right,
+                attributes: fragment.attributes,
+              ),
+            );
+          }
+          if (fragments[i].getTextValue().isEmpty) {
+            removedCurrent = true;
+            fragments.removeAt(i);
+          }
+        }
+
+        return left
+            ? <TextFragment>[
+                ...fragments.sublist(
+                    0, i.next.limit(fragments.length)),
+              ]
+            : <TextFragment>[
+                ...fragments
+                    .sublist(start == 0 || removedCurrent ? i : i.next.limit(fragments.length)),
+              ];
+      }
+      fragOffset += fragLength;
+    }
+    return <TextFragment>[...fragments];
+  }
+
+  @internal
   FragmentChangeContext insertValueAt(
     Object obj,
     int start, {
