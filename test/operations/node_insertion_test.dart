@@ -99,7 +99,7 @@ void main() {
     final Node? embedLeft = root!.queryPath(<int>[3]);
     expect(embedLeft, isNotNull);
     final NodeCursorPosLocation location =
-        embedLeft!.queryPosition(0, inclusive: true);
+        embedLeft!.queryPosition(1, inclusive: true);
     expect(location.node, isNotNull);
     expect(location.found, isTrue);
     expect(location.fragmentIndex, equals(0));

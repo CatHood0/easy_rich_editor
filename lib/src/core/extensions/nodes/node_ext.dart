@@ -55,6 +55,7 @@ extension NodeExt on Node {
       value!.cast<List<TextFragment>>().isNotEmpty &&
       value!.cast<List<TextFragment>>().first.data is Map<String, dynamic>;
 
+  List<TextFragment> get fragments => value.castToFragments();
   bool get isBlank => value == null;
 }
 

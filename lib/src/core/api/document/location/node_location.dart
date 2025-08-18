@@ -16,6 +16,10 @@ class NodeLocation {
     this.rootOwner,
   });
 
+  NodeLocation.from(this.node)
+      : path = node.deepPath,
+        rootOwner = node.jumpToParentExceptRoot() ?? node.jumpToParent();
+
   @override
   String toString() {
     return 'NodeLocation(path: $path, node: ${node.shortInfo()}, rootOwner: ${rootOwner?.shortInfo()})';

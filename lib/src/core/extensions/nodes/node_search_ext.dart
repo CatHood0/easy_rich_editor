@@ -204,17 +204,36 @@ extension NodeSearchExt on Node {
     bool inclusive = false,
   }) {
     if (cursorPos < 0 || cursorPos > dataLength) {
+      EasyEditorLogger.treeFailures.debug('QueryPosition('
+          'pos: $cursorPos, '
+          'incl: $inclusive) => '
+          'Was not founded in ${shortInfo()}');
       return NodeCursorPosLocation.notFound();
     }
 
     if (hasDefinedValue) {
+      EasyEditorLogger.tree.debug('QueryPosition('
+          'pos: $cursorPos, '
+          'incl: $inclusive) => '
+          'Searching in fragments of ${shortInfo()}');
       return queryFragments(cursorPos, inclusive: true);
     }
 
     if (inclusive && cursorPos == dataLength.decr.nonNegative && isNotEmpty) {
       final Node lastNode = children.last;
-      return NodeCursorPosLocation.noFragment(
-        node: lastNode,
+      EasyEditorLogger.tree.debug('QueryPosition('
+          'pos: $cursorPos, '
+          'incl: $inclusive) => '
+          'Found node at end of parent ${shortInfo()}. '
+          'Node: ${lastNode.shortInfo()}');
+      return NodeCursorPosLocation(
+        location: NodeLocation.from(lastNode),
+        jumpOffset: lastNode.isBlankText
+            ? 0
+            : (lastNode.dataLength - lastNode.fragments.last.length)
+                .nonNegative,
+        fragmentIndex: lastNode.fragments.length.decr.nonNegative,
+        fragmentOffset: lastNode.dataLength,
         locationOffset: lastNode.dataLength,
       );
     }
@@ -235,6 +254,11 @@ extension NodeSearchExt on Node {
       if (containsOffset) {
         foundNode = node;
         localOffset = cursorPos - nodeStart;
+        EasyEditorLogger.tree.debug('QueryPosition('
+            'pos: $cursorPos, '
+            'incl: $inclusive, '
+            'local: $localOffset) => '
+            'Found at ${node.shortInfo()}');
         break;
       } else if (cursorPos < nodeStart) {
         high = mid - 1;
@@ -244,6 +268,10 @@ extension NodeSearchExt on Node {
     }
 
     if (foundNode == null) {
+      EasyEditorLogger.treeFailures.debug('QueryPosition('
+          'pos: $cursorPos, '
+          'incl: $inclusive) => '
+          'Was not founded in ${shortInfo()}');
       return NodeCursorPosLocation.notFound();
     }
 

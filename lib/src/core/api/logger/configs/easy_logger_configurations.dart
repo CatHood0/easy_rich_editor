@@ -39,6 +39,33 @@ class EasyLoggerConfiguration {
   EasyLogLevel _level = EasyLogLevel.off;
 
   EasyLogLevel get level => _level;
+
+  void all() {
+    _level = EasyLogLevel.all;
+    Logger.root.level = level.toLevel();
+  }
+
+  void debug() {
+    _level = EasyLogLevel.debug;
+    Logger.root.level = level.toLevel();
+  }
+
+  void info() {
+    _level = EasyLogLevel.info;
+    Logger.root.level = level.toLevel();
+  }
+
+  void warn() {
+    _level = EasyLogLevel.warn;
+    Logger.root.level = level.toLevel();
+  }
+
+  void off() {
+    _level = EasyLogLevel.off;
+    Logger.root.level = level.toLevel();
+  }
+
+  @internal
   set level(EasyLogLevel level) {
     _level = level;
     Logger.root.level = level.toLevel();

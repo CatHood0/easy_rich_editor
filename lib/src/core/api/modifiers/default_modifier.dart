@@ -298,18 +298,31 @@ class DefaultNodeModifier extends NodeModifier {
             embedBlock.insertAfter(right!);
             assert(node.parent!.contains(right.id),
                 generalAssertNodeInfo(embedBlock, right));
+            EasyEditorLogger.tree.debug('Inserting new "$data" in a'
+                'new node by an invalid data type for '
+                '${node.shortInfo()} founded. '
+                'right: ${embedBlock.shortInfo()}, '
+                'remaining part after the split: ${right.shortInfo()}');
 
+            final int changeSize = node.dataLength.decr +
+                embedBlock.dataLength.decr +
+                right.dataLength.decr;
+            EasyEditorLogger.tree.debug('ChangeInfo('
+                'offset: ${node.offset}, '
+                'changeSize: $changeSize, '
+                'endOffset: ${right.endOffset})');
+
+            // FIXME: we need to implement a better way to
+            // return a specific fragment change
             return FragmentChangeContext(
               executed: true,
               paths: <int>[],
               node: node,
-              changeSize: node.dataLength.decr +
-                  embedBlock.dataLength.decr +
-                  right.dataLength.decr,
+              changeSize: changeSize,
               lastFragmentLength: -1,
             );
           }
-          EasyEditorLogger.tree.debug('Inserting new $data in a'
+          EasyEditorLogger.tree.debug('Inserting new "$data" in a'
               'new node by an invalid data type for '
               '${node.shortInfo()} founded. '
               'New info ${embedBlock.shortInfo()}');
@@ -407,8 +420,11 @@ class DefaultNodeModifier extends NodeModifier {
       stringLimitLength: stringLimitLength,
     );
 
-    EasyEditorLogger.tree.debug('Context after insert $data => $context');
     if (context.executed) {
+      EasyEditorLogger.tree.debug('Inserting "$data" was '
+          'executed '
+          'sucessfully. '
+          'Detailed => $context');
       computeNewCacheValues(
         node,
         lineStartOffset + start,
