@@ -87,6 +87,9 @@ extension NodeOperations on Node {
   static const FragmentChangeContext _defaultNonExecutedContext =
       FragmentChangeContext.noExecuted();
 
+  /// Insert the object at the specified offset
+  ///
+  /// Some rules that you need 
   FragmentChangeContext insert(
     int start,
     Object data, {
@@ -95,6 +98,9 @@ extension NodeOperations on Node {
     int stringLimitLength = 300,
     NodeModifier modifier = NodeModifier.defaultModifier,
   }) {
+    if (start < 0 || start > dataLength) {
+      return FragmentChangeContext.noExecuted();
+    }
     return modifier.insert(
       this,
       start,
@@ -112,9 +118,11 @@ extension NodeOperations on Node {
     int? end,
     bool passToBlockAttributesIfWrapEntireBlock = false,
   }) {
+    if (start == end) return FragmentChangeContext.noExecuted();
     return _defaultNonExecutedContext;
   }
 
+  /// Deletes all the content into the range specified
   FragmentChangeContext delete(
     int start,
     int end, {
@@ -122,6 +130,7 @@ extension NodeOperations on Node {
     int jumpOffset = 0,
     NodeModifier modifier = NodeModifier.defaultModifier,
   }) {
+    if (start == end) return FragmentChangeContext.noExecuted();
     return modifier.delete(
       this,
       start,

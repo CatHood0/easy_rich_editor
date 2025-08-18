@@ -43,6 +43,10 @@ extension IntList on int {
   int limit(int max) {
     return this > max ? max : this;
   }
+
+  int or(int another) {
+    return this <= -1 ? another : this;
+  }
 }
 
 extension StringSubExt on String {

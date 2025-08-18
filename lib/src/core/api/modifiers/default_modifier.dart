@@ -233,6 +233,7 @@ class DefaultNodeModifier extends NodeModifier {
     Node node,
     int start,
     Object data, {
+    Map<String, dynamic>? attributes,
     int fragmentPosition = 0,
     int jumpOffset = 0,
     int stringLimitLength = 300,
@@ -363,7 +364,7 @@ class DefaultNodeModifier extends NodeModifier {
       final FragmentChangeContext context = location.node!.insert(
         location.locationOffset,
         data,
-        fragmentPosition: fragmentPosition,
+        fragmentPosition: location.fragmentIndex.or(fragmentPosition),
         jumpOffset: location.jumpOffset.nonNegative,
         stringLimitLength: stringLimitLength,
       );
@@ -397,6 +398,7 @@ class DefaultNodeModifier extends NodeModifier {
           );
     }
 
+    final int lineStartOffset = node.offset;
     final FragmentChangeContext context = node.insertValueAt(
       data,
       start,
@@ -409,8 +411,11 @@ class DefaultNodeModifier extends NodeModifier {
     if (context.executed) {
       computeNewCacheValues(
         node,
-        start,
-        start,
+        lineStartOffset + start,
+        lineStartOffset + start,
+        localStart: start,
+        localEnd: start,
+        parent: node.parent,
         obj: data,
       );
     }
@@ -537,6 +542,7 @@ class DefaultNodeModifier extends NodeModifier {
     int end, {
     Node? parent,
     int? localStart,
+    int? localEnd,
     Object? obj,
   }) {
     obj ??= '';
@@ -568,7 +574,7 @@ class DefaultNodeModifier extends NodeModifier {
     if (oldText != null) {
       node.text = oldText.replaceRange(
         localStart ?? start,
-        end,
+        localEnd ?? end,
         obj.text(),
       );
     }

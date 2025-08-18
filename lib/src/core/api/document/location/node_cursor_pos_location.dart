@@ -24,6 +24,17 @@ class NodeCursorPosLocation {
   /// fragment start
   final int jumpOffset;
 
+  NodeCursorPosLocation.noFragment({
+    required Node node,
+    required this.locationOffset,
+  })  : location = NodeLocation(
+          path: node.deepPath,
+          node: node,
+        ),
+        fragmentOffset = -1,
+        jumpOffset = -1,
+        fragmentIndex = -1;
+
   NodeCursorPosLocation({
     required this.location,
     required this.locationOffset,

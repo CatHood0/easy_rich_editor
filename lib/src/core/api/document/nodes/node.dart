@@ -384,7 +384,7 @@ final class Node extends ChangeNotifier {
     final StringBuffer buffer = StringBuffer();
     if (isBlockNode || !hasDefinedValue) {
       for (final Node node in children) {
-        buffer.writeln(node.toPlainText(embedBuilder: embedBuilder));
+        buffer.write(node.toPlainText(embedBuilder: embedBuilder));
       }
       _text = '$buffer';
       return _text!;

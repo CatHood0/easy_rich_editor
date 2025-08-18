@@ -1,5 +1,4 @@
 import 'package:easy_rich_editor/easy_rich_editor.dart';
-import 'package:easy_rich_editor/src/core/api/document/changes/fragment_change_context.dart';
 import 'package:easy_rich_editor/src/core/extensions/object_ext.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -100,7 +99,7 @@ void main() {
     final Node? embedLeft = root!.queryPath(<int>[3]);
     expect(embedLeft, isNotNull);
     final NodeCursorPosLocation location =
-        embedLeft!.queryPosition(1, inclusive: true);
+        embedLeft!.queryPosition(0, inclusive: true);
     expect(location.node, isNotNull);
     expect(location.found, isTrue);
     expect(location.fragmentIndex, equals(0));
@@ -116,28 +115,29 @@ void main() {
   test('insert text at start of a node', () {
     expect(root, isNotNull);
     final FragmentChangeContext context = root!.insert(
-      0,
+      124,
       '|',
     );
 
     expect(context.executed, isTrue);
     expect(context.changeSize, equals(1));
     expect(context.paths, equals(<int>[0]));
-    expect(context.node!.deepPath, equals(<int>[0, 0]));
-    expect(context.node!.toPlainText(), equals('|\n'));
+    expect(context.node!.deepPath, equals(<int>[5, 0]));
+    expect(context.node!.toPlainText(), equals('|So, since we are just '));
   });
   test('insert text at the end of a node', () {
     expect(root, isNotNull);
     final FragmentChangeContext context = root!.insert(
-      1,
+      205,
       '|',
     );
 
     expect(context.executed, isTrue);
     expect(context.changeSize, equals(1));
     expect(context.paths, equals(<int>[0]));
-    expect(context.node!.deepPath, equals(<int>[0, 0]));
-    expect(context.node!.toPlainText(), equals('\n|'));
+    expect(context.node!.deepPath, equals(<int>[5, 2]));
+    expect(context.node!.toPlainText(),
+        equals('to take as an example how work this visualizer (2). |'));
   });
   test('insert text in middle of document', () {});
   test('insert text behing an embed', () {});

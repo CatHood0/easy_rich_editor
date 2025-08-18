@@ -45,6 +45,7 @@ abstract class NodeModifier {
     Node node,
     int start,
     Object data, {
+    Map<String, dynamic>? attributes,
     int fragmentPosition = 0,
     int jumpOffset = 0,
     int stringLimitLength = 300,

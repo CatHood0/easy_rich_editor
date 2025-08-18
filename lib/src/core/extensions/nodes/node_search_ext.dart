@@ -197,7 +197,7 @@ extension NodeSearchExt on Node {
   /// within returned child node
   /// - [NodeCursorPosLocation.fragmentOffset] is set to relative offset into the fragments
   /// within returned child node which points at the same character position in the document
-  /// - [NodeCursorPosLocation.locationOffset] is set to a valid offset that can be used to make any operation into 
+  /// - [NodeCursorPosLocation.locationOffset] is set to a valid offset that can be used to make any operation into
   /// the node where the [cursorPos] match
   NodeCursorPosLocation queryPosition(
     int cursorPos, {
@@ -211,45 +211,53 @@ extension NodeSearchExt on Node {
       return queryFragments(cursorPos, inclusive: true);
     }
 
+    if (inclusive && cursorPos == dataLength.decr.nonNegative && isNotEmpty) {
+      final Node lastNode = children.last;
+      return NodeCursorPosLocation.noFragment(
+        node: lastNode,
+        locationOffset: lastNode.dataLength,
+      );
+    }
+
     int low = 0;
-    int high = length.prev.nonNegative;
+    int high = length.decr.nonNegative;
     Node? foundNode;
     int localOffset = 0;
     while (low <= high) {
       final int mid = (low + high) ~/ 2;
       final Node node = children[mid];
+      final int nodeStart = node.offset;
+      final int nodeEnd = nodeStart + node.dataLength;
 
-      if (node.containsOffset(
-        cursorPos,
-        local: true,
-        inclusive: !node.isBlockNode,
-      )) {
+      final bool containsOffset = !node.isBlockNode
+          ? cursorPos >= nodeStart && cursorPos <= nodeEnd
+          : cursorPos >= nodeStart && cursorPos < nodeEnd;
+      if (containsOffset) {
         foundNode = node;
-        localOffset = cursorPos - node.offset;
+        localOffset = cursorPos - nodeStart;
         break;
-      } else if (node.isBehind(cursorPos)) {
+      } else if (cursorPos < nodeStart) {
         high = mid - 1;
       } else {
         low = mid + 1;
       }
     }
 
-    if (inclusive && cursorPos == dataLength && isNotEmpty) {
-      final Node lastNode = children.last;
-      return NodeCursorPosLocation(
-        location:
-            NodeLocation(path: <int>[...lastNode.deepPath], node: lastNode),
-        fragmentIndex: -1,
-        fragmentOffset: -1,
-        locationOffset: lastNode.dataLength,
-      );
-    }
-
     if (foundNode == null) {
       return NodeCursorPosLocation.notFound();
     }
 
-    return foundNode.queryFragments(localOffset, inclusive: inclusive);
+    if (foundNode.isBlockNode || !foundNode.hasDefinedValue) {
+      return NodeCursorPosLocation.noFragment(
+        node: foundNode,
+        locationOffset: localOffset,
+      );
+    }
+
+    return foundNode.queryFragments(
+      localOffset,
+      inclusive: true,
+    );
   }
 
   NodeCursorPosLocation queryFragments(
@@ -287,11 +295,8 @@ extension NodeSearchExt on Node {
       }
     }
 
-    return NodeCursorPosLocation(
-      location: NodeLocation(
-        path: <int>[...deepPath],
-        node: this,
-      ),
+    return NodeCursorPosLocation.noFragment(
+      node: this,
       locationOffset: cursorPos,
     );
   }

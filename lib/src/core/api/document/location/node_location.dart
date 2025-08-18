@@ -18,6 +18,6 @@ class NodeLocation {
 
   @override
   String toString() {
-    return 'NodeLocation(path: $path, node: $node, rootOwner: $rootOwner)';
+    return 'NodeLocation(path: $path, node: ${node.shortInfo()}, rootOwner: ${rootOwner?.shortInfo()})';
   }
 }
