@@ -425,12 +425,7 @@ extension NodeInsertValueModifications on Node {
         executed: true,
         paths: fragPosition.until(fragments.length),
         changeSize: lengthOfDeletion,
-        remainingRanges: end == dataLength
-            ? null
-            : TextRange(
-                start: start - lengthOfDeletion,
-                end: end - lengthOfDeletion,
-              ),
+        remainingRanges: null,
         lastFragmentLength: -1,
         node: this,
       );

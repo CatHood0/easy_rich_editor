@@ -64,6 +64,8 @@ abstract class NodeModifier {
     int start,
     int end, {
     int fragmentPosition = 0,
+    int fragmentEndPosition = 0,
     int jumpOffset = 0,
+    bool removeEntireNodeWhenEmpty = true,
   });
 }

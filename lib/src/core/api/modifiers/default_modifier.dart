@@ -473,19 +473,38 @@ class DefaultNodeModifier extends NodeModifier {
     int start,
     int end, {
     int fragmentPosition = 0,
+    int fragmentEndPosition = 0,
     int jumpOffset = 0,
+    bool removeEntireNodeWhenEmpty = true,
   }) {
     if (node.isBlockNode || node.isRootOwner) {
       final NodeCursorPosLocation location =
           node.queryPosition(start, inclusive: true);
-      if (location.notFoundLocation) {
+      final NodeCursorPosLocation endLocation =
+          node.queryPosition(end, inclusive: true);
+
+      if (location.notFoundLocation || endLocation.notFoundLocation) {
         return NodeModifier.defaultNonExecutedContext;
+      }
+
+      // deletes locally
+      if (node.isBlockNode) {
+        // both are different
+        if (location.node != endLocation.node) {
+
+        }
+      }
+
+      // do a different deletion
+      if (node.isRootOwner) {
+        if (location.node != endLocation.node) {}
       }
 
       final FragmentChangeContext context = location.node!.delete(
         location.locationOffset,
-        end,
-        fragmentPosition: location.fragmentIndex.nonNegative,
+        endLocation.locationOffset,
+        fragmentPosition: location.fragmentIndex.or(fragmentPosition),
+        fragmentEndPosition: endLocation.fragmentIndex,
         jumpOffset: location.jumpOffset.nonNegative,
       );
 
@@ -500,15 +519,28 @@ class DefaultNodeModifier extends NodeModifier {
     assert(node.hasDefinedValue, 'value must be defined');
     assert(start >= 0 && start <= node.dataLength.next,
         'start: $start is out of range => 0 to ${node.dataLength.next}');
+    final int lineOffset = node.offset;
     final FragmentChangeContext context = node.deleteValueAt(
       start,
       end,
       fragmentPath: fragmentPosition,
       jumpedOffset: jumpOffset,
     );
-    EasyEditorLogger.tree.info('$context');
     if (context.executed) {
-      computeNewCacheValues(node, start, end, obj: null);
+      EasyEditorLogger.tree.debug('Removing '
+          'text between $start '
+          'and $end. Execution '
+          'ended '
+          'sucessfully. '
+          'Detailed => $context');
+      computeNewCacheValues(
+        node,
+        start - lineOffset,
+        end - lineOffset,
+        localStart: start,
+        localEnd: end,
+        obj: null,
+      );
     }
 
     // no common, but, can happen when

@@ -89,7 +89,7 @@ extension NodeOperations on Node {
 
   /// Insert the object at the specified offset
   ///
-  /// Some rules that you need 
+  /// Some rules that you need
   FragmentChangeContext insert(
     int start,
     Object data, {
@@ -127,7 +127,9 @@ extension NodeOperations on Node {
     int start,
     int end, {
     int fragmentPosition = 0,
+    int fragmentEndPosition = 0,
     int jumpOffset = 0,
+    bool removeEntireNodeWhenEmpty = true,
     NodeModifier modifier = NodeModifier.defaultModifier,
   }) {
     if (start == end) return FragmentChangeContext.noExecuted();
@@ -135,6 +137,10 @@ extension NodeOperations on Node {
       this,
       start,
       end,
+      jumpOffset: jumpOffset,
+      fragmentPosition: fragmentPosition,
+      fragmentEndPosition: fragmentEndPosition,
+      removeEntireNodeWhenEmpty: removeEntireNodeWhenEmpty,
     );
   }
 }
