@@ -141,8 +141,10 @@ extension NodeSearchExt on Node {
       return NodeCursorPosLocation.notFound();
     }
 
+    int offset = 0;
     for (final Node node in children) {
       final int len = node.dataLength;
+      offset += len;
       // at this point, the cursor can be used
       // as a local position in the node, instead
       // a global one
@@ -165,6 +167,7 @@ extension NodeSearchExt on Node {
                   path: <int>[...node.deepPath],
                   node: node,
                 ),
+                jumpNodeOffset: offset,
                 fragmentIndex: i,
                 fragmentOffset: cursorPos - fragOffset,
                 locationOffset: cursorPos,
@@ -175,10 +178,9 @@ extension NodeSearchExt on Node {
           }
         }
 
-        return NodeCursorPosLocation(
-          location: NodeLocation(path: <int>[...node.deepPath], node: node),
-          fragmentIndex: -1,
-          fragmentOffset: -1,
+        return NodeCursorPosLocation.noFragment(
+          node: node,
+          jumpNodeOffset: offset,
           locationOffset: cursorPos,
         );
       }
@@ -228,6 +230,7 @@ extension NodeSearchExt on Node {
           'Node: ${lastNode.shortInfo()}');
       return NodeCursorPosLocation(
         location: NodeLocation.from(lastNode),
+        jumpNodeOffset: lastNode.offset,
         jumpOffset: lastNode.isBlockNode || lastNode.isBlankText
             ? -1
             : (lastNode.dataLength - lastNode.fragments.last.length)
@@ -246,25 +249,26 @@ extension NodeSearchExt on Node {
     int high = length.decr.nonNegative;
     Node? foundNode;
     int localOffset = 0;
+    int nodeOffset = 0;
     while (low <= high) {
       final int mid = (low + high) ~/ 2;
       final Node node = children[mid];
-      final int nodeStart = node.offset;
-      final int nodeEnd = nodeStart + node.dataLength;
+      nodeOffset = node.offset;
+      final int nodeEnd = nodeOffset + node.dataLength;
 
       final bool containsOffset = !node.isBlockNode
-          ? cursorPos >= nodeStart && cursorPos <= nodeEnd
-          : cursorPos >= nodeStart && cursorPos < nodeEnd;
+          ? cursorPos >= nodeOffset && cursorPos <= nodeEnd
+          : cursorPos >= nodeOffset && cursorPos < nodeEnd;
       if (containsOffset) {
         foundNode = node;
-        localOffset = cursorPos - nodeStart;
+        localOffset = cursorPos - nodeOffset;
         EasyEditorLogger.tree.debug('QueryPosition('
             'pos: $cursorPos, '
             'incl: $inclusive, '
             'local: $localOffset) => '
             'Found at ${node.shortInfo()}');
         break;
-      } else if (cursorPos < nodeStart) {
+      } else if (cursorPos < nodeOffset) {
         high = mid - 1;
       } else {
         low = mid + 1;
@@ -282,14 +286,14 @@ extension NodeSearchExt on Node {
     if (foundNode.isBlockNode || !foundNode.hasDefinedValue) {
       return NodeCursorPosLocation.noFragment(
         node: foundNode,
+        jumpNodeOffset: nodeOffset,
         locationOffset: localOffset,
       );
     }
 
-    return foundNode.queryFragments(
-      localOffset,
-      inclusive: true,
-    );
+    return foundNode
+        .queryFragments(localOffset, inclusive: true)
+        .copyWith(jumpNodeOffset: nodeOffset);
   }
 
   NodeCursorPosLocation queryFragments(
@@ -316,6 +320,7 @@ extension NodeSearchExt on Node {
               path: <int>[...deepPath],
               node: this,
             ),
+            jumpNodeOffset: -1,
             fragmentIndex: i,
             fragmentOffset: cursorPos - fragOffset,
             locationOffset: cursorPos,
@@ -329,6 +334,7 @@ extension NodeSearchExt on Node {
 
     return NodeCursorPosLocation.noFragment(
       node: this,
+      jumpNodeOffset: -1,
       locationOffset: cursorPos,
     );
   }

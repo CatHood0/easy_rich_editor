@@ -39,18 +39,19 @@ void main() {
     );
   });
   test('Delete two nodes that are being selected', () {
+    // deletes almost the text into the block matched
     final FragmentChangeContext context = root.delete(
       4,
       100,
     );
 
     expect(context.executed, isTrue);
-    expect(context.changeSize, equals(12));
-    expect(context.paths, equals(<int>[0]));
-    expect(context.node!.deepPath, equals(<int>[2, 2]));
+    expect(context, isA<MultipleFragmentChangeContext>());
+    expect(context.changeSize, equals(96));
+    expect(context.node!.deepPath, equals(<int>[2]));
     expect(
       context.node!.toPlainText(),
-      equals('to take as an example how work this visu'),
+      equals('alizer (1). '),
     );
   });
   test('Delete embed', () {});

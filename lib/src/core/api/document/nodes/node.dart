@@ -409,6 +409,10 @@ final class Node extends ChangeNotifier {
     return _text = '$buffer';
   }
 
+  List<Node> subChildren(int start, [int? end]) {
+    return children.sublist(start, end);
+  }
+
   @internal
   void rebuildNodes({Map<String, int>? changes, bool shouldNotify = false}) {
     assert(isRootOwner, 'Only root node can set a list of changes');

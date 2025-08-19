@@ -70,12 +70,12 @@ extension NodeOperations on Node {
 
     if (sibling != null) {
       sibling
-        ..path = path.prev.nonNegative
-        ..deepPath = <int>[...parent!.deepPath, path.prev.nonNegative];
+        ..path = path
+        ..deepPath = <int>[...parent!.deepPath, path];
       invalidateCacheOfSiblings(
         node: sibling,
         after: true,
-        curPath: path.prev.nonNegative,
+        curPath: path,
       );
     }
   }
@@ -94,8 +94,10 @@ extension NodeOperations on Node {
     int start,
     Object data, {
     int fragmentPosition = 0,
+    int jumpNodeOffset = 0,
     int jumpOffset = 0,
     int stringLimitLength = 300,
+    bool computeParentCache = true,
     NodeModifier modifier = NodeModifier.defaultModifier,
   }) {
     if (start < 0 || start > dataLength) {
@@ -105,9 +107,11 @@ extension NodeOperations on Node {
       this,
       start,
       data,
+      jumpNodeOffset: jumpNodeOffset,
       fragmentPosition: fragmentPosition,
       jumpOffset: jumpOffset,
       stringLimitLength: stringLimitLength,
+      computeParentCache: computeParentCache,
     );
   }
 
@@ -126,10 +130,12 @@ extension NodeOperations on Node {
   FragmentChangeContext delete(
     int start,
     int end, {
+    int jumpNodeOffset = 0,
     int fragmentPosition = 0,
     int fragmentEndPosition = 0,
     int jumpOffset = 0,
     bool removeEntireNodeWhenEmpty = true,
+    bool computeParentCache = true,
     NodeModifier modifier = NodeModifier.defaultModifier,
   }) {
     if (start == end) return FragmentChangeContext.noExecuted();
@@ -137,6 +143,8 @@ extension NodeOperations on Node {
       this,
       start,
       end,
+      computeParentCache: computeParentCache,
+      jumpNodeOffset: jumpNodeOffset,
       jumpOffset: jumpOffset,
       fragmentPosition: fragmentPosition,
       fragmentEndPosition: fragmentEndPosition,

@@ -46,8 +46,10 @@ abstract class NodeModifier {
     int start,
     Object data, {
     Map<String, dynamic>? attributes,
+    int jumpNodeOffset = 0,
     int fragmentPosition = 0,
     int jumpOffset = 0,
+    bool computeParentCache = true,
     int stringLimitLength = 300,
   });
 
@@ -63,9 +65,11 @@ abstract class NodeModifier {
     Node node,
     int start,
     int end, {
+    int jumpNodeOffset = 0,
     int fragmentPosition = 0,
     int fragmentEndPosition = 0,
     int jumpOffset = 0,
+    bool computeParentCache = true,
     bool removeEntireNodeWhenEmpty = true,
   });
 }

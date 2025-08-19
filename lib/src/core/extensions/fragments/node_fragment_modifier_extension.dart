@@ -380,15 +380,64 @@ extension NodeInsertValueModifications on Node {
 
     assert(start != end, 'start and end ranges must be different');
 
-    final List<TextFragment> fragments = value!.castToFragments().toList();
+    final List<TextFragment> fragments = this.fragments.toList();
     int offset = jumpedOffset;
     int lengthOfDeletion = end - start;
     int fragPosition = RangeError.checkValidIndex(fragmentPath, fragments);
 
+    if (start >= 0 && end >= dataLength) {
+      int position = -1;
+      if (start > 0) {
+        for (int i = fragPosition; i < fragments.length; i++) {
+          final TextFragment fragment = fragments[i];
+          final Object data = fragment.data;
+          final int fragLength = fragment.length;
+          final int currentGlobalOffset = offset + fragLength;
+          final bool isOutOfRange = currentGlobalOffset <= start;
+          if (isOutOfRange) {
+            offset += fragLength;
+            continue;
+          }
+          position = i;
+          if (data is! String) {
+            position = i.decr;
+            break;
+          }
+          final String str = data.left((start - offset).nonNegative);
+          if (str.isEmpty) {
+            position = i.decr;
+            break;
+          }
+          fragments[i] = TextFragment(
+            data: str,
+            attributes: fragment.attributes,
+          );
+          break;
+        }
+      }
+      nsValue = position <= -1
+          ? <TextFragment>[TextFragment.empty()]
+          : fragments.sublist(
+              0,
+              position.next.limit(
+                fragments.length,
+              ));
+      return FragmentChangeContext(
+        executed: true,
+        paths: <int>[
+          ...position.or(fragPosition).until(
+                fragments.length,
+              ),
+        ],
+        changeSize: dataLength - start,
+        node: this,
+      );
+    }
+
     int firstAffectedIndex = fragPosition;
     int lastAffectedIndex = fragPosition;
 
-    for (int i = fragPosition; i < value!.castToFragments().length; i++) {
+    for (int i = fragPosition; i < fragments.length; i++) {
       final TextFragment fragment = fragments[i];
       final Object data = fragment.data;
       final int fragLength = fragment.length;
@@ -443,13 +492,9 @@ extension NodeInsertValueModifications on Node {
         continue;
       }
 
-      if (localStartOffset > 0 && localEndOffset >= fragLength) {
+      if (localStartOffset > 0) {
         final String str = data.left(localStartOffset);
         firstAffectedIndex = i;
-        if (str.isEmpty) {
-          lengthOfDeletion -= fragLength;
-          continue;
-        }
         fragments[i] = TextFragment(data: str, attributes: fragment.attributes);
         lengthOfDeletion -= (fragLength - str.length).nonNegative;
         continue;
@@ -480,7 +525,9 @@ extension NodeInsertValueModifications on Node {
           0,
           firstAffectedIndex.next.limit(fragments.length),
         ),
-        ...fragments.sublist(lastAffectedIndex),
+        // avoid adding a duplicated fragment
+        if (lastAffectedIndex > firstAffectedIndex)
+          ...fragments.sublist(lastAffectedIndex),
       ];
       return FragmentChangeContext(
         executed: true,

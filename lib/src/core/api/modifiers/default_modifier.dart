@@ -233,10 +233,12 @@ class DefaultNodeModifier extends NodeModifier {
     Node node,
     int start,
     Object data, {
-    Map<String, dynamic>? attributes,
+    int jumpNodeOffset = 0,
     int fragmentPosition = 0,
     int jumpOffset = 0,
     int stringLimitLength = 300,
+    bool computeParentCache = true,
+    Map<String, dynamic>? attributes,
   }) {
     if (node.isBlockNode || node.isRootOwner) {
       final NodeCursorPosLocation location =
@@ -265,7 +267,7 @@ class DefaultNodeModifier extends NodeModifier {
               linePath: location.node!.path,
               jumpOffset: location.jumpOffset,
               fragmentPath: location.fragmentIndex,
-              jumpedLineOffset: location.node!.offset,
+              jumpedLineOffset: location.jumpNodeOffset,
             );
             computeNewCacheValues(
               location.node!,
@@ -273,6 +275,7 @@ class DefaultNodeModifier extends NodeModifier {
               location.node!.dataLength,
               localStart: location.locationOffset,
               parent: node,
+              computeParentCache: computeParentCache,
             );
             if (location.node!.isBlankOrEmpty) {
               location.node!.unlink();
@@ -282,17 +285,24 @@ class DefaultNodeModifier extends NodeModifier {
                 'Node: ${node.shortInfo()} '
                 'should be splitted at ${location.locationOffset} '
                 'by unsupported type "$data"');
+            // set automatically the length
+            // expected to avoid unnecessary
+            // calculations
             embedBlock
               ..dataLength = 2
               ..text = Node.kObjectReplacementCharacter;
             if (embedBlock.isEmpty) {
               embedBlock.insertNode(Node.embedChild());
             }
+            // set automatically the values
+            // that are already expected
+            // to avoid unnecessary calculations
             embedBlock.children[0]
               ..value = <TextFragment>[TextFragment(data: data)]
               ..dataLength = 1
               ..text = Node.kObjectReplacementCharacter;
             if (context != null) {
+              // insert in middle of changes
               context.changes.insert(
                 1,
                 FragmentChangeContext(
@@ -304,11 +314,15 @@ class DefaultNodeModifier extends NodeModifier {
               );
             }
             node.insertAfter(embedBlock);
+
             assert(node.parent!.contains(embedBlock.id),
                 generalAssertNodeInfo(node, embedBlock));
+
             embedBlock.insertAfter(right!);
+
             assert(node.parent!.contains(right.id),
                 generalAssertNodeInfo(embedBlock, right));
+
             EasyEditorLogger.tree.debug('Inserting new "$data" in a'
                 'new node by an invalid data type for '
                 '${node.shortInfo()} founded. '
@@ -393,6 +407,7 @@ class DefaultNodeModifier extends NodeModifier {
       final FragmentChangeContext context = location.node!.insert(
         location.locationOffset,
         data,
+        jumpNodeOffset: location.jumpNodeOffset,
         fragmentPosition: location.fragmentIndex.or(fragmentPosition),
         jumpOffset: location.jumpOffset.nonNegative,
         stringLimitLength: stringLimitLength,
@@ -421,13 +436,13 @@ class DefaultNodeModifier extends NodeModifier {
       // an automatic split
       return node.jumpToParentExceptRoot()!.insert(
             // get the exact start into the block
-            node.offset + start,
+            jumpNodeOffset + start,
             data,
             modifier: this,
+            stringLimitLength: stringLimitLength,
           );
     }
 
-    final int lineStartOffset = node.offset;
     final FragmentChangeContext context = node.insertValueAt(
       data,
       start,
@@ -443,12 +458,13 @@ class DefaultNodeModifier extends NodeModifier {
           'Detailed => $context');
       computeNewCacheValues(
         node,
-        lineStartOffset + start,
-        lineStartOffset + start,
+        jumpNodeOffset + start,
+        jumpNodeOffset + start,
         localStart: start,
         localEnd: start,
         parent: node.parent,
         obj: data,
+        computeParentCache: computeParentCache,
       );
     }
 
@@ -472,9 +488,11 @@ class DefaultNodeModifier extends NodeModifier {
     Node node,
     int start,
     int end, {
+    int jumpNodeOffset = 0,
     int fragmentPosition = 0,
     int fragmentEndPosition = 0,
     int jumpOffset = 0,
+    bool computeParentCache = true,
     bool removeEntireNodeWhenEmpty = true,
   }) {
     if (node.isBlockNode || node.isRootOwner) {
@@ -493,12 +511,83 @@ class DefaultNodeModifier extends NodeModifier {
         if (location.node != endLocation.node) {
           final int startPath = location.node!.path;
           final int endPath = endLocation.node!.path;
+          final List<Node> between = node.subChildren(
+            startPath.next.limit(node.length),
+            // include the last node selected too
+            endPath.next.limit(node.length),
+          );
 
-          return NodeModifier.defaultNonExecutedContext;
+          final FragmentChangeContext startctx = location.node!.delete(
+            location.locationOffset,
+            location.node!.dataLength,
+            jumpNodeOffset: location.jumpNodeOffset,
+            jumpOffset: location.jumpOffset.nonNegative,
+            fragmentPosition: location.fragmentIndex.nonNegative,
+            computeParentCache: false,
+          );
+
+          endLocation.node!.delete(
+            0,
+            endLocation.locationOffset,
+            jumpNodeOffset: endLocation.jumpNodeOffset,
+            jumpOffset: endLocation.jumpOffset.nonNegative,
+            fragmentPosition: endLocation.fragmentIndex.nonNegative,
+            computeParentCache: false,
+          );
+
+          // parent text must be updated here to avoid
+          // ambiguous ranges
+          int? oldParentLength = node.nsDataLength != null
+              ? node.nsDataLength!.toInt() - 1
+              : node.nsDataLength;
+          String? oldParentText = node.nsText;
+          int deletionLength = end - start;
+
+          if (oldParentLength != null) {
+            node
+              ..invalidateDataOffset()
+              ..dataLength = (oldParentLength - deletionLength).nonNegative;
+          }
+          if (oldParentText != null) {
+            node.text = oldParentText.replaceRange(
+              start,
+              end,
+              '',
+            );
+          }
+
+          // we need to merge both location nodes
+          // since, when we are selecting two nodes
+          // when we remove text, this means that both
+          // will be merged automatically
+          //
+          // like
+          //
+          //       | < Start selection here
+          // "This is a simple text"
+          // "with different line paths"
+          // "that we can understand"
+          //         | < End selection here
+          //
+          // After the deletion this should be the result
+          //
+          // "This can understand"
+          merge(location.node!, endLocation.node!);
+          for (Node n in between) {
+            n.unlink();
+          }
+          return MultipleFragmentChangeContext(
+            executed: true,
+            changeSize: deletionLength,
+            node: node,
+            changes: <FragmentChangeContext>[startctx],
+          );
         }
       }
 
-      // do a different deletion
+      // Only [Tree] manage this operation
+      // because it has [NodeModifers],
+      // [NodeExtractors] and [NodeLimiters] cached
       if (node.isRootOwner) {
         if (location.node != endLocation.node) {
           throw 'Cannot delete more '
@@ -523,9 +612,11 @@ class DefaultNodeModifier extends NodeModifier {
     }
 
     assert(node.hasDefinedValue, 'value must be defined');
-    assert(start >= 0 && end <= node.dataLength.next,
-        'start: $start is out of range => 0 to ${node.dataLength.next}');
-    final int lineOffset = node.offset;
+    assert(
+        start >= 0 && end <= node.dataLength.next,
+        'start: $start, or end: $end are '
+        'out of range => 0 to ${node.dataLength.next}. '
+        'Node-info: ${node.shortInfo()}');
     final FragmentChangeContext context = node.deleteValueAt(
       start,
       end,
@@ -539,11 +630,11 @@ class DefaultNodeModifier extends NodeModifier {
           'Detailed => $context');
       computeNewCacheValues(
         node,
-        lineOffset + start,
-        lineOffset + end,
+        jumpNodeOffset + start,
+        jumpNodeOffset + end,
         localStart: start,
         localEnd: end,
-        obj: null,
+        computeParentCache: computeParentCache,
       );
     }
 
@@ -604,6 +695,31 @@ class DefaultNodeModifier extends NodeModifier {
   }
 
   @internal
+  void merge(Node node, Node other) {
+    if (node.isBlockNode && other.isBlockNode) {
+      assert(
+          node.type == other.type,
+          'To merge nodes the '
+          'type must be equals in both');
+      return;
+    }
+    assert(
+      node.type == other.type && node.type == ParagraphKeys.lineKey,
+      'To merge nodes the '
+      'type must be equals in both',
+    );
+    final List<TextFragment> leftFragments = node.fragments;
+    final List<TextFragment> rightFragments = other.fragments;
+    node
+      ..nsValue = <TextFragment>[
+        ...leftFragments,
+        ...rightFragments,
+      ]
+      ..text = '${node.nsText.orEmpty}${other.nsText.orEmpty}'.orNull()
+      ..dataLength = node.dataLength + other.dataLength;
+  }
+
+  @internal
   void computeNewCacheValues(
     Node node,
     int start,
@@ -612,10 +728,13 @@ class DefaultNodeModifier extends NodeModifier {
     int? localStart,
     int? localEnd,
     Object? obj,
+    bool computeParentCache = true,
   }) {
     obj ??= '';
     parent ??= node.parent!;
-    final int deleteDelta = end - start;
+    localStart ??= start;
+    localEnd ??= end;
+    final int localDeleteDelta = localEnd - localStart;
     int? oldParentLength = parent.nsDataLength != null
         ? parent.nsDataLength!.toInt() - 1
         : parent.nsDataLength;
@@ -623,16 +742,18 @@ class DefaultNodeModifier extends NodeModifier {
     String? oldParentText = parent.nsText;
     String? oldText = node.nsText;
     if (oldParentLength != null && oldDataLength != null) {
-      node.dataLength = (oldDataLength + obj.length) - deleteDelta;
-      parent
-        ..invalidateDataOffset()
-        ..dataLength = (oldParentLength - oldDataLength) + node.dataLength;
+      node.dataLength = (oldDataLength + obj.length) - localDeleteDelta;
+      if (computeParentCache) {
+        parent
+          ..invalidateDataOffset()
+          ..dataLength = (oldParentLength - oldDataLength) + node.dataLength;
+      }
     } else {
       node.invalidateDataOffset();
       parent.invalidateDataOffset();
       return;
     }
-    if (oldParentText != null) {
+    if (oldParentText != null && computeParentCache) {
       parent.text = oldParentText.replaceRange(
         start,
         end,
@@ -641,8 +762,8 @@ class DefaultNodeModifier extends NodeModifier {
     }
     if (oldText != null) {
       node.text = oldText.replaceRange(
-        localStart ?? start,
-        localEnd ?? end,
+        localStart,
+        localEnd,
         obj.text(),
       );
     }

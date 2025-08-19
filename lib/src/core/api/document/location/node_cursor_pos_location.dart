@@ -24,9 +24,18 @@ class NodeCursorPosLocation {
   /// fragment start
   final int jumpOffset;
 
+  /// The exact offset where the matched
+  /// node start
+  ///
+  /// Using this avoid using `node.offset`
+  /// that can be heavy with
+  /// [Line] and [EmbedLine]
+  final int jumpNodeOffset;
+
   NodeCursorPosLocation.noFragment({
     required Node node,
     required this.locationOffset,
+    required this.jumpNodeOffset,
   })  : location = NodeLocation(
           path: node.deepPath,
           node: node,
@@ -38,6 +47,7 @@ class NodeCursorPosLocation {
   NodeCursorPosLocation({
     required this.location,
     required this.locationOffset,
+    required this.jumpNodeOffset,
     this.jumpOffset = -1,
     this.fragmentIndex = -1,
     this.fragmentOffset = -1,
@@ -47,6 +57,7 @@ class NodeCursorPosLocation {
       : location = null,
         fragmentOffset = -1,
         jumpOffset = -1,
+        jumpNodeOffset = -1,
         locationOffset = -1,
         fragmentIndex = -1;
 
@@ -74,9 +85,28 @@ class NodeCursorPosLocation {
     return NodeCursorPosLocation(
       location: location,
       fragmentIndex: fragmentIndex,
+      jumpNodeOffset: jumpNodeOffset,
       fragmentOffset: fragmentOffset,
       locationOffset: offset,
       jumpOffset: jumpOffset,
+    );
+  }
+
+  NodeCursorPosLocation copyWith({
+    NodeLocation? location,
+    int? jumpOffset,
+    int? jumpNodeOffset,
+    int? fragmentIndex,
+    int? fragmentOffset,
+    int? locationOffset,
+  }) {
+    return NodeCursorPosLocation(
+      location: location ?? this.location,
+      jumpOffset: jumpOffset ?? this.jumpOffset,
+      fragmentIndex: fragmentIndex ?? this.fragmentIndex,
+      fragmentOffset: fragmentOffset ?? this.fragmentOffset,
+      locationOffset: locationOffset ?? this.locationOffset,
+      jumpNodeOffset: jumpNodeOffset ?? this.jumpNodeOffset,
     );
   }
 

@@ -60,6 +60,7 @@ extension IntList on int {
 extension StringSubExt on String {
   String left(int offset) => substring(0, offset);
   String right(int offset) => substring(offset);
+  String? orNull() => isEmpty ? null : this;
 }
 
 extension StringNullable on String? {
