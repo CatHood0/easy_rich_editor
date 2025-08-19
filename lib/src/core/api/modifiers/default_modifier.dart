@@ -259,7 +259,7 @@ class DefaultNodeModifier extends NodeModifier {
               isEmbed) {
             node.insertAfter(embedBlock);
           } else {
-            final Node? right = split(
+            final (Node? right, MultipleFragmentChangeContext? context) = split(
               node,
               start,
               linePath: location.node!.path,
@@ -278,10 +278,10 @@ class DefaultNodeModifier extends NodeModifier {
               location.node!.unlink();
             }
             assert(
-                right != null,
+                right != null && context != null,
                 'Node: ${node.shortInfo()} '
                 'should be splitted at ${location.locationOffset} '
-                'by unsupported type $data');
+                'by unsupported type "$data"');
             embedBlock
               ..dataLength = 2
               ..text = Node.kObjectReplacementCharacter;
@@ -292,6 +292,17 @@ class DefaultNodeModifier extends NodeModifier {
               ..value = <TextFragment>[TextFragment(data: data)]
               ..dataLength = 1
               ..text = Node.kObjectReplacementCharacter;
+            if (context != null) {
+              context.changes.insert(
+                1,
+                FragmentChangeContext(
+                  executed: true,
+                  paths: <int>[0],
+                  node: embedBlock.first,
+                  changeSize: 1,
+                ),
+              );
+            }
             node.insertAfter(embedBlock);
             assert(node.parent!.contains(embedBlock.id),
                 generalAssertNodeInfo(node, embedBlock));
@@ -314,13 +325,18 @@ class DefaultNodeModifier extends NodeModifier {
 
             // FIXME: we need to implement a better way to
             // return a specific fragment change
-            return FragmentChangeContext(
-              executed: true,
-              paths: <int>[],
-              node: node,
-              changeSize: changeSize,
-              lastFragmentLength: -1,
-            );
+
+            return context?.copyWith(
+                  changeSize: changeSize,
+                  node: node,
+                ) ??
+                FragmentChangeContext(
+                  executed: true,
+                  paths: <int>[],
+                  node: node,
+                  changeSize: changeSize,
+                  lastFragmentLength: -1,
+                );
           }
           EasyEditorLogger.tree.debug('Inserting new "$data" in a'
               'new node by an invalid data type for '
@@ -523,7 +539,7 @@ class DefaultNodeModifier extends NodeModifier {
   }
 
   /// Embeds always return null since they don't need to be splitted
-  Node? split(
+  (Node?, MultipleFragmentChangeContext?) split(
     Node node,
     int start, {
     int fragmentPath = 0,
@@ -532,7 +548,7 @@ class DefaultNodeModifier extends NodeModifier {
     int jumpedLineOffset = 0,
   }) {
     if (node.type == EmbedKeys.key || node.type == EmbedKeys.childrenKey) {
-      return null;
+      return (null, null);
     }
     return node.isBlockNode
         ? node.splitLines(

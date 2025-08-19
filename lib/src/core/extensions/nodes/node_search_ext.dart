@@ -228,12 +228,16 @@ extension NodeSearchExt on Node {
           'Node: ${lastNode.shortInfo()}');
       return NodeCursorPosLocation(
         location: NodeLocation.from(lastNode),
-        jumpOffset: lastNode.isBlankText
-            ? 0
+        jumpOffset: lastNode.isBlockNode || lastNode.isBlankText
+            ? -1
             : (lastNode.dataLength - lastNode.fragments.last.length)
                 .nonNegative,
-        fragmentIndex: lastNode.fragments.length.decr.nonNegative,
-        fragmentOffset: lastNode.dataLength,
+        fragmentIndex: lastNode.isBlockNode || !lastNode.hasDefinedValue
+            ? -1
+            : lastNode.fragments.length.decr.nonNegative,
+        fragmentOffset: lastNode.isBlockNode || !lastNode.hasDefinedValue
+            ? -1
+            : lastNode.dataLength,
         locationOffset: lastNode.dataLength,
       );
     }

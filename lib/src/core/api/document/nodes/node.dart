@@ -351,7 +351,7 @@ final class Node extends ChangeNotifier {
 
   int get dataLength {
     // This means that we are into a Parent
-    if (isBlockNode) {
+    if (isBlockNode || isRootOwner) {
       _dataLength ??= children
           .fold<int>(
             0,

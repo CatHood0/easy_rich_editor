@@ -1,3 +1,4 @@
+import 'package:collection/collection.dart';
 import 'package:easy_rich_editor/src/core/api/document/path/path.dart';
 import 'package:flutter_quill_delta_easy_parser/flutter_quill_delta_easy_parser.dart';
 
@@ -32,8 +33,15 @@ extension NonNegativeInt on int {
 }
 
 extension IntList on int {
-  List<int> until(int end) {
+  List<int> until(int end, {bool backward = false}) {
     List<int> nums = <int>[this];
+    if (this == end) return nums;
+    if (backward) {
+      for (int i = prev.nonNegative; i > 0; i--) {
+        nums.add(i);
+      }
+      return <int>[...nums.reversed];
+    }
     for (int i = next; i < end; i++) {
       nums.add(i);
     }
@@ -44,8 +52,8 @@ extension IntList on int {
     return this > max ? max : this;
   }
 
-  int or(int another) {
-    return this <= -1 ? another : this;
+  int or(int another, {int min = -1}) {
+    return this <= min ? another : this;
   }
 }
 

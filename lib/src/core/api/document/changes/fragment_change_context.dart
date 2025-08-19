@@ -55,3 +55,35 @@ class FragmentChangeContext {
         'remainingRanges: $remainingRanges)';
   }
 }
+
+class MultipleFragmentChangeContext extends FragmentChangeContext {
+  final List<FragmentChangeContext> changes;
+  MultipleFragmentChangeContext({
+    required super.executed,
+    required this.changes,
+    super.node,
+    super.lastFragmentLength,
+    super.remainingRanges,
+    super.changeSize,
+  }) : super(paths: <int>[]);
+
+  @override
+  MultipleFragmentChangeContext copyWith({
+    TextRange? remainingRanges,
+    bool? executed,
+    List<FragmentChangeContext>? changes,
+    FragmentPath? paths,
+    int? changeSize,
+    int? lastFragmentLength,
+    Node? node,
+  }) {
+    return MultipleFragmentChangeContext(
+      executed: executed ?? this.executed,
+      changes: changes ?? this.changes,
+      node: node ?? this.node,
+      changeSize: changeSize ?? this.changeSize,
+      remainingRanges: remainingRanges ?? this.remainingRanges,
+      lastFragmentLength: lastFragmentLength ?? this.lastFragmentLength,
+    );
+  }
+}

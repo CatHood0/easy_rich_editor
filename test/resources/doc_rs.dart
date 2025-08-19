@@ -9,110 +9,113 @@ Node get randomNode => Node(
       value: null,
       children: <Node>[],
     );
-pr.Document get commonDoc => pr.Document(paragraphs: <pr.Paragraph>[
-      pr.Paragraph.newLine(id: 'new line 1'),
-      pr.Paragraph(
-        id: 'embed pr 1',
-        type: pr.ParagraphType.embed,
-        lines: <pr.Line>[
-          pr.Line.fromData(
-            id: 'line of embed pr 1',
-            data: <String, String>{"img": "my/path/to/an/image.jpg"},
-          )
-        ],
-      ),
-      pr.Paragraph(
-        id: 'normal pr',
-        type: pr.ParagraphType.inline,
-        lines: <pr.Line>[
-          pr.Line.fromData(
-            id: 'line of normal pr',
-            data: "This is just a simple document where we can just ",
-          ),
-          pr.Line.fromData(
-              id: 'line of normal pr (2)',
-              data: "use it ",
-              attributes: <String, dynamic>{"underline": true}),
-          pr.Line.fromData(
-            id: 'line of normal pr (3)',
-            data: "to take as an example how work this visualizer (1). ",
-          ),
-        ],
-      ),
-      pr.Paragraph.newLine(id: 'new line 2'),
-      pr.Paragraph(
-        id: 'block pr',
-        type: pr.ParagraphType.block,
-        blockAttributes: <String, dynamic>{"header": 1},
-        lines: <pr.Line>[
-          pr.Line.fromData(
-            id: 'line of block pr',
-            data: "Examples",
-          ),
-        ],
-      ),
-      pr.Paragraph(
-        id: 'normal pr 2',
-        type: pr.ParagraphType.inline,
-        lines: <pr.Line>[
-          pr.Line.fromData(
-            id: 'line of normal pr 2',
-            data: "So, since we are just ",
-          ),
-          pr.Line.fromData(
-            id: 'line of normal pr 2-(2)',
-            data: "testing",
-            attributes: <String, dynamic>{"underline": true, "bold": true},
-          ),
-          pr.Line.fromData(
-            id: 'line of normal pr 2-(3)',
-            data: "to take as an example how work this visualizer (2). ",
-          ),
-        ],
-      ),
-      pr.Paragraph(
-        id: 'header pr 2',
-        type: pr.ParagraphType.block,
-        blockAttributes: <String, dynamic>{"header": 3},
-        lines: <pr.Line>[
-          pr.Line.fromData(
-            id: 'line of header pr 2',
-            data: "First example:",
-          ),
-        ],
-      ),
-      pr.Paragraph(
-        id: 'header sub section pr 1',
-        type: pr.ParagraphType.inline,
-        lines: <pr.Line>[
-          pr.Line.fromData(
-            id: 'line of header sub section 1',
-            data: "When we a visualizer, we should "
-                "probably want to select or edit ",
-          ),
-          pr.Line.fromData(
-            id: 'line of header sub section 2',
-            data: "any part",
-            attributes: <String, dynamic>{"underline": true, "bold": true},
-          ),
-          pr.Line.fromData(
-            id: 'line of header sub section 3',
-            data: " so, why we can try it? ",
-          ),
-        ],
-      ),
-      pr.Paragraph(
-        id: 'embed pr end',
-        type: pr.ParagraphType.embed,
-        lines: <pr.Line>[
-          pr.Line.fromData(
-            id: 'embed line pr 2',
-            data: <String, String>{"img": "my/path/to/an/image2.jpg"},
-          )
-        ],
-      ),
-      pr.Paragraph.newLine(id: 'new line 3'),
-    ]);
+
+pr.Document get commonDoc => pr.Document(
+      paragraphs: <pr.Paragraph>[
+        pr.Paragraph.newLine(id: 'new line 1'),
+        pr.Paragraph(
+          id: 'embed pr 1',
+          type: pr.ParagraphType.embed,
+          lines: <pr.Line>[
+            pr.Line.fromData(
+              id: 'line of embed pr 1',
+              data: <String, String>{"img": "my/path/to/an/image.jpg"},
+            )
+          ],
+        ),
+        pr.Paragraph(
+          id: 'normal pr',
+          type: pr.ParagraphType.inline,
+          lines: <pr.Line>[
+            pr.Line.fromData(
+              id: 'line of normal pr',
+              data: "This is just a simple document where we can just ",
+            ),
+            pr.Line.fromData(
+                id: 'line of normal pr (2)',
+                data: "use it ",
+                attributes: <String, dynamic>{"underline": true}),
+            pr.Line.fromData(
+              id: 'line of normal pr (3)',
+              data: "to take as an example how work this visualizer (1). ",
+            ),
+          ],
+        ),
+        pr.Paragraph.newLine(id: 'new line 2'),
+        pr.Paragraph(
+          id: 'block pr',
+          type: pr.ParagraphType.block,
+          blockAttributes: <String, dynamic>{"header": 1},
+          lines: <pr.Line>[
+            pr.Line.fromData(
+              id: 'line of block pr',
+              data: "Examples",
+            ),
+          ],
+        ),
+        pr.Paragraph(
+          id: 'normal pr 2',
+          type: pr.ParagraphType.inline,
+          lines: <pr.Line>[
+            pr.Line.fromData(
+              id: 'line of normal pr 2',
+              data: "So, since we are just ",
+            ),
+            pr.Line.fromData(
+              id: 'line of normal pr 2-(2)',
+              data: "testing",
+              attributes: <String, dynamic>{"underline": true, "bold": true},
+            ),
+            pr.Line.fromData(
+              id: 'line of normal pr 2-(3)',
+              data: "to take as an example how work this visualizer (2). ",
+            ),
+          ],
+        ),
+        pr.Paragraph(
+          id: 'header pr 2',
+          type: pr.ParagraphType.block,
+          blockAttributes: <String, dynamic>{"header": 3},
+          lines: <pr.Line>[
+            pr.Line.fromData(
+              id: 'line of header pr 2',
+              data: "First example:",
+            ),
+          ],
+        ),
+        pr.Paragraph(
+          id: 'header sub section pr 1',
+          type: pr.ParagraphType.inline,
+          lines: <pr.Line>[
+            pr.Line.fromData(
+              id: 'line of header sub section 1',
+              data: "When we a visualizer, we should "
+                  "probably want to select or edit ",
+            ),
+            pr.Line.fromData(
+              id: 'line of header sub section 2',
+              data: "any part",
+              attributes: <String, dynamic>{"underline": true, "bold": true},
+            ),
+            pr.Line.fromData(
+              id: 'line of header sub section 3',
+              data: " so, why we can try it? ",
+            ),
+          ],
+        ),
+        pr.Paragraph(
+          id: 'embed pr end',
+          type: pr.ParagraphType.embed,
+          lines: <pr.Line>[
+            pr.Line.fromData(
+              id: 'embed line pr 2',
+              data: <String, String>{"img": "my/path/to/an/image2.jpg"},
+            )
+          ],
+        ),
+        pr.Paragraph.newLine(id: 'new line 3'),
+      ],
+    );
 
 pr.Document get largeDoc {
   final List<pr.Paragraph> prs = <pr.Paragraph>[];
