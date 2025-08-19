@@ -491,13 +491,19 @@ class DefaultNodeModifier extends NodeModifier {
       if (node.isBlockNode) {
         // both are different
         if (location.node != endLocation.node) {
+          final int startPath = location.node!.path;
+          final int endPath = endLocation.node!.path;
 
+          return NodeModifier.defaultNonExecutedContext;
         }
       }
 
       // do a different deletion
       if (node.isRootOwner) {
-        if (location.node != endLocation.node) {}
+        if (location.node != endLocation.node) {
+          throw 'Cannot delete more '
+              'than once blocks at same time';
+        }
       }
 
       final FragmentChangeContext context = location.node!.delete(
@@ -517,26 +523,24 @@ class DefaultNodeModifier extends NodeModifier {
     }
 
     assert(node.hasDefinedValue, 'value must be defined');
-    assert(start >= 0 && start <= node.dataLength.next,
+    assert(start >= 0 && end <= node.dataLength.next,
         'start: $start is out of range => 0 to ${node.dataLength.next}');
     final int lineOffset = node.offset;
     final FragmentChangeContext context = node.deleteValueAt(
       start,
       end,
-      fragmentPath: fragmentPosition,
-      jumpedOffset: jumpOffset,
+      fragmentPath: fragmentPosition.nonNegative,
+      jumpedOffset: jumpOffset.nonNegative,
     );
     if (context.executed) {
-      EasyEditorLogger.tree.debug('Removing '
-          'text between $start '
-          'and $end. Execution '
-          'ended '
+      EasyEditorLogger.tree.debug('Removing text '
+          'between $start and $end ended '
           'sucessfully. '
           'Detailed => $context');
       computeNewCacheValues(
         node,
-        start - lineOffset,
-        end - lineOffset,
+        lineOffset + start,
+        lineOffset + end,
         localStart: start,
         localEnd: end,
         obj: null,
@@ -615,14 +619,14 @@ class DefaultNodeModifier extends NodeModifier {
     int? oldParentLength = parent.nsDataLength != null
         ? parent.nsDataLength!.toInt() - 1
         : parent.nsDataLength;
-    int? oldDataLength = node.nsDataLength != null ? 0 : node.nsDataLength;
+    int? oldDataLength = node.nsDataLength;
     String? oldParentText = parent.nsText;
     String? oldText = node.nsText;
     if (oldParentLength != null && oldDataLength != null) {
-      node.dataLength = (node.dataLength + obj.length) - deleteDelta;
+      node.dataLength = (oldDataLength + obj.length) - deleteDelta;
       parent
-        ..invalidateDataOffset(noText: false)
-        ..dataLength = (oldParentLength - oldDataLength) + node.nsDataLength!;
+        ..invalidateDataOffset()
+        ..dataLength = (oldParentLength - oldDataLength) + node.dataLength;
     } else {
       node.invalidateDataOffset();
       parent.invalidateDataOffset();

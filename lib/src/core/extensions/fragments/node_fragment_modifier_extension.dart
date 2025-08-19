@@ -388,55 +388,11 @@ extension NodeInsertValueModifications on Node {
     int firstAffectedIndex = fragPosition;
     int lastAffectedIndex = fragPosition;
 
-    if (start >= 0 && end >= dataLength) {
-      if (start > 0) {
-        for (int i = fragPosition; i < value!.castToFragments().length; i++) {
-          final TextFragment fragment = fragments[i];
-          final Object data = fragment.data;
-          final int fragLength = fragment.length;
-          final int currentGlobalOffset = offset + fragLength;
-          final bool isOutOfRange = currentGlobalOffset <= start;
-          if (!isOutOfRange) {
-            if (data is! String) {
-              fragments.removeAt(i);
-              fragPosition = fragPosition.decr.nonNegative;
-              nsValue = fragments;
-              return FragmentChangeContext(
-                executed: true,
-                paths: <int>[i],
-                changeSize: end - start,
-                lastFragmentLength: fragLength,
-                node: this,
-              );
-            }
-            final int localStartOffset = (start - offset).nonNegative;
-
-            final String str = data.left(localStartOffset);
-            fragments[i] =
-                TextFragment(data: str, attributes: fragment.attributes);
-            lengthOfDeletion = 0;
-            break;
-          }
-          offset += fragLength;
-        }
-      }
-      nsValue = fragments.sublist(0, fragPosition);
-      return FragmentChangeContext(
-        executed: true,
-        paths: fragPosition.until(fragments.length),
-        changeSize: lengthOfDeletion,
-        remainingRanges: null,
-        lastFragmentLength: -1,
-        node: this,
-      );
-    }
-
     for (int i = fragPosition; i < value!.castToFragments().length; i++) {
       final TextFragment fragment = fragments[i];
       final Object data = fragment.data;
       final int fragLength = fragment.length;
       final int currentGlobalOffset = offset + fragLength;
-      offset += fragLength;
 
       if (lengthOfDeletion <= 0) break;
       // check if we are into the range of the operation that need to be modified
@@ -445,6 +401,7 @@ extension NodeInsertValueModifications on Node {
 
       final int localStartOffset = (start - offset).nonNegative;
       final int localEndOffset = (end - offset).nonNegative;
+      offset += fragLength;
 
       if (localStartOffset > 0 && localEndOffset <= fragLength) {
         if (data is! String) {
@@ -462,21 +419,17 @@ extension NodeInsertValueModifications on Node {
 
         final String strLeft = data.left(localStartOffset);
         final String strRight = data.right(localEndOffset);
-        if (strLeft.isEmpty && strRight.isEmpty) {
-          lengthOfDeletion = 0;
-          nsValue = fragments;
-          return FragmentChangeContext(
-            executed: true,
-            paths: <int>[i],
-            node: this,
-          );
-        }
         fragments[i] = TextFragment(
-            data: '$strLeft$strRight', attributes: fragment.attributes);
+          data: '$strLeft$strRight',
+          attributes: fragment.attributes,
+        );
         lengthOfDeletion = 0;
+        nsValue = fragments;
         return FragmentChangeContext(
           executed: true,
           paths: <int>[i],
+          changeSize: end - start,
+          lastFragmentLength: fragLength,
           node: this,
         );
       }
@@ -517,19 +470,22 @@ extension NodeInsertValueModifications on Node {
       lengthOfDeletion -= fragLength;
     }
 
-    if (lengthOfDeletion <= 0) {
+    if (lengthOfDeletion.nonNegative <= 0) {
       if (firstAffectedIndex <= -1) {
         throw 'No index was affected during deletion';
       }
 
       nsValue = <TextFragment>[
-        ...fragments.sublist(0, firstAffectedIndex),
+        ...fragments.sublist(
+          0,
+          firstAffectedIndex.next.limit(fragments.length),
+        ),
         ...fragments.sublist(lastAffectedIndex),
       ];
       return FragmentChangeContext(
         executed: true,
         paths: firstAffectedIndex.until(lastAffectedIndex),
-        changeSize: end - start,
+        changeSize: (end - start).nonNegative,
         node: this,
       );
     }

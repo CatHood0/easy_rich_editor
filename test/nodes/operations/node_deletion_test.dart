@@ -1,5 +1,4 @@
 import 'package:easy_rich_editor/easy_rich_editor.dart';
-import 'package:flutter/foundation.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import '../../resources/doc_rs.dart';
@@ -25,21 +24,35 @@ void main() {
   });
 
   test('Delete a character in middle of text', () {
-    EasyLoggerConfiguration()
-      ..all()
-      ..handler = (String s) => debugPrint(s);
     final FragmentChangeContext context = root.delete(
+      100,
       112,
-      114,
     );
 
     expect(context.executed, isTrue);
-    expect(context.changeSize, equals(1));
+    expect(context.changeSize, equals(12));
     expect(context.paths, equals(<int>[0]));
-    expect(context.node!.deepPath, equals(<int>[0, 0]));
-    expect(context.node!.toPlainText(), equals(''));
+    expect(context.node!.deepPath, equals(<int>[2, 2]));
+    expect(
+      context.node!.toPlainText(),
+      equals('to take as an example how work this visu'),
+    );
   });
-  test('Delete two nodes that are being selected', () {});
+  test('Delete two nodes that are being selected', () {
+    final FragmentChangeContext context = root.delete(
+      4,
+      100,
+    );
+
+    expect(context.executed, isTrue);
+    expect(context.changeSize, equals(12));
+    expect(context.paths, equals(<int>[0]));
+    expect(context.node!.deepPath, equals(<int>[2, 2]));
+    expect(
+      context.node!.toPlainText(),
+      equals('to take as an example how work this visu'),
+    );
+  });
   test('Delete embed', () {});
   test('Delete entire document content', () {});
 }
