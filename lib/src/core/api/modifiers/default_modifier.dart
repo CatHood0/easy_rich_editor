@@ -705,9 +705,10 @@ class DefaultNodeModifier extends NodeModifier {
     );
     // commonly, we removes entire embeds when are empty
     if (node.isBlankText && node.type == EmbedKeys.childrenKey) {
-      node.jumpToParentExceptRoot()!
-        ..invalidateDataOffset()
-        ..unlink();
+      node.jumpToParent().overrideChild(
+            node.path,
+            Node.block(data: ""),
+          );
       return context;
     }
     if (context.executed) {

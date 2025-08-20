@@ -352,6 +352,43 @@ final class Node extends ChangeNotifier {
     _dataLength = dataLength;
   }
 
+  void overrideChild(int path, Node node, {bool removeRegistries = true}) {
+    if (!canAddOrRemovedChildren) return;
+    RangeError.checkValidIndex(path, children);
+    final Node old = elementAt(path);
+    if (removeRegistries && old.id != node.id) {
+      _fastIndexTreePart
+        ..remove(old.id)
+        ..[node.id] = node;
+      old.unlink();
+    }
+    dataLength = (dataLength - old.dataLength) + node.dataLength;
+    if (_text != null) {
+      text = text.replaceRange(
+        old.offset,
+        old.endOffset,
+        node.text,
+      );
+    }
+
+    children[path] = node;
+    final Node root = jumpToParent();
+    if (root.isRootOwner) {
+      root
+        ..rebuildNodes(
+          changes: old.isBlockNode
+              ? <String, int>{
+                  old.id: 0,
+                  node.id: 2,
+                }
+              : <String, int>{
+                  node.jumpToParentExceptRoot()!.id: 1,
+                },
+        )
+        ..notify();
+    }
+  }
+
   int get dataLength {
     // This means that we are into a Parent
     if (isBlockNode || isRootOwner) {
@@ -416,6 +453,38 @@ final class Node extends ChangeNotifier {
     return children.sublist(start, end);
   }
 
+  /// Notifies the render editor of specific nodes that have changed their values.
+  ///
+  /// This method is particularly useful when you need to re-render only specific
+  /// components without recalculating all cached components, improving performance
+  /// by avoiding unnecessary computations.
+  ///
+  /// The [changes] parameter is a map where:
+  /// - Keys are node IDs (String)
+  /// - Values are integers indicating the change type:
+  ///   - `0`: Node removal            - removes the cached render paragraph instance
+  ///   - `1`: Node addition or update - indicates a new node was added
+  ///   - `2`: Node replace            - indicates the node that was removed, is replaced by node
+  ///                                     if replace notify has no node removal, then render editor
+  ///                                     ignores it
+  ///
+  /// Example:
+  /// ```dart
+  /// // Remove a node from cache
+  /// root
+  ///   ..rebuildNodes({node.id: 0})
+  ///   ..notify();
+  ///
+  /// // Add or notify about changes in node
+  /// root
+  ///   ..rebuildNodes({node.id: 1})
+  ///   ..notify();
+  ///
+  /// // Add a new node
+  /// root
+  ///   ..rebuildNodes({node.id: 0, replace.id: 2})
+  ///   ..notify();
+  /// ```
   @internal
   void rebuildNodes({Map<String, int>? changes, bool shouldNotify = false}) {
     assert(isRootOwner, 'Only root node can set a list of changes');
@@ -662,12 +731,10 @@ final class Node extends ChangeNotifier {
   }
 
   void unlink() {
-    assert(
-        parent != null,
-        'unlink cannot be executed if '
-        'there\'s no parent relationship');
-    parent!.removeNode(this);
-    parent = null;
+    if (parent != null) {
+      parent!.removeNode(this);
+      parent = null;
+    }
     invalidateCache();
     invalidateDataOffset();
   }
