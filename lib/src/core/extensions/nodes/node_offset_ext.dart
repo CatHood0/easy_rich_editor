@@ -7,9 +7,9 @@ extension NodeOffsetExt on Node {
   int get offset {
     if (_offset != null) return _offset!;
 
-    if ((parent == null || isFirst) && isBlockNode) {
-      _offset = 0;
-      return _offset!;
+    if (parent == null || isFirst) {
+      if (isBlockNode) _offset = 0;
+      return _offset ?? 0;
     }
 
     final List<Node> siblings = parent!.children;

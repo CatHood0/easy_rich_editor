@@ -83,6 +83,7 @@ final class Node extends ChangeNotifier {
     this.metadata = <String, dynamic>{
       ...metadata,
       'root': true,
+      'block': false,
     };
     adoptChildren(children);
   }
@@ -158,9 +159,11 @@ final class Node extends ChangeNotifier {
         type: ParagraphKeys.lineKey,
         // we will never accept new lines
         // as fragments
-        value: <TextFragment>[
-          ...line.fragments,
-        ],
+        value: (line.isNewLine)
+            ? <TextFragment>[TextFragment.empty()]
+            : <TextFragment>[
+                ...line.fragments,
+              ],
         children: <Node>[],
         parent: this,
         id: line.id,

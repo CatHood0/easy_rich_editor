@@ -370,72 +370,25 @@ extension NodeInsertValueModifications on Node {
   @internal
   FragmentChangeContext deleteValueAt(
     int start,
-    int end, {
+    int len, {
     int fragmentPath = 0,
     int jumpedOffset = 0,
+    bool forward = true,
   }) {
     if (isBlockNode || !hasDefinedValue || isRootOwner) {
       return FragmentChangeContext.noExecuted();
     }
 
-    assert(start != end, 'start and end ranges must be different');
+    assert(len > 0, 'len cannot be less than 1');
 
     final List<TextFragment> fragments = this.fragments.toList();
     int offset = jumpedOffset;
-    int lengthOfDeletion = end - start;
     int fragPosition = RangeError.checkValidIndex(fragmentPath, fragments);
 
-    if (start >= 0 && end >= dataLength) {
-      int position = -1;
-      if (start > 0) {
-        for (int i = fragPosition; i < fragments.length; i++) {
-          final TextFragment fragment = fragments[i];
-          final Object data = fragment.data;
-          final int fragLength = fragment.length;
-          final int currentGlobalOffset = offset + fragLength;
-          final bool isOutOfRange = currentGlobalOffset <= start;
-          if (isOutOfRange) {
-            offset += fragLength;
-            continue;
-          }
-          position = i;
-          if (data is! String) {
-            position = i.decr;
-            break;
-          }
-          final String str = data.left((start - offset).nonNegative);
-          if (str.isEmpty) {
-            position = i.decr;
-            break;
-          }
-          fragments[i] = TextFragment(
-            data: str,
-            attributes: fragment.attributes,
-          );
-          break;
-        }
-      }
-      nsValue = position <= -1
-          ? <TextFragment>[TextFragment.empty()]
-          : fragments.sublist(
-              0,
-              position.next.limit(
-                fragments.length,
-              ));
-      return FragmentChangeContext(
-        executed: true,
-        paths: <int>[
-          ...position.or(fragPosition).until(
-                fragments.length,
-              ),
-        ],
-        changeSize: dataLength - start,
-        node: this,
-      );
-    }
-
-    int firstAffectedIndex = fragPosition;
-    int lastAffectedIndex = fragPosition;
+    int firstAffectedIndex = -1;
+    int lastAffectedIndex = -1;
+    int mutableLen = len;
+    final int end = start + len;
 
     for (int i = fragPosition; i < fragments.length; i++) {
       final TextFragment fragment = fragments[i];
@@ -443,13 +396,20 @@ extension NodeInsertValueModifications on Node {
       final int fragLength = fragment.length;
       final int currentGlobalOffset = offset + fragLength;
 
-      if (lengthOfDeletion <= 0) break;
       // check if we are into the range of the operation that need to be modified
       final bool isOutOfRange = currentGlobalOffset <= start;
-      if (isOutOfRange) continue;
+      if (mutableLen <= 0) break;
+      if (isOutOfRange) {
+        offset += fragLength;
+        continue;
+      }
 
       final int localStartOffset = (start - offset).nonNegative;
       final int localEndOffset = (end - offset).nonNegative;
+      print(fragment);
+      print(localStartOffset);
+      print(localEndOffset);
+      print(offset);
       offset += fragLength;
 
       if (localStartOffset > 0 && localEndOffset <= fragLength) {
@@ -472,23 +432,22 @@ extension NodeInsertValueModifications on Node {
           data: '$strLeft$strRight',
           attributes: fragment.attributes,
         );
-        lengthOfDeletion = 0;
         nsValue = fragments;
         return FragmentChangeContext(
           executed: true,
           paths: <int>[i],
-          changeSize: end - start,
+          changeSize: len,
           lastFragmentLength: fragLength,
           node: this,
         );
       }
 
       if (data is! String) {
-        lengthOfDeletion--;
-        if (lengthOfDeletion <= 0) {
-          lastAffectedIndex = i;
-          break;
+        if (firstAffectedIndex.isNegative) {
+          firstAffectedIndex = i;
         }
+        lastAffectedIndex = i;
+        mutableLen--;
         continue;
       }
 
@@ -496,35 +455,48 @@ extension NodeInsertValueModifications on Node {
         final String str = data.left(localStartOffset);
         firstAffectedIndex = i;
         fragments[i] = TextFragment(data: str, attributes: fragment.attributes);
-        lengthOfDeletion -= (fragLength - str.length).nonNegative;
+        mutableLen -= (fragLength - str.length).nonNegative;
         continue;
       }
 
-      if (localEndOffset <= fragLength) {
-        final String str = data.right(localEndOffset);
+      // where are at the end
+      if (mutableLen - fragLength <= 0) {
+        if (firstAffectedIndex.isNegative) {
+          firstAffectedIndex = i;
+        }
+        final String str = data.right(
+          forward ? localEndOffset.next.limit(data.length) : localEndOffset,
+        );
         lastAffectedIndex = i;
         if (str.isEmpty) {
-          lengthOfDeletion = 0;
+          mutableLen = 0;
           break;
         }
         fragments[i] = TextFragment(data: str, attributes: fragment.attributes);
-        lengthOfDeletion -= (fragLength - str.length).nonNegative;
+        mutableLen -= (fragLength - str.length).nonNegative;
         break;
       }
 
-      lengthOfDeletion -= fragLength;
+      lastAffectedIndex = i;
+      mutableLen -= fragLength;
     }
 
-    if (lengthOfDeletion.nonNegative <= 0) {
-      if (firstAffectedIndex <= -1) {
-        throw 'No index was affected during deletion';
+    if (mutableLen.nonNegative == 0) {
+      if (firstAffectedIndex.isNegative || lastAffectedIndex.isNegative) {
+        throw 'No index was affected during deletion. len: $mutableLen, Fragments: $fragments';
       }
 
       nsValue = <TextFragment>[
-        ...fragments.sublist(
-          0,
-          firstAffectedIndex.next.limit(fragments.length),
-        ),
+        // if firstAffectedIndex is equals than
+        // lastAffectedIndex this means that
+        // we are removing something entirely
+        //
+        // tipically, this occurs just with embeds
+        if (firstAffectedIndex < lastAffectedIndex)
+          ...fragments.sublist(
+            0,
+            firstAffectedIndex.next.limit(fragments.length),
+          ),
         // avoid adding a duplicated fragment
         if (lastAffectedIndex > firstAffectedIndex)
           ...fragments.sublist(lastAffectedIndex),
@@ -536,7 +508,55 @@ extension NodeInsertValueModifications on Node {
         node: this,
       );
     }
-
     return FragmentChangeContext.noExecuted();
   }
 }
+
+    // if (start >= 0 && len >= dataLength) {
+    //   int position = -1;
+    //   if (start > 0) {
+    //     for (int i = fragPosition; i < fragments.length; i++) {
+    //       final TextFragment fragment = fragments[i];
+    //       final Object data = fragment.data;
+    //       final int fragLength = fragment.length;
+    //       final int currentGlobalOffset = offset + fragLength;
+    //       final bool isOutOfRange = currentGlobalOffset <= start;
+    //       if (isOutOfRange) {
+    //         offset += fragLength;
+    //         continue;
+    //       }
+    //       position = i;
+    //       if (data is! String) {
+    //         position = i.decr;
+    //         break;
+    //       }
+    //       final String str = data.left((start - offset).nonNegative);
+    //       if (str.isEmpty) {
+    //         position = i.decr;
+    //         break;
+    //       }
+    //       fragments[i] = TextFragment(
+    //         data: str,
+    //         attributes: fragment.attributes,
+    //       );
+    //       break;
+    //     }
+    //   }
+    //   nsValue = position <= -1
+    //       ? <TextFragment>[]
+    //       : fragments.sublist(
+    //           0,
+    //           position.next.limit(
+    //             fragments.length,
+    //           ));
+    //   return FragmentChangeContext(
+    //     executed: true,
+    //     paths: <int>[
+    //       ...position.or(fragPosition).until(
+    //             fragments.length,
+    //           ),
+    //     ],
+    //     changeSize: dataLength - start,
+    //     node: this,
+    //   );
+    // }

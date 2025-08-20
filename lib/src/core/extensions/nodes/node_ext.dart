@@ -104,7 +104,7 @@ extension NodeUtilities on Node {
       id: id,
       type: type,
       value: value,
-      parent: parent?.copyWith(),
+      parent: parent?.deepCopy(),
       children: children.map<Node>((Node e) => e.deepCopy()).toList(),
       metadata: <String, dynamic>{...metadata},
     );

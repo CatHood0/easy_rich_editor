@@ -56,6 +56,7 @@ extension NodeOperations on Node {
     );
     if (!contains(node.id)) return;
     final int path = node.path;
+    final List<int> deepPath = parent?.deepPath ?? <int>[];
     final Node? find = elementAtOrNull(path);
     if (find == null || find.id != node.id) return;
     Node? sibling = node.next;
@@ -71,7 +72,7 @@ extension NodeOperations on Node {
     if (sibling != null) {
       sibling
         ..path = path
-        ..deepPath = <int>[...parent!.deepPath, path];
+        ..deepPath = <int>[...deepPath, path];
       invalidateCacheOfSiblings(
         node: sibling,
         after: true,
@@ -129,21 +130,23 @@ extension NodeOperations on Node {
   /// Deletes all the content into the range specified
   FragmentChangeContext delete(
     int start,
-    int end, {
+    int len, {
     int jumpNodeOffset = 0,
     int fragmentPosition = 0,
     int fragmentEndPosition = 0,
     int jumpOffset = 0,
     bool removeEntireNodeWhenEmpty = true,
     bool computeParentCache = true,
+    bool forward = false,
     NodeModifier modifier = NodeModifier.defaultModifier,
   }) {
-    if (start == end) return FragmentChangeContext.noExecuted();
+    if (len <= 0) return FragmentChangeContext.noExecuted();
     return modifier.delete(
       this,
       start,
-      end,
+      len,
       computeParentCache: computeParentCache,
+      forward: forward,
       jumpNodeOffset: jumpNodeOffset,
       jumpOffset: jumpOffset,
       fragmentPosition: fragmentPosition,

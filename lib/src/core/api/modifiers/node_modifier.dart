@@ -57,16 +57,17 @@ abstract class NodeModifier {
     Node node,
     Map<String, dynamic> attributes,
     int start, {
-    int? end,
+    int? len,
     bool passToBlockAttributesIfWrapEntireBlock = false,
   });
 
   FragmentChangeContext delete(
     Node node,
     int start,
-    int end, {
+    int len, {
     int jumpNodeOffset = 0,
     int fragmentPosition = 0,
+    bool forward = false,
     int fragmentEndPosition = 0,
     int jumpOffset = 0,
     bool computeParentCache = true,

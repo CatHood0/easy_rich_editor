@@ -8,9 +8,18 @@ import 'package:meta/meta.dart';
 
 import '../../../../easy_rich_editor.dart';
 
+/// A default implementation of [NodeModifier] that provides standard
+/// operations for handling paragraph and embed nodes in a document tree.
+///
+/// This modifier supports basic text manipulation operations including:
+/// - Insertion and deletion of text content
+/// - Handling of paragraph and embed node types
+/// - Delta application for document changes
+/// - Node splitting and merging operations
 class DefaultNodeModifier extends NodeModifier {
   const DefaultNodeModifier();
 
+  /// Internal mapping of supported node types to their validation functions.
   static final UnmodifiableMapView<String, VerifyTypeFn> _supportMap =
       UnmodifiableMapView<String, VerifyTypeFn>(<String, VerifyTypeFn>{
     ParagraphKeys.key: (Object data) =>
@@ -50,6 +59,27 @@ class DefaultNodeModifier extends NodeModifier {
   @override
   Map<String, VerifyTypeFn> get supportedTypeValues => _supportMap;
 
+  /// Applies a delta operation to a node, handling insertions, deletions, and replacements.
+  ///
+  /// This method processes [DeltaNode] changes and applies them to the target [node].
+  /// It handles various scenarios including:
+  /// - Root node operations (delegates to appropriate child nodes)
+  /// - Entire node selection and deletion
+  /// - Collapsed and non-collapsed delta ranges
+  /// - Text fragment modifications
+  ///
+  /// Parameters:
+  /// - [node]: The target node to apply the delta to
+  /// - [delta]: The delta operation containing change information
+  /// - [removedIfRequired]: If true, allows node removal when entire content is deleted
+  /// - [transformOffsetWhenRequired]: If true, transforms offsets when delegating to child nodes
+  ///
+  /// Returns: [DeltaChangeResult] indicating the outcome of the operation
+  ///
+  /// Throws:
+  /// - [IllegalNodeException] if an unsupported node type is encountered
+  /// - [UnimplementedError] for root node cases that aren't fully implemented
+  /// - [AssertionError] if preconditions aren't met (in debug mode)
   @override
   DeltaChangeResult receiveDelta(
     Node node,
@@ -227,6 +257,28 @@ class DefaultNodeModifier extends NodeModifier {
     return DeltaChangeResult(removed: true, executed: true);
   }
 
+  /// Inserts data into a node at the specified position.
+  ///
+  /// Handles various insertion scenarios including:
+  /// - Insertion into block nodes and root owners (delegates to appropriate children)
+  /// - Embed node creation for non-string data in paragraphs
+  /// - Automatic node splitting when inserting incompatible data types
+  /// - Parent cache recomputation after successful insertion
+  ///
+  /// Parameters:
+  /// - [node]: The target node for insertion
+  /// - [start]: The insertion position within the node
+  /// - [data]: The data to insert (String, TextFragment, or Map for embeds)
+  /// - [jumpNodeOffset]: Offset adjustment for nested node navigation
+  /// - [fragmentPosition]: Specific fragment index for multi-fragment nodes
+  /// - [jumpOffset]: Additional offset adjustment
+  /// - [stringLimitLength]: Maximum allowed string length for insertion
+  /// - [computeParentCache]: Whether to recompute parent cache after insertion
+  /// - [attributes]: Optional attributes for the inserted content
+  ///
+  /// Returns: [FragmentChangeContext] with details about the insertion operation
+  ///
+  /// Throws: Various assertions for invalid parameters and unsupported operations
   //TODO: implement attributes capabilities
   @override
   FragmentChangeContext insert(
@@ -468,26 +520,22 @@ class DefaultNodeModifier extends NodeModifier {
       );
     }
 
-    // no common, but, can happen when
-    // the stringLimitLength is overlapped
-    if (context.remainingRanges != null) {
-      EasyEditorLogger.tree.debug('The range need to remove '
-          'some text between ${context.remainingRanges}');
-      // final Node? block = node.jumpToParentExceptRoot();
-      // block?.insert(
-      //   node.offset + context.remainingRanges!.end,
-      //   ,
-      // );
-      return context;
-    }
     return context;
   }
 
+  /// Deletes content from a node within the specified range.
+  ///
+  /// Handles various deletion scenarios including:
+  /// - Deletion from block nodes and root owners (delegates to appropriate children)
+  /// - Multi-node range deletion (when selection spans multiple nodes)
+  /// - Automatic node merging after deletion operations
+  /// - Parent cache recomputation after successful deletion
   @override
   FragmentChangeContext delete(
     Node node,
     int start,
-    int end, {
+    int len, {
+    bool forward = false,
     int jumpNodeOffset = 0,
     int fragmentPosition = 0,
     int fragmentEndPosition = 0,
@@ -495,9 +543,14 @@ class DefaultNodeModifier extends NodeModifier {
     bool computeParentCache = true,
     bool removeEntireNodeWhenEmpty = true,
   }) {
+    final int end = start + len;
     if (node.isBlockNode || node.isRootOwner) {
       final NodeCursorPosLocation location =
           node.queryPosition(start, inclusive: true);
+      // Paragraph(new-[0]): Offset(start: 0, len: 0, end: 1)  < Cursor position
+      //  │
+      //  └─ Line(B5C9-[0]): Offset(start: 0, len: 0, end: 0)
+      //       -> [TextFragment: ""]
       final NodeCursorPosLocation endLocation =
           node.queryPosition(end, inclusive: true);
 
@@ -541,7 +594,7 @@ class DefaultNodeModifier extends NodeModifier {
               ? node.nsDataLength!.toInt() - 1
               : node.nsDataLength;
           String? oldParentText = node.nsText;
-          int deletionLength = end - start;
+          int deletionLength = len;
 
           if (oldParentLength != null) {
             node
@@ -551,7 +604,7 @@ class DefaultNodeModifier extends NodeModifier {
           if (oldParentText != null) {
             node.text = oldParentText.replaceRange(
               start,
-              end,
+              start + len,
               '',
             );
           }
@@ -585,25 +638,18 @@ class DefaultNodeModifier extends NodeModifier {
         }
       }
 
-      // Only [Tree] manage this operation
-      // because it has [NodeModifers],
-      // [NodeExtractors] and [NodeLimiters] cached
-      if (node.isRootOwner) {
-        if (location.node != endLocation.node) {
-          throw 'Cannot delete more '
-              'than once blocks at same time';
-        }
-      }
-
       final FragmentChangeContext context = location.node!.delete(
         location.locationOffset,
-        endLocation.locationOffset,
+        len,
+        forward: forward,
         fragmentPosition: location.fragmentIndex.or(fragmentPosition),
         fragmentEndPosition: endLocation.fragmentIndex,
         jumpOffset: location.jumpOffset.nonNegative,
       );
 
-      if (context.executed && node.isBlockNode) {
+      if (context.executed &&
+          node.isBlockNode &&
+          node.jumpToParent().isRootOwner) {
         node.jumpToParent()
           ..rebuildNodes(changes: <String, int>{node.id: 1})
           ..notify();
@@ -617,12 +663,32 @@ class DefaultNodeModifier extends NodeModifier {
         'start: $start, or end: $end are '
         'out of range => 0 to ${node.dataLength.next}. '
         'Node-info: ${node.shortInfo()}');
+    if (node.isBlankText && node.parent!.length == 1) {
+      node.jumpToParentExceptRoot()!.unlink();
+      return FragmentChangeContext(
+        executed: true,
+        paths: <int>[0],
+        changeSize: 1,
+        lastFragmentLength: 0,
+        node: node,
+      );
+    }
     final FragmentChangeContext context = node.deleteValueAt(
       start,
-      end,
+      len,
       fragmentPath: fragmentPosition.nonNegative,
+      forward: forward,
       jumpedOffset: jumpOffset.nonNegative,
     );
+    // commonly, we removes entire embeds when are empty
+    if (node.isBlankText && node.type == EmbedKeys.childrenKey) {
+      print('isInto');
+      print(node.dumpTreeStr());
+      node.jumpToParentExceptRoot()!
+        ..invalidateDataOffset()
+        ..unlink();
+      return context;
+    }
     if (context.executed) {
       EasyEditorLogger.tree.debug('Removing text '
           'between $start and $end ended '
@@ -638,34 +704,27 @@ class DefaultNodeModifier extends NodeModifier {
       );
     }
 
-    // no common, but, can happen when
-    // the stringLimitLength is overlapped
-    if (context.remainingRanges != null) {
-      final Node? block = node.jumpToParentExceptRoot();
-      EasyEditorLogger.tree.info('The range need to remove '
-          'some text between ${context.remainingRanges}');
-      block?.delete(
-        block.convertToGlobal(context.remainingRanges!.start),
-        block.convertToGlobal(context.remainingRanges!.end),
-      );
-      return context;
-    }
     return context;
   }
 
+  /// Applies formatting attributes to content within a node.
   @override
   FragmentChangeContext retain(
     Node node,
     Map<String, dynamic> attributes,
     int start, {
-    int? end,
+    int? len,
     bool passToBlockAttributesIfWrapEntireBlock = false,
   }) {
     // TODO: implement retain
     throw UnimplementedError();
   }
 
-  /// Embeds always return null since they don't need to be splitted
+  /// Splits a node at the specified position into two separate nodes.
+  ///
+  /// For embed nodes, returns null since they cannot be split.
+  /// For other node types, delegates to the appropriate split method
+  /// based on whether the node is a block node or needs parent traversal.
   (Node?, MultipleFragmentChangeContext?) split(
     Node node,
     int start, {
@@ -694,6 +753,9 @@ class DefaultNodeModifier extends NodeModifier {
             );
   }
 
+  /// Merges two nodes of the same type into a single node.
+  ///
+  /// Combines fragments and text content from both nodes into the first node.
   @internal
   void merge(Node node, Node other) {
     if (node.isBlockNode && other.isBlockNode) {
@@ -719,6 +781,11 @@ class DefaultNodeModifier extends NodeModifier {
       ..dataLength = node.dataLength + other.dataLength;
   }
 
+  /// Recomputes cache values for a node and its parent after content changes.
+  ///
+  /// Updates data length and text content caches to reflect changes made
+  /// to the node's content. Handles both local node changes and parent
+  /// cache updates.
   @internal
   void computeNewCacheValues(
     Node node,

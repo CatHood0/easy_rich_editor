@@ -5,17 +5,19 @@ import 'package:flutter_test/flutter_test.dart';
 import '../../resources/doc_rs.dart';
 
 void main() {
-  late Node root;
+  Node? root;
 
   setUp(() {
     root = DocumentToNodesParser.documentParse(commonDoc);
   });
 
   test('Delete all the text of a node', () {
-    final FragmentChangeContext context = root.delete(
+    expect(root, isNotNull);
+    final FragmentChangeContext context = root!.delete(
       0,
       1,
     );
+    print(root!.dumpTreeStr());
 
     expect(context.executed, isTrue);
     expect(context.changeSize, equals(1));
@@ -25,9 +27,10 @@ void main() {
   });
 
   test('Delete a character in middle of text', () {
-    final FragmentChangeContext context = root.delete(
+    expect(root, isNotNull);
+    final FragmentChangeContext context = root!.delete(
       100,
-      112,
+      12,
     );
 
     expect(context.executed, isTrue);
@@ -39,11 +42,13 @@ void main() {
       equals('to take as an example how work this visu'),
     );
   });
+
   test('Delete two nodes that are being selected', () {
     // deletes almost the text into the block matched
-    final FragmentChangeContext context = root.delete(
+    expect(root, isNotNull);
+    final FragmentChangeContext context = root!.delete(
       4,
-      100,
+      96,
     );
 
     expect(context.executed, isTrue);
@@ -63,6 +68,45 @@ void main() {
       equals('alizer (1). '),
     );
   });
-  test('Delete embed', () {});
+  test('Delete embed when required', () {
+    // deletes almost the text into the block matched
+    expect(root, isNotNull);
+    final Node? embed = root!.queryPath(<int>[1]);
+    expect(embed, isNotNull);
+    expect(embed!.type, equals(EmbedKeys.key));
+    expect(embed.isNotEmpty, isTrue);
+    expect(embed.parent, isNotNull);
+    expect(embed.parent, equals(root));
+    final FragmentChangeContext context = root!.delete(
+      2,
+      1,
+    );
+
+    expect(root!.contains(embed.id), isFalse);
+    expect(embed.parent, isNull);
+    expect(context.executed, isTrue);
+    expect(context.changeSize, equals(1));
+  });
+  test('Should delete node when is empty', () {
+    // deletes almost the text into the block matched
+    expect(root, isNotNull);
+    final Node? newLineBlock = root!.queryPath(<int>[3]);
+    expect(newLineBlock, isNotNull);
+    expect(newLineBlock!.type, equals(ParagraphKeys.key));
+    expect(newLineBlock.isNotEmpty, isTrue);
+    expect(newLineBlock.parent, isNotNull);
+    expect(newLineBlock.parent, equals(root));
+    final FragmentChangeContext context = root!.delete(
+      111,
+      1,
+      forward: true,
+    );
+    print(root!.dumpTreeStr(currentPath: <int>[3,0]));
+
+    expect(root!.contains(newLineBlock.id), isFalse);
+    expect(newLineBlock.parent, isNull);
+    expect(context.executed, isTrue);
+    expect(context.changeSize, equals(1));
+  });
   test('Delete entire document content', () {});
 }
