@@ -37,8 +37,7 @@ extension NodeExt on Node {
   bool get isEmptyText =>
       value != null &&
       value is List<TextFragment> &&
-      (value!.cast<List<TextFragment>>().isEmpty ||
-          length == 1 && value!.cast<List<TextFragment>>().first.data == '');
+      fragments.first.text().isEmpty;
 
   bool get isBlankOrEmpty => isBlankText || isEmptyText;
 

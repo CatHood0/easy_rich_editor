@@ -17,29 +17,29 @@ void main() {
       0,
       1,
     );
-    print(root!.dumpTreeStr());
 
     expect(context.executed, isTrue);
     expect(context.changeSize, equals(1));
     expect(context.paths, equals(<int>[0]));
-    expect(context.node!.deepPath, equals(<int>[0, 0]));
-    expect(context.node!.toPlainText(), equals(''));
+    expect(() => context.node!.deepPath, throwsA(isA<Exception>()));
+    expect(context.node!.jumpToParent().isRootOwner, isFalse);
+    expect(root!.contains(context.node!.id), isFalse);
   });
 
-  test('Delete a character in middle of text', () {
+  test('Delete one character in middle of text', () {
     expect(root, isNotNull);
     final FragmentChangeContext context = root!.delete(
-      100,
-      12,
+      62,
+      1,
     );
 
     expect(context.executed, isTrue);
-    expect(context.changeSize, equals(12));
+    expect(context.changeSize, equals(1));
     expect(context.paths, equals(<int>[0]));
     expect(context.node!.deepPath, equals(<int>[2, 2]));
     expect(
       context.node!.toPlainText(),
-      equals('to take as an example how work this visu'),
+      equals('to ake as an example how work this visualizer (1). '),
     );
   });
 
@@ -47,13 +47,13 @@ void main() {
     // deletes almost the text into the block matched
     expect(root, isNotNull);
     final FragmentChangeContext context = root!.delete(
-      4,
-      96,
+      3,
+      89,
     );
 
     expect(context.executed, isTrue);
     expect(context, isA<MultipleFragmentChangeContext>());
-    expect(context.changeSize, equals(96));
+    expect(context.changeSize, equals(89));
     expect(context.node!.deepPath, equals(<int>[2]));
     expect(
         context
@@ -64,10 +64,11 @@ void main() {
             .deepPath,
         equals(<int>[2, 0]));
     expect(
-      context.node!.toPlainText(),
+      context.node!.text,
       equals('alizer (1). '),
     );
   });
+
   test('Delete embed when required', () {
     // deletes almost the text into the block matched
     expect(root, isNotNull);
@@ -101,7 +102,7 @@ void main() {
       1,
       forward: true,
     );
-    print(root!.dumpTreeStr(currentPath: <int>[3,0]));
+    print(root!.dumpTreeStr(currentPath: <int>[3, 0]));
 
     expect(root!.contains(newLineBlock.id), isFalse);
     expect(newLineBlock.parent, isNull);

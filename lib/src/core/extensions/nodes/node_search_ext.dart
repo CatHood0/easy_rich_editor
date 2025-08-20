@@ -221,7 +221,7 @@ extension NodeSearchExt on Node {
       return queryFragments(cursorPos, inclusive: true);
     }
 
-    if (inclusive && cursorPos == dataLength.decr.nonNegative && isNotEmpty) {
+    if (inclusive && cursorPos == dataLength && isNotEmpty) {
       final Node lastNode = children.last;
       EasyEditorLogger.tree.debug('QueryPosition('
           'pos: $cursorPos, '

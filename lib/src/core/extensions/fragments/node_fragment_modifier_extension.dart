@@ -406,13 +406,9 @@ extension NodeInsertValueModifications on Node {
 
       final int localStartOffset = (start - offset).nonNegative;
       final int localEndOffset = (end - offset).nonNegative;
-      print(fragment);
-      print(localStartOffset);
-      print(localEndOffset);
-      print(offset);
       offset += fragLength;
 
-      if (localStartOffset > 0 && localEndOffset <= fragLength) {
+      if (localStartOffset >= 0 && localEndOffset <= fragLength) {
         if (data is! String) {
           fragments.removeAt(i);
           fragPosition = fragPosition.decr.nonNegative;
@@ -420,7 +416,7 @@ extension NodeInsertValueModifications on Node {
           return FragmentChangeContext(
             executed: true,
             paths: <int>[i],
-            changeSize: end - start,
+            changeSize: 1,
             lastFragmentLength: fragLength,
             node: this,
           );
@@ -432,6 +428,9 @@ extension NodeInsertValueModifications on Node {
           data: '$strLeft$strRight',
           attributes: fragment.attributes,
         );
+        if (strLeft.isEmpty && strRight.isEmpty) {
+          fragments.removeAt(i);
+        }
         nsValue = fragments;
         return FragmentChangeContext(
           executed: true,
@@ -444,13 +443,20 @@ extension NodeInsertValueModifications on Node {
 
       if (data is! String) {
         if (firstAffectedIndex.isNegative) {
-          firstAffectedIndex = i;
+          // to avoid include this one
+          firstAffectedIndex = i.decr;
         }
         lastAffectedIndex = i;
         mutableLen--;
+        if (mutableLen <= 0) {
+          lastAffectedIndex = firstAffectedIndex;
+          break;
+        }
         continue;
       }
 
+      //FIXME: we need to check if the str is empty
+      // and remove that fragment
       if (localStartOffset > 0) {
         final String str = data.left(localStartOffset);
         firstAffectedIndex = i;
@@ -482,7 +488,7 @@ extension NodeInsertValueModifications on Node {
     }
 
     if (mutableLen.nonNegative == 0) {
-      if (firstAffectedIndex.isNegative || lastAffectedIndex.isNegative) {
+      if (lastAffectedIndex.isNegative) {
         throw 'No index was affected during deletion. len: $mutableLen, Fragments: $fragments';
       }
 
@@ -495,7 +501,7 @@ extension NodeInsertValueModifications on Node {
         if (firstAffectedIndex < lastAffectedIndex)
           ...fragments.sublist(
             0,
-            firstAffectedIndex.next.limit(fragments.length),
+            firstAffectedIndex.next.limit(fragments.length).or(0),
           ),
         // avoid adding a duplicated fragment
         if (lastAffectedIndex > firstAffectedIndex)
@@ -503,8 +509,9 @@ extension NodeInsertValueModifications on Node {
       ];
       return FragmentChangeContext(
         executed: true,
-        paths: firstAffectedIndex.until(lastAffectedIndex),
-        changeSize: (end - start).nonNegative,
+        paths: firstAffectedIndex.nonNegative.until(lastAffectedIndex),
+        // make more precise the change of the size
+        changeSize: len,
         node: this,
       );
     }

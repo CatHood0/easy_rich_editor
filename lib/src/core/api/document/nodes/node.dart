@@ -773,7 +773,7 @@ final class Node extends ChangeNotifier {
     _deepPath = <int>[...path.reversed];
 
     // is not a direct parent
-    if (path.length == 1 && !isBlockNode) {
+    if (_deepPath.length == 1 && !isBlockNode) {
       EasyEditorLogger.treeFailures.info(
         'Couldn\'t be getted the '
         'correct full deep path of $type(id: $id, offset: $globalStart). '

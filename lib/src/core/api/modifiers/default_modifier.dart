@@ -547,10 +547,6 @@ class DefaultNodeModifier extends NodeModifier {
     if (node.isBlockNode || node.isRootOwner) {
       final NodeCursorPosLocation location =
           node.queryPosition(start, inclusive: true);
-      // Paragraph(new-[0]): Offset(start: 0, len: 0, end: 1)  < Cursor position
-      //  │
-      //  └─ Line(B5C9-[0]): Offset(start: 0, len: 0, end: 0)
-      //       -> [TextFragment: ""]
       final NodeCursorPosLocation endLocation =
           node.queryPosition(end, inclusive: true);
 
@@ -570,18 +566,39 @@ class DefaultNodeModifier extends NodeModifier {
             endPath.next.limit(node.length),
           );
 
+          // adjust the len to be more usable for deletion functions
+          //
+          // commonly, when a len is major than just one node
+          // we need to limit it to the exact node length to avoid removing
+          // more than the necessary content
+          final int effectiveLeftLen = len.limit(location.node!.dataLength);
+          final int effectiveRightLen = ((len - effectiveLeftLen))
+              .limit(endLocation.node!.dataLength)
+              .nonNegative;
+          assert(effectiveLeftLen > 0,
+              'the len passed does not fit the node ranges. Len $effectiveLeftLen');
+          assert(
+              effectiveRightLen > 0,
+              'the remaining len '
+              'for right deletion '
+              'does not fit the node ranges. Len $effectiveRightLen');
           final FragmentChangeContext startctx = location.node!.delete(
             location.locationOffset,
-            location.node!.dataLength,
+            effectiveLeftLen,
             jumpNodeOffset: location.jumpNodeOffset,
             jumpOffset: location.jumpOffset.nonNegative,
             fragmentPosition: location.fragmentIndex.nonNegative,
             computeParentCache: false,
           );
+          assert(
+            startctx.executed,
+            'the first node deletion was not executed as expected',
+          );
 
           endLocation.node!.delete(
             0,
-            endLocation.locationOffset,
+            // we need to get the effective len
+            effectiveRightLen,
             jumpNodeOffset: endLocation.jumpNodeOffset,
             jumpOffset: endLocation.jumpOffset.nonNegative,
             fragmentPosition: endLocation.fragmentIndex.nonNegative,
@@ -663,7 +680,13 @@ class DefaultNodeModifier extends NodeModifier {
         'start: $start, or end: $end are '
         'out of range => 0 to ${node.dataLength.next}. '
         'Node-info: ${node.shortInfo()}');
-    if (node.isBlankText && node.parent!.length == 1) {
+    if (node.isBlankOrEmpty &&
+        // parent has just one line
+        node.parent!.length == 1 &&
+        // and, if the ends exceeds
+        // the length of this node
+        // then must be deleted
+        end >= node.dataLength) {
       node.jumpToParentExceptRoot()!.unlink();
       return FragmentChangeContext(
         executed: true,
@@ -682,8 +705,6 @@ class DefaultNodeModifier extends NodeModifier {
     );
     // commonly, we removes entire embeds when are empty
     if (node.isBlankText && node.type == EmbedKeys.childrenKey) {
-      print('isInto');
-      print(node.dumpTreeStr());
       node.jumpToParentExceptRoot()!
         ..invalidateDataOffset()
         ..unlink();
