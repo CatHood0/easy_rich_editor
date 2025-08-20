@@ -360,7 +360,6 @@ final class Node extends ChangeNotifier {
       _fastIndexTreePart
         ..remove(old.id)
         ..[node.id] = node;
-      old.unlink();
     }
     dataLength = (dataLength - old.dataLength) + node.dataLength;
     if (_text != null) {
@@ -371,6 +370,7 @@ final class Node extends ChangeNotifier {
       );
     }
 
+    old.unlink();
     children[path] = node;
     final Node root = jumpToParent();
     if (root.isRootOwner) {

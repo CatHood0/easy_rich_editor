@@ -3,6 +3,7 @@ import 'package:easy_rich_editor/src/core/api/document/nodes/node.dart';
 import 'package:easy_rich_editor/src/core/api/document/path/path.dart';
 import 'package:easy_rich_editor/src/core/exceptions/illegal_node_exception.dart';
 import 'package:easy_rich_editor/src/core/extensions/object_ext.dart';
+import 'package:flutter/material.dart';
 import 'package:flutter_quill_delta_easy_parser/flutter_quill_delta_easy_parser.dart';
 import 'package:meta/meta.dart';
 
@@ -706,7 +707,7 @@ class DefaultNodeModifier extends NodeModifier {
     // commonly, we removes entire embeds when are empty
     if (node.isBlankText && node.type == EmbedKeys.childrenKey) {
       node.jumpToParent().overrideChild(
-            node.path,
+            node.jumpToParentExceptRoot()!.path,
             Node.block(data: ""),
           );
       return context;
