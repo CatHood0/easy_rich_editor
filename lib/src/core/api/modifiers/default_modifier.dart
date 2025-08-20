@@ -688,7 +688,14 @@ class DefaultNodeModifier extends NodeModifier {
         // the length of this node
         // then must be deleted
         end >= node.dataLength) {
-      node.jumpToParentExceptRoot()!.unlink();
+      final Node block = node.jumpToParentExceptRoot()!;
+      // we need access to the direct node
+      block.jumpToParent()
+        ..rebuildNodes(changes: <String, int>{
+          block.id: 0,
+        })
+        ..notify();
+      block.unlink();
       return FragmentChangeContext(
         executed: true,
         paths: <int>[0],
@@ -704,6 +711,7 @@ class DefaultNodeModifier extends NodeModifier {
       forward: forward,
       jumpedOffset: jumpOffset.nonNegative,
     );
+    if (!context.executed) return context;
     // commonly, we removes entire embeds when are empty
     if (node.isBlankText && node.type == EmbedKeys.childrenKey) {
       node.jumpToParent().overrideChild(
@@ -712,20 +720,20 @@ class DefaultNodeModifier extends NodeModifier {
           );
       return context;
     }
-    if (context.executed) {
-      EasyEditorLogger.tree.debug('Removing text '
-          'between $start and $end ended '
-          'sucessfully. '
-          'Detailed => $context');
-      computeNewCacheValues(
-        node,
-        jumpNodeOffset + start,
-        jumpNodeOffset + end,
-        localStart: start,
-        localEnd: end,
-        computeParentCache: computeParentCache,
-      );
-    }
+
+    EasyEditorLogger.tree.debug('Removing text '
+        'between $start and $end ended '
+        'sucessfully. '
+        'Detailed => $context');
+
+    computeNewCacheValues(
+      node,
+      jumpNodeOffset + start,
+      jumpNodeOffset + end,
+      localStart: start,
+      localEnd: end,
+      computeParentCache: computeParentCache,
+    );
 
     return context;
   }

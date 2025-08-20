@@ -41,6 +41,11 @@ extension NodeExt on Node {
 
   bool get isBlankOrEmpty => isBlankText || isEmptyText;
 
+  bool get isEmbedBlock =>
+      type == EmbedKeys.key || type == EmbedKeys.childrenKey;
+  bool get isBlock =>
+      type == ParagraphKeys.key || type == ParagraphKeys.lineKey;
+
   bool get isBlankText =>
       value != null &&
       value is List<TextFragment> &&

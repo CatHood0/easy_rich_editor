@@ -370,8 +370,11 @@ final class Node extends ChangeNotifier {
       );
     }
 
+    children[path] = node
+      ..parent = this
+      ..path = path
+      ..deepPath = old.deepPath;
     old.unlink();
-    children[path] = node;
     final Node root = jumpToParent();
     if (root.isRootOwner) {
       root
@@ -397,7 +400,7 @@ final class Node extends ChangeNotifier {
             0,
             (int prev, Node n) => prev + n.dataLength,
           )
-          .incr;
+          .incrIf(!isRootOwner);
       // required to let the end of the node to
       // be selected by query methods
       return _dataLength!;

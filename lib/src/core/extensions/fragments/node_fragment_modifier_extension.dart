@@ -388,7 +388,6 @@ extension NodeInsertValueModifications on Node {
     int firstAffectedIndex = -1;
     int lastAffectedIndex = -1;
     int mutableLen = len;
-    final int end = start + len;
 
     for (int i = fragPosition; i < fragments.length; i++) {
       final TextFragment fragment = fragments[i];
@@ -397,26 +396,33 @@ extension NodeInsertValueModifications on Node {
       final int currentGlobalOffset = offset + fragLength;
 
       // check if we are into the range of the operation that need to be modified
-      final bool isOutOfRange = currentGlobalOffset <= start;
-      if (mutableLen <= 0) break;
+      final bool isOutOfRange = currentGlobalOffset < start;
+      print('isOutOfRange: $isOutOfRange');
+      print('currentGlobalOffset: $currentGlobalOffset');
+      print('frag: $fragment');
+      print('offset: $offset');
+      final int localStartOffset = (start - offset).nonNegative;
+      final int localEndOffset = localStartOffset + len;
+      print('Local start: $localStartOffset');
+      print('Local end: $localEndOffset');
       if (isOutOfRange) {
         offset += fragLength;
         continue;
       }
+      if (mutableLen <= 0) break;
 
-      final int localStartOffset = (start - offset).nonNegative;
-      final int localEndOffset = (end - offset).nonNegative;
       offset += fragLength;
 
-      if (localStartOffset >= 0 && localEndOffset <= fragLength) {
+      // this means that this fragment is into the range to modify
+      // and go out
+      if (localStartOffset >= 0 && mutableLen - fragLength <= 0) {
         if (data is! String) {
           fragments.removeAt(i);
-          fragPosition = fragPosition.decr.nonNegative;
           nsValue = fragments;
           return FragmentChangeContext(
             executed: true,
             paths: <int>[i],
-            changeSize: 1,
+            changeSize: len,
             lastFragmentLength: fragLength,
             node: this,
           );

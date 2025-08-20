@@ -1,3 +1,5 @@
+import 'dart:collection';
+
 import 'package:easy_rich_editor/easy_rich_editor.dart';
 import 'package:easy_rich_editor/src/core/extensions/object_ext.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -98,16 +100,80 @@ void main() {
     expect(newLineBlock.parent, isNotNull);
     expect(newLineBlock.parent, equals(root));
     final FragmentChangeContext context = root!.delete(
-      111,
+      112,
       1,
       forward: true,
     );
-    print(root!.dumpTreeStr(currentPath: <int>[3, 0]));
 
     expect(root!.contains(newLineBlock.id), isFalse);
     expect(newLineBlock.parent, isNull);
     expect(context.executed, isTrue);
     expect(context.changeSize, equals(1));
+  });
+
+  test('Should delete first empty node', () {
+    // deletes almost the text into the block matched
+    expect(root, isNotNull);
+    final Node? firstNewLineBlock = root!.queryPath(<int>[0]);
+    expect(firstNewLineBlock, isNotNull);
+    expect(firstNewLineBlock!.type, equals(ParagraphKeys.key));
+    expect(firstNewLineBlock.isNotEmpty, isTrue);
+    expect(firstNewLineBlock.parent, isNotNull);
+    expect(firstNewLineBlock.parent, equals(root));
+
+    final Node? lastLineBlock = root!.queryPath(<int>[9]);
+    expect(lastLineBlock, isNotNull);
+    expect(lastLineBlock!.type, equals(ParagraphKeys.key));
+    expect(lastLineBlock.isNotEmpty, isTrue);
+    expect(lastLineBlock.parent, isNotNull);
+    expect(lastLineBlock.parent, equals(root));
+    // deletes the first block in the document
+    final FragmentChangeContext context = root!.delete(
+      0,
+      1,
+    );
+
+    // deletes the last block in the document
+    final FragmentChangeContext context2 = root!.delete(
+      317,
+      1,
+    );
+
+    expect(context.executed, isTrue);
+    expect(context2.executed, isTrue);
+    expect(context.changeSize, equals(1));
+    expect(context2.changeSize, equals(2));
+    expect(root!.contains(firstNewLineBlock.id), isFalse);
+    expect(root!.contains(lastLineBlock.id), isFalse);
+    expect(firstNewLineBlock.parent, isNull);
+    expect(lastLineBlock.parent, isNull);
+    expect(lastLineBlock.parent, isNot(equals(root)));
+    expect(
+      root!.changes!,
+      equals(
+        HashMap<String, int>.from(
+          <String, int>{
+            lastLineBlock.id: 0,
+            firstNewLineBlock.id: 0,
+          },
+        ),
+      ),
+    );
+  });
+
+  test('Should ignores deletion if there\'s no element to remove', () {
+    // deletes almost the text into the block matched
+    expect(root, isNotNull);
+    // deletes the last block in the document
+    final FragmentChangeContext context = root!.delete(
+      318,
+      1,
+      forward: true,
+    );
+    print(root!.queryPath([9])?.dumpTreeStr());
+
+    expect(context.executed, isFalse);
+    expect(context.changeSize, equals(-1));
   });
   test('Delete entire document content', () {});
 }
