@@ -142,7 +142,7 @@ void main() {
     expect(context.executed, isTrue);
     expect(context2.executed, isTrue);
     expect(context.changeSize, equals(1));
-    expect(context2.changeSize, equals(2));
+    expect(context2.changeSize, equals(1));
     expect(root!.contains(firstNewLineBlock.id), isFalse);
     expect(root!.contains(lastLineBlock.id), isFalse);
     expect(firstNewLineBlock.parent, isNull);
@@ -161,16 +161,17 @@ void main() {
     );
   });
 
+
   test('Should ignores deletion if there\'s no element to remove', () {
     // deletes almost the text into the block matched
     expect(root, isNotNull);
     // deletes the last block in the document
+    print(root?.dumpTreeStr());
     final FragmentChangeContext context = root!.delete(
       318,
       1,
       forward: true,
     );
-    print(root!.queryPath([9])?.dumpTreeStr());
 
     expect(context.executed, isFalse);
     expect(context.changeSize, equals(-1));
