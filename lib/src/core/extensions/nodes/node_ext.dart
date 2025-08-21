@@ -34,6 +34,8 @@ extension NodeExt on Node {
       value!.cast<List<TextFragment>>().isNotEmpty &&
       value!.cast<List<TextFragment>>().first.data == '\n';
 
+  bool get isFragmentSupported => value != null && value is List<TextFragment>;
+
   bool get isEmptyText =>
       value != null &&
       value is List<TextFragment> &&
@@ -43,6 +45,7 @@ extension NodeExt on Node {
 
   bool get isEmbedBlock =>
       type == EmbedKeys.key || type == EmbedKeys.childrenKey;
+
   bool get isBlock =>
       type == ParagraphKeys.key || type == ParagraphKeys.lineKey;
 
@@ -107,11 +110,19 @@ extension NodeUtilities on Node {
     return Node(
       id: id,
       type: type,
-      value: value,
-      parent: parent?.deepCopy(),
+      value: isFragmentSupported ? fragments.toList() : value,
+      // we cannot use deepCopy for parent to
+      // avoid circular references (stackoverflow)
+      parent: parent?.copyWith(),
       children: children.map<Node>((Node e) => e.deepCopy()).toList(),
       metadata: <String, dynamic>{...metadata},
-    );
+      blockAttributes: blockAttributes,
+      canModifyChildrenLength: canAddOrRemovedChildren,
+    )
+      ..path = path
+      ..deepPath = deepPath
+      ..text = text
+      ..dataLength = dataLength;
   }
 
   void forEach(void Function(Node node, int index) el) {

@@ -8,6 +8,8 @@ import 'package:meta/meta.dart';
 
 import '../../../../easy_rich_editor.dart';
 
+//FIXME: we need to use deepCopy method instead of using direct instances  
+// since context works as a "recorder" of some changes
 /// A default implementation of [NodeModifier] that provides standard
 /// operations for handling paragraph and embed nodes in a document tree.
 ///
