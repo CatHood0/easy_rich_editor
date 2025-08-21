@@ -2,6 +2,12 @@ import 'package:flutter/material.dart';
 import '../../../../../easy_rich_editor.dart';
 import '../path/path.dart';
 
+enum Reason {
+  noRequiredConditions,
+  invalidEnd,
+  invalidStart,
+}
+
 class FragmentChangeContext {
   final TextRange? remainingRanges;
   final bool executed;
@@ -9,6 +15,7 @@ class FragmentChangeContext {
   final int changeSize;
   final int lastFragmentLength;
   final Node? node;
+  final Reason? reason;
 
   const FragmentChangeContext({
     required this.executed,
@@ -17,12 +24,14 @@ class FragmentChangeContext {
     this.changeSize = -1,
     this.lastFragmentLength = -1,
     this.remainingRanges,
+    this.reason,
   });
 
-  const FragmentChangeContext.noExecuted()
+  const FragmentChangeContext.noExecuted([Reason? reason])
       : executed = false,
         changeSize = -1,
         node = null,
+        reason = reason ?? Reason.noRequiredConditions,
         lastFragmentLength = -1,
         remainingRanges = null,
         paths = const <int>[];

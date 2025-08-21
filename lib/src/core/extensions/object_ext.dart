@@ -1,4 +1,3 @@
-import 'package:collection/collection.dart';
 import 'package:easy_rich_editor/src/core/api/document/path/path.dart';
 import 'package:flutter_quill_delta_easy_parser/flutter_quill_delta_easy_parser.dart';
 

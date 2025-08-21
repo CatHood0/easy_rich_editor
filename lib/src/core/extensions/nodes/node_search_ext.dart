@@ -93,6 +93,26 @@ extension NodeSearchExt on Node {
     return null;
   }
 
+  bool get hasPossibleNextNode {
+    return jumpToNext() != null;
+  }
+
+  bool get hasPossiblePrevNode {
+    return jumpToPrevious() != null;
+  }
+
+  Node? jumpToPrevious() {
+    if (previous != null) return previous;
+
+    return jumpToOptionalParent(stopAt: (Node n) => n.previous != null)?.previous;
+  }
+
+  Node? jumpToNext() {
+    if (next != null) return next;
+
+    return jumpToOptionalParent(stopAt: (Node n) => n.next != null)?.next;
+  }
+
   Node jumpToParent({bool Function(Node)? stopAt}) {
     if (parent == null || stopAt != null && stopAt(this)) {
       return this;
@@ -101,8 +121,18 @@ extension NodeSearchExt on Node {
     return parent!.jumpToParent(stopAt: stopAt);
   }
 
+  Node? jumpToOptionalParent({bool Function(Node)? stopAt}) {
+    if (parent == null || isRootOwner) return null;
+    if (stopAt != null && stopAt(this)) {
+      return this;
+    }
+
+    return parent!.jumpToParent(stopAt: stopAt);
+  }
+
   Node? jumpToParentExceptRoot() {
     if (isRootOwner || parent == null) return null;
+    if (parent!.isRootOwner) return this;
     return jumpToParent(stopAt: (Node n) => n.parent?.isRootOwner ?? false);
   }
 

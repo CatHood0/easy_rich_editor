@@ -90,6 +90,7 @@ void main() {
     expect(context.executed, isTrue);
     expect(context.changeSize, equals(1));
   });
+
   test('Should delete node when is empty', () {
     // deletes almost the text into the block matched
     expect(root, isNotNull);
@@ -102,7 +103,6 @@ void main() {
     final FragmentChangeContext context = root!.delete(
       112,
       1,
-      forward: true,
     );
 
     expect(root!.contains(newLineBlock.id), isFalse);
@@ -163,18 +163,30 @@ void main() {
 
 
   test('Should ignores deletion if there\'s no element to remove', () {
-    // deletes almost the text into the block matched
     expect(root, isNotNull);
-    // deletes the last block in the document
-    print(root?.dumpTreeStr());
+    final Node lastEmptyNode = root!.last;
+    expect(root!.contains(lastEmptyNode.id), isTrue);
+    // tries to delete one character forward 
+    // but is ignored
     final FragmentChangeContext context = root!.delete(
       318,
       1,
       forward: true,
     );
 
+    expect(root!.contains(lastEmptyNode.id), isTrue);
     expect(context.executed, isFalse);
     expect(context.changeSize, equals(-1));
+    expect(context.reason, equals(Reason.invalidEnd));
+
+    final FragmentChangeContext contextExecuted = root!.delete(
+      318,
+      1,
+    );
+
+    expect(root!.contains(lastEmptyNode.id), isFalse);
+    expect(contextExecuted.executed, isTrue);
+    expect(contextExecuted.changeSize, equals(1));
+    expect(contextExecuted.reason, isNull);
   });
-  test('Delete entire document content', () {});
 }

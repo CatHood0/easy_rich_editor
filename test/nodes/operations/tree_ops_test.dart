@@ -32,9 +32,9 @@ void main() {
         <int>[5, 2],
       );
     });
-    test('Get the new line at offset 117', () async {
+    test('Get the empty line at specified offset', () async {
       final NodeCursorPosLocation location = tree.queryOffset(
-        114,
+        112,
         strict: true,
       );
       expect(location.found, isTrue);
@@ -42,7 +42,7 @@ void main() {
       expect(location.location!.path, isNotEmpty);
       expect(location.location!.path, <int>[3, 0],
           reason: 'Expected: [3,0]. Actual location info: $location');
-      expect(location.node!.toPlainText(), equals('\n'),
+      expect(location.node!.toPlainText(), equals(''),
           reason: 'Expected: "\\n" was found: ${location.node!.toPlainText()}');
       expect(location.location!.node, tree.queryPath(<int>[3, 0]));
       expect(location.location!.node.type, ParagraphKeys.lineKey);

@@ -33,7 +33,7 @@ void main() {
   test('insert embed at the right of paragraph block node', () {
     expect(root, isNotNull);
     final FragmentChangeContext context = root!.insert(
-      3,
+      2,
       <String, dynamic>{'image': 'path/to/image'},
     );
 
@@ -49,7 +49,7 @@ void main() {
   test('insert text at start of an embed', () {
     expect(root, isNotNull);
     final FragmentChangeContext context = root!.insert(
-      2,
+      1,
       '|',
     );
 
@@ -103,7 +103,7 @@ void main() {
     // and here is where end the part of the line splitted
     expect(rightSplitted.first.text, equals("it "));
     expect(context.executed, isTrue);
-    expect(context.changeSize, equals(164));
+    expect(context.changeSize, equals(108));
     expect(context.node, equals(block));
     expect(block.length, equals(2));
     expect(location.node, isNotNull);
@@ -121,7 +121,7 @@ void main() {
   test('insert text at start of a node', () {
     expect(root, isNotNull);
     final FragmentChangeContext context = root!.insert(
-      124,
+      122,
       '|',
     );
 
@@ -131,10 +131,11 @@ void main() {
     expect(context.node!.deepPath, equals(<int>[5, 0]));
     expect(context.node!.toPlainText(), equals('|So, since we are just '));
   });
+
   test('insert text at the end of a node', () {
     expect(root, isNotNull);
     final FragmentChangeContext context = root!.insert(
-      205,
+      203,
       '|',
     );
 
@@ -162,6 +163,7 @@ void main() {
     expect(context.node!.deepPath, equals(<int>[6, 0]));
     expect(context.node!.toPlainText(), equals('First Test example:'));
   });
+
   test('insert text backward an embed', () {
     expect(root, isNotNull);
     final Node? embedBlock = root!.queryPath(<int>[1]);
@@ -169,7 +171,7 @@ void main() {
     expect(embedBlock!.children, isNotEmpty);
     expect(embedBlock.text, equals(Node.kObjectReplacementCharacter));
     final FragmentChangeContext context = root!.insert(
-      2,
+      1,
       'Test ',
     );
 
@@ -183,10 +185,11 @@ void main() {
     expect(context.node!.deepPath, equals(<int>[1, 0]));
     expect(context.node!.toPlainText(), equals('Test '));
   });
+
   test('insert text at end of document', () {
     expect(root, isNotNull);
     final FragmentChangeContext context = root!.insert(
-      321,
+      318,
       'Test ',
     );
 
@@ -194,6 +197,6 @@ void main() {
     expect(context.changeSize, equals(5));
     expect(context.paths, equals(<int>[0]));
     expect(context.node!.deepPath, equals(<int>[9, 0]));
-    expect(context.node!.text, equals('\nTest '));
+    expect(context.node!.text, equals('Test '));
   });
 }

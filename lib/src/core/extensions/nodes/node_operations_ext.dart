@@ -140,7 +140,7 @@ extension NodeOperations on Node {
     bool forward = false,
     NodeModifier modifier = NodeModifier.defaultModifier,
   }) {
-    if (len <= 0) return FragmentChangeContext.noExecuted();
+    if (len <= 0) return FragmentChangeContext.noExecuted(Reason.noRequiredConditions);
     return modifier.delete(
       this,
       start,

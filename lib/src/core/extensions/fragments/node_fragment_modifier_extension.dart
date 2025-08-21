@@ -20,7 +20,7 @@ extension NodeInsertValueModifications on Node {
     for (int i = linePath; i < length; i++) {
       final Node line = children[i];
       final int currentOffset = offset + line.dataLength;
-      if (currentOffset >= start) {
+      if (currentOffset > start) {
         int localOffset = (start - offset).nonNegative;
         // the split is at the start of the line
         // requires no split of internal values
@@ -187,8 +187,7 @@ extension NodeInsertValueModifications on Node {
     if (isBlockNode ||
         !hasDefinedValue ||
         isRootOwner ||
-        isBlankOrEmpty ||
-        (start == 0 && left || start >= dataLength && !left)) {
+        isBlankOrEmpty) {
       return <TextFragment>[];
     }
 
@@ -373,7 +372,6 @@ extension NodeInsertValueModifications on Node {
     int len, {
     int fragmentPath = 0,
     int jumpedOffset = 0,
-    bool forward = true,
   }) {
     if (isBlockNode || !hasDefinedValue || isRootOwner) {
       return FragmentChangeContext.noExecuted();
@@ -397,14 +395,8 @@ extension NodeInsertValueModifications on Node {
 
       // check if we are into the range of the operation that need to be modified
       final bool isOutOfRange = currentGlobalOffset < start;
-      print('isOutOfRange: $isOutOfRange');
-      print('currentGlobalOffset: $currentGlobalOffset');
-      print('frag: $fragment');
-      print('offset: $offset');
       final int localStartOffset = (start - offset).nonNegative;
       final int localEndOffset = localStartOffset + len;
-      print('Local start: $localStartOffset');
-      print('Local end: $localEndOffset');
       if (isOutOfRange) {
         offset += fragLength;
         continue;
@@ -476,9 +468,7 @@ extension NodeInsertValueModifications on Node {
         if (firstAffectedIndex.isNegative) {
           firstAffectedIndex = i;
         }
-        final String str = data.right(
-          forward ? localEndOffset.next.limit(data.length) : localEndOffset,
-        );
+        final String str = data.right(localEndOffset);
         lastAffectedIndex = i;
         if (str.isEmpty) {
           mutableLen = 0;

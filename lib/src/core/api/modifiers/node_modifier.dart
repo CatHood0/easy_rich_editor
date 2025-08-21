@@ -65,11 +65,11 @@ abstract class NodeModifier {
     Node node,
     int start,
     int len, {
+    int jumpOffset = 0,
+    bool forward = false,
     int jumpNodeOffset = 0,
     int fragmentPosition = 0,
-    bool forward = false,
     int fragmentEndPosition = 0,
-    int jumpOffset = 0,
     bool computeParentCache = true,
     bool removeEntireNodeWhenEmpty = true,
   });

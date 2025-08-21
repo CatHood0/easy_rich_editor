@@ -3,7 +3,6 @@ import 'package:easy_rich_editor/src/core/api/document/nodes/node.dart';
 import 'package:easy_rich_editor/src/core/api/document/path/path.dart';
 import 'package:easy_rich_editor/src/core/exceptions/illegal_node_exception.dart';
 import 'package:easy_rich_editor/src/core/extensions/object_ext.dart';
-import 'package:flutter/material.dart';
 import 'package:flutter_quill_delta_easy_parser/flutter_quill_delta_easy_parser.dart';
 import 'package:meta/meta.dart';
 
@@ -317,11 +316,12 @@ class DefaultNodeModifier extends NodeModifier {
             final (Node? right, MultipleFragmentChangeContext? context) = split(
               node,
               start,
-              linePath: location.node!.path,
-              jumpOffset: location.jumpOffset,
-              fragmentPath: location.fragmentIndex,
-              jumpedLineOffset: location.jumpNodeOffset,
+              linePath: location.node!.path.nonNegative,
+              jumpOffset: location.jumpOffset.nonNegative,
+              fragmentPath: location.fragmentIndex.nonNegative,
+              jumpedLineOffset: location.jumpNodeOffset.nonNegative,
             );
+
             computeNewCacheValues(
               location.node!,
               start,
@@ -394,6 +394,7 @@ class DefaultNodeModifier extends NodeModifier {
             // return a specific fragment change
 
             return context?.copyWith(
+                  executed: true,
                   changeSize: changeSize,
                   node: node,
                 ) ??
@@ -489,7 +490,7 @@ class DefaultNodeModifier extends NodeModifier {
       // an automatic split
       return node.jumpToParentExceptRoot()!.insert(
             // get the exact start into the block
-            jumpNodeOffset + start,
+            jumpNodeOffset.or(node.offset, min: 0) + start,
             data,
             modifier: this,
             stringLimitLength: stringLimitLength,
@@ -656,6 +657,24 @@ class DefaultNodeModifier extends NodeModifier {
         }
       }
 
+      // this should just pass when we are at the end of a document
+      //
+      // Something like
+      //
+      // "This is a simple text"     - first  line
+      // "with different line paths" - second line
+      // "that we can understand"    - last   line
+      //                        | < Start selection here
+      //
+      // And we try to remove something after
+      // the cursor, then this just return a non execution
+      // since there's no next element
+      if (forward &&
+          !location.node!.hasPossibleNextNode &&
+          end >= node.dataLength) {
+        return FragmentChangeContext.noExecuted(Reason.invalidEnd);
+      }
+
       final FragmentChangeContext context = location.node!.delete(
         location.locationOffset,
         len,
@@ -708,7 +727,6 @@ class DefaultNodeModifier extends NodeModifier {
       start,
       len,
       fragmentPath: fragmentPosition.nonNegative,
-      forward: forward,
       jumpedOffset: jumpOffset.nonNegative,
     );
     if (!context.executed) return context;
