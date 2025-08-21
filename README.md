@@ -4,11 +4,7 @@
 
 ## Current status ⚠️
 
-**Actively in development (not production-ready)** 
-
-_🛠 More features and better documentation coming soon!_  
-
-<!-- ![Editor Preview](https://via.placeholder.com/800x400?text=Easy+Rich+Editor+Preview) *(Replace with actual editor image)* -->  
+**Actively in development (not production-ready)**. [Current state of features](https://github.com/CatHood0/easy_rich_editor/issues/3)
 
 ## ✨ Key Features (Working on yet)  
 
@@ -21,15 +17,9 @@ _🛠 More features and better documentation coming soon!_
   - Quill Deltas  
   - `Document` ([flutter_quill_delta_easy_parser](https://pub.dev/packages/flutter_quill_delta_easy_parser)) to `EasyDocument`  
 
-## 🚀 Motivation  
+## 🚀 Expected  
 
 We aim to build an editor that:  
 - Is noticeably faster than other solutions  
 - Offers productivity shortcuts for power users  
 - Maintains a simple and intuitive API  
-
-## 📦 Installation  
-
-```bash  
-flutter pub add easy_rich_editor  
-```  
