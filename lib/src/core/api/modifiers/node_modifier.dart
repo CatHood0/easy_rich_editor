@@ -1,5 +1,6 @@
 import 'package:flutter_quill_delta_easy_parser/flutter_quill_delta_easy_parser.dart';
 
+import '../../../../attributes.dart';
 import '../../../../easy_rich_editor.dart';
 
 typedef VerifyTypeFn = bool Function(Object);
@@ -53,12 +54,16 @@ abstract class NodeModifier {
     int stringLimitLength = 300,
   });
 
-  FragmentChangeContext retain(
+  /// Format any character or block using the attributes styles
+  ///
+  /// - [attributes]: the attributes that will be applied
+  /// - [start]: the attributes that will be applied
+  FragmentChangeContext format(
     Node node,
-    Map<String, dynamic> attributes,
-    int start, {
-    int? len,
-    bool passToBlockAttributesIfWrapEntireBlock = false,
+    int start,
+    int len, {
+    required List<Attribute<dynamic>> attributes,
+    bool formatBlock = false,
   });
 
   FragmentChangeContext delete(

@@ -6,6 +6,7 @@ enum Reason {
   noRequiredConditions,
   invalidEnd,
   invalidStart,
+  auto,
 }
 
 class FragmentChangeContext {
@@ -15,6 +16,8 @@ class FragmentChangeContext {
   final int changeSize;
   final int lastFragmentLength;
   final Node? node;
+  /// Set the exact [Reason] why this [FragmentChangeContext]
+  /// was not executed successfully
   final Reason? reason;
 
   const FragmentChangeContext({

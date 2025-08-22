@@ -6,5 +6,6 @@ class StrikeAttribute extends Attribute<bool> {
   }) : super(
           key: 'strike',
           isInline: true,
+          exclusive: false,
         );
 }

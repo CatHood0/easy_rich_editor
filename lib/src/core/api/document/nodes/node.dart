@@ -15,6 +15,7 @@ import 'package:easy_rich_editor/internal.dart';
 import 'package:easy_rich_editor/easy_rich_editor.dart';
 import 'package:meta/meta.dart';
 
+import '../../../../../attributes.dart';
 import '../../../../editor/common/selectable_mixin.dart';
 
 part 'package:easy_rich_editor/src/core/extensions/fragments/node_fragment_modifier_extension.dart';
@@ -488,6 +489,11 @@ final class Node extends ChangeNotifier {
   ///   ..rebuildNodes({node.id: 0, replace.id: 2})
   ///   ..notify();
   /// ```
+  //TODO: probably we can use class struct to have different states
+  // or nested states, to make lazy-loading more effective
+  // like, we can specify that one block changes, and into its notification
+  // class, then we can go to the nested states, and search if only was changed
+  // one or two nodes, to only re-render them, to let cache works more effective
   @internal
   void rebuildNodes({Map<String, int>? changes, bool shouldNotify = false}) {
     assert(isRootOwner, 'Only root node can set a list of changes');

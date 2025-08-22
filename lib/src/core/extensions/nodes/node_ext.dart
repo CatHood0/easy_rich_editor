@@ -62,6 +62,10 @@ extension NodeExt on Node {
       value!.cast<List<TextFragment>>().isNotEmpty &&
       value!.cast<List<TextFragment>>().first.data is Map<String, dynamic>;
 
+  void get assertRoot {
+    assert(isRootOwner, 'The node ${shortInfo()} is not the wanted one');
+  }
+
   List<TextFragment> get fragments => value.castToFragments();
   bool get isBlank => value == null;
 }

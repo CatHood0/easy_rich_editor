@@ -85,9 +85,6 @@ extension NodeOperations on Node {
     throw UnimplementedError("receiveNodeChange is not implemented yet");
   }
 
-  static const FragmentChangeContext _defaultNonExecutedContext =
-      FragmentChangeContext.noExecuted();
-
   /// Insert the object at the specified offset
   ///
   /// Some rules that you need
@@ -116,15 +113,29 @@ extension NodeOperations on Node {
     );
   }
 
-  /// Retain is used commonly to apply styles into the subNodes
-  FragmentChangeContext retain(
-    Map<String, dynamic> attributes,
-    int start, {
-    int? end,
-    bool passToBlockAttributesIfWrapEntireBlock = false,
+  /// Format any character or block using the attributes styles
+  ///
+  /// - [attributes]: the attributes that will be applied
+  /// - [start]: the attributes that will be applied
+  FragmentChangeContext format(
+    int start,
+    int? len, {
+    required List<Attribute<dynamic>> attributes,
+    bool formatBlock = false,
+    NodeModifier modifier = NodeModifier.defaultModifier,
   }) {
-    if (start == end) return FragmentChangeContext.noExecuted();
-    return _defaultNonExecutedContext;
+    assert(
+        formatBlock || !formatBlock && len != null,
+        'when you want '
+        'to format particular characters, '
+        'you need to provide an end');
+    return modifier.format(
+      this,
+      start,
+      len ?? 1,
+      attributes: <Attribute<dynamic>>[...attributes],
+      formatBlock: formatBlock,
+    );
   }
 
   /// Deletes all the content into the range specified
@@ -140,7 +151,8 @@ extension NodeOperations on Node {
     bool forward = false,
     NodeModifier modifier = NodeModifier.defaultModifier,
   }) {
-    if (len <= 0) return FragmentChangeContext.noExecuted(Reason.noRequiredConditions);
+    if (len <= 0)
+      return FragmentChangeContext.noExecuted(Reason.noRequiredConditions);
     return modifier.delete(
       this,
       start,

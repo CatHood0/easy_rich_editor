@@ -1,4 +1,5 @@
 import 'package:collection/collection.dart';
+import 'package:easy_rich_editor/src/core/api/attributes/attribute.dart';
 import 'package:easy_rich_editor/src/core/api/document/nodes/node.dart';
 import 'package:easy_rich_editor/src/core/api/document/path/path.dart';
 import 'package:easy_rich_editor/src/core/exceptions/illegal_node_exception.dart';
@@ -8,7 +9,7 @@ import 'package:meta/meta.dart';
 
 import '../../../../easy_rich_editor.dart';
 
-//FIXME: we need to use deepCopy method instead of using direct instances  
+//FIXME: we need to use deepCopy method instead of using direct instances
 // since context works as a "recorder" of some changes
 /// A default implementation of [NodeModifier] that provides standard
 /// operations for handling paragraph and embed nodes in a document tree.
@@ -65,23 +66,17 @@ class DefaultNodeModifier extends NodeModifier {
   ///
   /// This method processes [DeltaNode] changes and applies them to the target [node].
   /// It handles various scenarios including:
+  ///
   /// - Root node operations (delegates to appropriate child nodes)
   /// - Entire node selection and deletion
   /// - Collapsed and non-collapsed delta ranges
   /// - Text fragment modifications
   ///
-  /// Parameters:
+  /// Params:
   /// - [node]: The target node to apply the delta to
   /// - [delta]: The delta operation containing change information
   /// - [removedIfRequired]: If true, allows node removal when entire content is deleted
   /// - [transformOffsetWhenRequired]: If true, transforms offsets when delegating to child nodes
-  ///
-  /// Returns: [DeltaChangeResult] indicating the outcome of the operation
-  ///
-  /// Throws:
-  /// - [IllegalNodeException] if an unsupported node type is encountered
-  /// - [UnimplementedError] for root node cases that aren't fully implemented
-  /// - [AssertionError] if preconditions aren't met (in debug mode)
   @override
   DeltaChangeResult receiveDelta(
     Node node,
@@ -170,7 +165,7 @@ class DefaultNodeModifier extends NodeModifier {
         'global: ${node.globalOffset}, '
         'path: ${node.deepPath})');
     assert(
-        node.hasDefinedValue,
+        node.hasDefinedValue && node.isFragmentSupported,
         'Only nodes with defined values '
         'can be changed. But, '
         'found: ${node.shortInfo()}');
@@ -477,7 +472,10 @@ class DefaultNodeModifier extends NodeModifier {
       return context;
     }
 
-    assert(node.hasDefinedValue, 'value must be defined');
+    assert(
+        node.hasDefinedValue && node.isFragmentSupported,
+        'value must '
+        'be defined');
     assert(start >= 0 && start <= node.dataLength.next,
         'start: $start is out of range => 0 to ${node.dataLength.next}');
 
@@ -562,99 +560,12 @@ class DefaultNodeModifier extends NodeModifier {
       if (node.isBlockNode) {
         // both are different
         if (location.node != endLocation.node) {
-          final int startPath = location.node!.path;
-          final int endPath = endLocation.node!.path;
-          final List<Node> between = node.subChildren(
-            startPath.next.limit(node.length),
-            // include the last node selected too
-            endPath.next.limit(node.length),
-          );
-
-          // adjust the len to be more usable for deletion functions
-          //
-          // commonly, when a len is major than just one node
-          // we need to limit it to the exact node length to avoid removing
-          // more than the necessary content
-          final int effectiveLeftLen = len.limit(location.node!.dataLength);
-          final int effectiveRightLen = ((len - effectiveLeftLen))
-              .limit(endLocation.node!.dataLength)
-              .nonNegative;
-          assert(effectiveLeftLen > 0,
-              'the len passed does not fit the node ranges. Len $effectiveLeftLen');
-          assert(
-              effectiveRightLen > 0,
-              'the remaining len '
-              'for right deletion '
-              'does not fit the node ranges. Len $effectiveRightLen');
-          final FragmentChangeContext startctx = location.node!.delete(
-            location.locationOffset,
-            effectiveLeftLen,
-            jumpNodeOffset: location.jumpNodeOffset,
-            jumpOffset: location.jumpOffset.nonNegative,
-            fragmentPosition: location.fragmentIndex.nonNegative,
-            computeParentCache: false,
-          );
-          assert(
-            startctx.executed,
-            'the first node deletion was not executed as expected',
-          );
-
-          endLocation.node!.delete(
-            0,
-            // we need to get the effective len
-            effectiveRightLen,
-            jumpNodeOffset: endLocation.jumpNodeOffset,
-            jumpOffset: endLocation.jumpOffset.nonNegative,
-            fragmentPosition: endLocation.fragmentIndex.nonNegative,
-            computeParentCache: false,
-          );
-
-          // parent text must be updated here to avoid
-          // ambiguous ranges
-          int? oldParentLength = node.nsDataLength != null
-              ? node.nsDataLength!.toInt() - 1
-              : node.nsDataLength;
-          String? oldParentText = node.nsText;
-          int deletionLength = len;
-
-          if (oldParentLength != null) {
-            node
-              ..invalidateDataOffset()
-              ..dataLength = (oldParentLength - deletionLength).nonNegative;
-          }
-          if (oldParentText != null) {
-            node.text = oldParentText.replaceRange(
-              start,
-              start + len,
-              '',
-            );
-          }
-
-          // we need to merge both location nodes
-          // since, when we are selecting two nodes
-          // when we remove text, this means that both
-          // will be merged automatically
-          //
-          // like
-          //
-          //       | < Start selection here
-          // "This is a simple text"
-          // "with different line paths"
-          // "that we can understand"
-          //         | < End selection here
-          //
-          // After the deletion this should be the result
-          //
-          // "This can understand"
-          merge(location.node!, endLocation.node!);
-          for (Node n in between) {
-            n.unlink();
-          }
-          return MultipleFragmentChangeContext(
-            executed: true,
-            changeSize: deletionLength,
-            node: node,
-            changes: <FragmentChangeContext>[startctx],
+          _mergeNodesAtLocations(
+            node,
+            start,
+            len,
+            location,
+            endLocation,
           );
         }
       }
@@ -687,10 +598,10 @@ class DefaultNodeModifier extends NodeModifier {
       );
 
       if (context.executed &&
-          node.isBlockNode &&
-          node.jumpToParent().isRootOwner) {
-        node.jumpToParent()
-          ..rebuildNodes(changes: <String, int>{node.id: 1})
+          node.isRootOwner &&
+          node.changes?[location.node!.id] == null) {
+        node
+          ..rebuildNodes(changes: <String, int>{location.node!.id: 1})
           ..notify();
       }
       return context;
@@ -758,17 +669,107 @@ class DefaultNodeModifier extends NodeModifier {
     return context;
   }
 
-  /// Applies formatting attributes to content within a node.
-  @override
-  FragmentChangeContext retain(
+  FragmentChangeContext _mergeNodesAtLocations(
     Node node,
-    Map<String, dynamic> attributes,
-    int start, {
-    int? len,
-    bool passToBlockAttributesIfWrapEntireBlock = false,
-  }) {
-    // TODO: implement retain
-    throw UnimplementedError();
+    int start,
+    int len,
+    NodeCursorPosLocation location,
+    NodeCursorPosLocation endLocation,
+  ) {
+    final int startPath = location.node!.path;
+    final int endPath = endLocation.node!.path;
+    final List<Node> between = node.subChildren(
+      startPath.next.limit(node.length),
+      // include the last node selected too
+      endPath.next.limit(node.length),
+    );
+
+    // adjust the len to be more usable for deletion functions
+    //
+    // commonly, when a len is major than just one node
+    // we need to limit it to the exact node length to avoid removing
+    // more than the necessary content
+    final int effectiveLeftLen = len.limit(location.node!.dataLength);
+    final int effectiveRightLen = ((len - effectiveLeftLen))
+        .limit(endLocation.node!.dataLength)
+        .nonNegative;
+    assert(effectiveLeftLen > 0,
+        'the len passed does not fit the node ranges. Len $effectiveLeftLen');
+    assert(
+        effectiveRightLen > 0,
+        'the remaining len '
+        'for right deletion '
+        'does not fit the node ranges. Len $effectiveRightLen');
+    final FragmentChangeContext startctx = location.node!.delete(
+      location.locationOffset,
+      effectiveLeftLen,
+      jumpNodeOffset: location.jumpNodeOffset,
+      jumpOffset: location.jumpOffset.nonNegative,
+      fragmentPosition: location.fragmentIndex.nonNegative,
+      computeParentCache: false,
+    );
+    assert(
+      startctx.executed,
+      'the first node deletion was not executed as expected',
+    );
+
+    endLocation.node!.delete(
+      0,
+      // we need to get the effective len
+      effectiveRightLen,
+      jumpNodeOffset: endLocation.jumpNodeOffset,
+      jumpOffset: endLocation.jumpOffset.nonNegative,
+      fragmentPosition: endLocation.fragmentIndex.nonNegative,
+      computeParentCache: false,
+    );
+
+    // parent text must be updated here to avoid
+    // ambiguous ranges
+    int? oldParentLength = node.nsDataLength != null
+        ? node.nsDataLength!.toInt() - 1
+        : node.nsDataLength;
+    String? oldParentText = node.nsText;
+    int deletionLength = len;
+
+    if (oldParentLength != null) {
+      node
+        ..invalidateDataOffset()
+        ..dataLength = (oldParentLength - deletionLength).nonNegative;
+    }
+    if (oldParentText != null) {
+      node.text = oldParentText.replaceRange(
+        start,
+        start + len,
+        '',
+      );
+    }
+
+    // we need to merge both location nodes
+    // since, when we are selecting two nodes
+    // when we remove text, this means that both
+    // will be merged automatically
+    //
+    // like
+    //
+    //       | < Start selection here
+    // "This is a simple text"
+    // "with different line paths"
+    // "that we can understand"
+    //         | < End selection here
+    //
+    // After the deletion this should be the result
+    //
+    // "This can understand"
+    merge(location.node!, endLocation.node!);
+    for (Node n in between) {
+      n.unlink();
+    }
+    return MultipleFragmentChangeContext(
+      executed: true,
+      changeSize: deletionLength,
+      node: node,
+      changes: <FragmentChangeContext>[startctx],
+    );
   }
 
   /// Splits a node at the specified position into two separate nodes.
@@ -897,5 +898,82 @@ class DefaultNodeModifier extends NodeModifier {
         '${left.parent?.children.map(
       (Node e) => e.shortInfo(),
     )}';
+  }
+
+  @override
+  FragmentChangeContext format(
+    Node node,
+    int start,
+    int len, {
+    required List<Attribute<dynamic>> attributes,
+    bool formatBlock = false,
+  }) {
+    if (node.isRootOwner) {
+      final int end = start + len;
+    }
+    if (formatBlock && !node.isBlockNode) {
+      final Node block = node.jumpToParentExceptRoot()!;
+      final FragmentChangeContext context = block.format(
+        start,
+        len,
+        modifier: this,
+        attributes: attributes,
+        formatBlock: true,
+      );
+      if (context.executed) {
+        block.jumpToParent()
+          ..assertRoot
+          ..rebuildNodes(changes: <String, int>{
+            block.id: 1,
+          })
+          ..notify();
+      }
+    }
+
+    return formatBlock
+        ? _formatBlock(
+            node,
+            start,
+            len,
+            attributes,
+          )
+        : _formatCharacters(
+            node,
+            start,
+            len,
+            attributes,
+          );
+  }
+
+  FragmentChangeContext _formatBlock(
+    Node node,
+    int start,
+    int len,
+    List<Attribute<dynamic>> attributes,
+  ) {
+    return NodeModifier.defaultNonExecutedContext;
+  }
+
+  FragmentChangeContext _formatCharacters(
+    Node node,
+    int start,
+    int end,
+    List<Attribute<dynamic>> attributes,
+  ) {
+    assert(
+        node.hasDefinedValue && node.isFragmentSupported,
+        'node must have '
+        'defined value to be used');
+    return NodeModifier.defaultNonExecutedContext;
+  }
+
+  // ignore: unused_element
+  FragmentChangeContext _formatMultipleNodes(
+    Node node,
+    int start,
+    int end,
+    List<Attribute<dynamic>> attributes,
+  ) {
+    return NodeModifier.defaultNonExecutedContext;
   }
 }

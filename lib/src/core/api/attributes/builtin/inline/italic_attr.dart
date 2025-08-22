@@ -6,5 +6,6 @@ class ItalicAttribute extends Attribute<bool> {
   }) : super(
           key: 'italic',
           isInline: true,
+          exclusive: false,
         );
 }

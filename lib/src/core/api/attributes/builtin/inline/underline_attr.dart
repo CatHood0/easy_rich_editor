@@ -6,5 +6,6 @@ class UnderlineAttribute extends Attribute<bool> {
   }) : super(
           key: 'under',
           isInline: true,
+          exclusive: false,
         );
 }

@@ -6,5 +6,6 @@ class BoldAttribute extends Attribute<bool> {
   }) : super(
           key: 'bold',
           isInline: true,
+          exclusive: false,
         );
 }
