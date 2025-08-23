@@ -119,6 +119,12 @@ extension PositionExtension on NodePosition {
   //     assert(nodeConfig != null, 'Block Configuration should not be null');
   //     return this;
   //   }
+  //     // probably, we will need to track the horizontal offset of the
+  //     // cursor, to allow always maintaining the exact char positioning
+  //     //
+  //     // when the node cannot fit the horizontal, we move to a offset
+  //     // that works for that node, but, never updates the horizontal
+  //     // offset until user interaction
   //
   //   final padding = nodeConfig.padding(node);
   //   final nodeRect = nodeSelectable.getBlockRect();

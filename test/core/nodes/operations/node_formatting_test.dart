@@ -13,18 +13,27 @@ void main() {
 
   test('should format a single char', () {
     expect(root, isNotNull);
-    final FragmentChangeContext context = root!.format(
-      3,
+    final Node? line = root!.queryPath(<int>[2, 0]);
+    expect(line, isNotNull);
+    final FragmentChangeContext context = line!.format(
+      2,
       1,
-      formatBlock: true,
+      formatBlock: false,
       modifier: NodeModifier.defaultModifier,
       attributes: <EasyAttribute<dynamic>>[
         BoldAttribute(value: true),
       ],
     );
-    print(root?.dumpTreeStr());
-    expect(context.reason, isNull);
-    expect(context.executed, isTrue);
+    line.format(
+      14,
+      2,
+      formatBlock: false,
+      modifier: NodeModifier.defaultModifier,
+      attributes: <EasyAttribute<dynamic>>[
+        ItalicAttribute(value: true),
+      ],
+    );
+    print(line.dumpTreeStr());
   });
   test('should format entire block children', () {});
   test('should format single block attributes', () {});

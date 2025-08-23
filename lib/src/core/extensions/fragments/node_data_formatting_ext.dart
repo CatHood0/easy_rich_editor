@@ -16,196 +16,189 @@ extension NodeFormattingExt on Node {
 
     assert(len > 0, 'len cannot be less than 1');
 
-    final List<TextFragment> fragments = <TextFragment>[];
-    final int length = this.fragments.length;
+    final List<TextFragment> newFragments = <TextFragment>[];
+    final int totalFragments = fragments.length;
     final int end = start + len;
-    int offset = jumpedOffset;
-    int fragPosition = RangeError.checkValidIndex(fragmentPath, fragments);
+    int currentOffset = jumpedOffset;
 
-    int firstAffectedIndex = -1;
-    int lastAffectedIndex = -1;
-    int mutableLen = len;
-    if (fragPosition > 0) {
-      fragments.addAll(this.fragments.sublist(0, fragPosition));
+    RangeError.checkValidIndex(fragmentPath, fragments);
+
+    if (fragmentPath > 0) {
+      newFragments.addAll(fragments.sublist(0, fragmentPath));
     }
 
-    for (int i = fragPosition; i < length; i++) {
-      final TextFragment fragment = this.fragments[i];
-      final Object data = fragment.data;
+    List<int> affectedIndices = <int>[];
+    bool mergeLeft = false;
+    bool mergeRight = false;
+
+    for (int i = fragmentPath; i < totalFragments; i++) {
+      final TextFragment fragment = fragments[i];
       final int fragLength = fragment.length;
-      final int currentGlobalOffset = offset + fragLength;
-      if (mutableLen <= 0) {
-        fragments.addAll(this.fragments.sublist(i));
-        break;
-      }
+      final int fragmentEnd = currentOffset + fragLength;
 
-      final int localStartOffset = (start - offset).nonNegative;
-      final int localEndOffset = (end - offset).nonNegative;
-      offset += fragLength;
-      // check if we are into the range of the operation that need to be modified
-      if (currentGlobalOffset < start) {
-        fragments.add(fragment);
+      if (fragmentEnd <= start) {
+        newFragments.add(fragment);
+        currentOffset += fragLength;
         continue;
       }
 
-      // this means that this fragment is into the range to modify
-      // and go out
-      if (localStartOffset >= 0 && localEndOffset <= fragLength) {
-        if (data is! String ||
-            localStartOffset == 0 && localEndOffset == fragLength) {
-          fragment.setAttributes(
-            attributes
-                .toJson(
-                  fragment.attributes,
-                )
-                .nullIfEmpty(),
-          );
-          nsValue = fragments;
-          return FragmentChangeContext(
-            executed: true,
-            paths: <int>[i],
-            changeSize: len,
-            lastFragmentLength: fragLength,
-            node: this,
-          );
-        }
-
-        TextFragment strLeft =
-            data.left(localStartOffset).toFragment(fragment.attributes);
-        TextFragment? middle =
-            data.middle(localStartOffset, localEndOffset).toFragment(
-                  attributes.toJson(fragment.attributes).nullIfEmpty(),
-                );
-        TextFragment? strRight =
-            data.right(localEndOffset).toFragment(fragment.attributes);
-
-        if (strLeft.canMergeWith(middle)) {
-          strLeft = TextFragment(
-            data: '${strLeft.data}${middle.data}${strRight.data}',
-            attributes: middle.attributes,
-          );
-          strRight = null;
-          middle = null;
-        }
-
-        if (strRight != null && strRight.length <= 0) {
-          strRight = null;
-        }
-
-        nsValue = <TextFragment>[
-          ...fragments.sublist(0, i),
-          strLeft,
-          if (middle != null) middle,
-          if (strRight != null) strRight,
-          ...fragments.sublist(i.incrIfLess(fragments.length))
-        ];
-        return FragmentChangeContext(
-          executed: true,
-          paths: <int>[i],
-          changeSize: len,
-          lastFragmentLength: fragLength,
-          node: this,
-        );
-      }
-
-      if (data is! String) {
-        if (firstAffectedIndex.isNegative) {
-          // to avoid include this one
-          firstAffectedIndex = i.decr;
-        }
-        mutableLen--;
-        fragment.setAttributes(
-            attributes.toJson(fragment.attributes).nullIfEmpty());
-        lastAffectedIndex = i;
-        if (mutableLen <= 0) {
-          lastAffectedIndex = firstAffectedIndex;
-          break;
-        }
+      if (currentOffset >= end) {
+        newFragments.add(fragment);
+        currentOffset += fragLength;
         continue;
       }
 
-      if (localStartOffset > 0) {
-        TextFragment strLeft =
-            data.left(localStartOffset).toFragment(fragment.attributes);
-        TextFragment? strRight = data
-            .right(localStartOffset)
-            .toFragment(attributes.toJson(fragment.attributes));
-        if (strLeft.canMergeWith(strRight)) {
-          strLeft = TextFragment(
-            data: '${strLeft.data}${strRight.data}',
-            attributes: strRight.attributes,
-          );
-          strRight = null;
-          firstAffectedIndex = i;
-        }
+      affectedIndices.add(i);
+      final Map<String, dynamic> newAttributes =
+          attributes.toJson(fragment.attributes);
 
-        if (strRight != null) {
-          i.next >= fragment.length
-              ? fragments.add(strRight)
-              : fragments.insert(i.incr, strRight);
-          i = i + 2;
-          firstAffectedIndex = i.decr.nonNegative;
-        }
-        mutableLen -= (fragLength - (strRight ?? strLeft).length).nonNegative;
-        continue;
+      final int localStart = (start - currentOffset).clamp(0, fragLength);
+      final int localEnd = (end - currentOffset).clamp(0, fragLength);
+
+      // Split fragments if required 
+      if (localStart > 0 || localEnd < fragLength) {
+        _splitFragmentWithMergeCheck(newFragments, fragment, localStart,
+            localEnd, newAttributes, currentOffset);
+
+        // Mark possible new merge candidates 
+        mergeLeft = (localStart > 0);
+        mergeRight = (localEnd < fragLength);
+      } else {
+        newFragments.add(TextFragment(
+          data: fragment.data,
+          attributes: newAttributes,
+        ));
+
+        mergeLeft = true;
+        mergeRight = true;
       }
 
-      if (mutableLen - fragLength > 0) {
-        final TextFragment? prev = fragments.elementAtOrNull(i.decr);
-        if (prev != null && prev.canMergeWith(fragment)) {
-          fragments[i.decr] = TextFragment(
-            data: '${prev.data}${fragment.data}',
-            attributes: prev.attributes,
-          );
-          fragments.removeAt(i);
-          i = i.decr;
-          mutableLen -= fragLength;
-          continue;
-        }
-        fragment.setAttributes(attributes.toJson(fragment.attributes));
-        lastAffectedIndex = i;
-        mutableLen -= fragLength;
-        break;
-      }
+      currentOffset += fragLength;
+      if (currentOffset >= end) break;
+    }
 
-      // where are at the end
-      if (mutableLen - fragLength <= 0) {
-        if (firstAffectedIndex.isNegative) {
-          firstAffectedIndex = i;
-        }
-        TextFragment strLeft = data
-            .left(localEndOffset)
-            .toFragment(attributes.toJson(fragment.attributes));
-        TextFragment? strRight =
-            data.right(localEndOffset).toFragment(fragment.attributes);
-        if (strLeft.canMergeWith(strRight)) {
-          strLeft = TextFragment(
-            data: '${strLeft.data}${strRight.data}',
-            attributes: strRight.attributes,
-          );
-          strRight = null;
-          lastAffectedIndex = i;
-        }
+    // Incremental merge - Only apply merging where there are changes 
+    if (mergeLeft && newFragments.length > 1) {
+      _tryMergeWithPrevious(newFragments, newFragments.length - 1);
+    }
 
-        if (strRight != null) {
-          i.next >= fragment.length
-              ? fragments.add(strRight)
-              : fragments.insert(i.incr, strRight);
-          lastAffectedIndex = i.next;
+    // Approach merging 
+    if (affectedIndices.isNotEmpty) {
+      final int lastAffected = affectedIndices.last;
+      if (lastAffected + 1 < totalFragments) {
+        for (int i = lastAffected + 1; i < totalFragments; i++) {
+          newFragments.add(fragments[i]);
+          if (mergeRight) {
+            _tryMergeWithPrevious(newFragments, newFragments.length - 1);
+          }
         }
-        mutableLen = 0;
-        break;
       }
     }
 
-    nsValue = fragments;
+    nsValue = newFragments;
+
     return FragmentChangeContext(
       executed: true,
-      node: deepCopy(),
-      paths: <int>[...firstAffectedIndex.until(lastAffectedIndex)],
+      paths: affectedIndices,
       changeSize: len,
-      remainingRanges: null,
-      lastFragmentLength: 0,
+      lastFragmentLength: newFragments.lastOrNull?.length ?? 0,
+      node: this,
+    );
+  }
+
+  void _splitFragmentWithMergeCheck(
+    List<TextFragment> result,
+    TextFragment fragment,
+    int start,
+    int end,
+    Map<String, dynamic> newAttributes,
+    int baseOffset,
+  ) {
+    if (fragment.data is! String) {
+      result.add(TextFragment(
+        data: fragment.data,
+        attributes: newAttributes,
+      ));
+      return;
+    }
+
+    final String text = fragment.data as String;
+    TextFragment? leftPart;
+    TextFragment? middlePart;
+    TextFragment? rightPart;
+
+    if (start > 0) {
+      leftPart = TextFragment(
+        data: text.substring(0, start),
+        attributes: fragment.attributes,
+      );
+    }
+
+    if (end > start) {
+      middlePart = TextFragment(
+        data: text.substring(start, end),
+        attributes: newAttributes,
+      );
+    }
+
+    if (end < text.length) {
+      rightPart = TextFragment(
+        data: text.substring(end),
+        attributes: fragment.attributes,
+      );
+    }
+
+    if (leftPart != null) {
+      if (result.isNotEmpty && result.last.shouldMerge(leftPart)) {
+        result[result.length - 1] = _mergeFragments(result.last, leftPart);
+      } else {
+        result.add(leftPart);
+      }
+    }
+
+    if (middlePart != null) {
+      if (result.isNotEmpty && result.last.shouldMerge(middlePart)) {
+        result[result.length - 1] = _mergeFragments(result.last, middlePart);
+      } else {
+        result.add(middlePart);
+      }
+    }
+
+    if (rightPart != null) {
+      if (result.isNotEmpty && result.last.shouldMerge(rightPart)) {
+        result[result.length - 1] = _mergeFragments(result.last, rightPart);
+      } else {
+        result.add(rightPart);
+      }
+    }
+  }
+
+  void _tryMergeWithPrevious(List<TextFragment> fragments, int index) {
+    if (index <= 0) return;
+
+    final TextFragment current = fragments[index];
+    final TextFragment previous = fragments[index - 1];
+
+    if (previous.shouldMerge(current)) {
+      fragments[index - 1] = _mergeFragments(previous, current);
+      fragments.removeAt(index);
+    }
+  }
+
+  TextFragment _mergeFragments(TextFragment a, TextFragment b) {
+    return TextFragment(
+      data: '${a.data}${b.data}',
+      attributes: a.attributes,
     );
   }
 }
+
+extension on TextFragment {
+  bool shouldMerge(TextFragment other) {
+    return data is String &&
+        other.data is String &&
+        _equality.equals(attributes, other.attributes);
+  }
+}
+
+const MapEquality<String, dynamic> _equality = MapEquality<String, dynamic>();

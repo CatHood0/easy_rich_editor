@@ -18,7 +18,7 @@ extension DynamicCast on dynamic {
 }
 
 extension EasyObjects on Object {
-  TextFragment toFragment(Map<String, dynamic>? attributes) => TextFragment(
+  TextFragment toFragment([Map<String, dynamic>? attributes]) => TextFragment(
         data: this,
         attributes: attributes,
       );

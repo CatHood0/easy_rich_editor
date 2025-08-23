@@ -4,11 +4,13 @@ extension EasyAttributeList<T> on List<EasyAttribute<T>> {
   Map<String, dynamic> toJson([Map<String, dynamic>? left]) {
     final Map<String, dynamic> map = <String, dynamic>{...?left};
     for (EasyAttribute<dynamic> el in this) {
-      map[el.key] = el.value;
       if (el.value == null || el.value == false) {
         map.remove(el.key);
+      } else {
+        map[el.key] = el.value;
       }
     }
+
     return map;
   }
 }
