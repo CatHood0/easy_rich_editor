@@ -2,22 +2,26 @@ import 'package:easy_rich_editor/src/tree_manager/tree.dart';
 import 'package:flutter/material.dart';
 import '../../../../easy_rich_editor.dart';
 
-class Document {
+class EasyDocument {
   final Tree _tree;
 
-  Document(Node root) : _tree = Tree(root);
+  EasyDocument(Node root) : _tree = Tree(root);
 
-  Document.json(
+  EasyDocument.json(
     Map<String, dynamic> json,
   ) : _tree = Tree.json(json);
 
-  Document.fromList(
+  EasyDocument.fromList(
     List<Node> children,
   ) : _tree = Tree.root(nodes: children);
 
   bool addNode(Node node, {List<int>? paths}) {
     return _tree.addNode(node, paths: paths);
   }
+
+  Node get root => _tree.root;
+
+  FixedListLength get changes => _tree.changes;
 
   bool deleteNodesBySelection(TextSelection selection) {
     // TODO: implement deleteNodesBySelection

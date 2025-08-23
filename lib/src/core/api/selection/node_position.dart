@@ -11,7 +11,7 @@ class NodePosition {
   /// Local [position] into the path
   ///
   /// You can get the correct [offset] position
-  /// (into the [Document]) making a [query].
+  /// (into the [EasyDocument]) making a [query].
   ///
   /// ```dart
   ///  final NodePosition pos = ...;

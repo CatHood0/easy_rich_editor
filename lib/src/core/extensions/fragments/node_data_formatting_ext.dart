@@ -2,6 +2,8 @@ part of '../../api/document/nodes/node.dart';
 
 @internal
 extension NodeFormattingExt on Node {
+  //TODO: we need to check if works correctly
+  // with adjacent attributes applications
   @internal
   FragmentChangeContext formatValueAt(
     int start,
