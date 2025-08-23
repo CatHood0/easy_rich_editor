@@ -905,30 +905,59 @@ class DefaultNodeModifier extends NodeModifier {
     Node node,
     int start,
     int len, {
-    required List<Attribute<dynamic>> attributes,
+    required List<EasyAttribute<dynamic>> attributes,
     bool formatBlock = false,
   }) {
-    if (node.isRootOwner) {
+    if (node.isBlockNode || node.isRootOwner) {
       final int end = start + len;
+      final NodeCursorPosLocation location = node.queryPosition(
+        start,
+        inclusive: true,
+      );
+
+      if (location.notFoundLocation) {
+        return FragmentChangeContext.noExecuted(Reason.invalidStart);
+      }
+
+      assert(
+          location.node != null,
+          'node must be null to allow '
+          'formatting operation. Found: $location');
+
+      // if the end exceeds the length of the node at the start location
+      if (!node.isBlockNode && len >= location.node!.dataLength) {
+        final NodeCursorPosLocation endLocation = node.queryPosition(
+          end,
+          inclusive: true,
+        );
+        if (endLocation.notFoundLocation) {
+          return FragmentChangeContext.noExecuted(Reason.invalidEnd);
+        }
+
+        return _formatMultipleNodes(
+          node,
+          location,
+          endLocation,
+          len,
+          formatBlock,
+          attributes,
+        );
+      }
+      return location.node!.format(
+        location.locationOffset,
+        len,
+        formatBlock: formatBlock,
+        attributes: attributes,
+      );
     }
     if (formatBlock && !node.isBlockNode) {
-      final Node block = node.jumpToParentExceptRoot()!;
-      final FragmentChangeContext context = block.format(
-        start,
-        len,
-        modifier: this,
-        attributes: attributes,
-        formatBlock: true,
-      );
-      if (context.executed) {
-        block.jumpToParent()
-          ..assertRoot
-          ..rebuildNodes(changes: <String, int>{
-            block.id: 1,
-          })
-          ..notify();
-      }
+      return FragmentChangeContext.noExecuted(Reason.noSatifyConditions);
     }
+    assert(
+        !formatBlock || formatBlock && node.isBlockNode,
+        'formatBlock must '
+        'be true to format the '
+        'entire node. But, was found: ${node.shortInfo()}');
 
     return formatBlock
         ? _formatBlock(
@@ -945,11 +974,30 @@ class DefaultNodeModifier extends NodeModifier {
           );
   }
 
+  FragmentChangeContext _formatMultipleNodes(
+    Node node,
+    NodeCursorPosLocation start,
+    NodeCursorPosLocation end,
+    int len,
+    bool formatBlock,
+    List<EasyAttribute<dynamic>> attributes,
+  ) {
+    if (!formatBlock && start.node == end.node) {
+      return _formatCharactersInMultipleNodes(
+        start.node!,
+        start.locationOffset,
+        end.locationOffset,
+        attributes,
+      );
+    }
+    return NodeModifier.defaultNonExecutedContext;
+  }
+
   FragmentChangeContext _formatBlock(
     Node node,
     int start,
     int len,
-    List<Attribute<dynamic>> attributes,
+    List<EasyAttribute<dynamic>> attributes,
   ) {
     return NodeModifier.defaultNonExecutedContext;
   }
@@ -957,23 +1005,34 @@ class DefaultNodeModifier extends NodeModifier {
   FragmentChangeContext _formatCharacters(
     Node node,
     int start,
-    int end,
-    List<Attribute<dynamic>> attributes,
+    int len,
+    List<EasyAttribute<dynamic>> attributes,
   ) {
     assert(
         node.hasDefinedValue && node.isFragmentSupported,
         'node must have '
         'defined value to be used');
-    return NodeModifier.defaultNonExecutedContext;
+
+    final FragmentChangeContext context = node.formatValueAt(
+      start,
+      len,
+      <EasyAttribute<dynamic>>[...attributes],
+    );
+
+    return context;
   }
 
-  // ignore: unused_element
-  FragmentChangeContext _formatMultipleNodes(
+  FragmentChangeContext _formatCharactersInMultipleNodes(
     Node node,
     int start,
     int end,
-    List<Attribute<dynamic>> attributes,
+    List<EasyAttribute<dynamic>> attributes,
   ) {
+    assert(
+        node.isBlockNode,
+        'node must be '
+        'block to format at '
+        'specified offset (start and end)');
     return NodeModifier.defaultNonExecutedContext;
   }
 }

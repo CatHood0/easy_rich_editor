@@ -12,7 +12,7 @@ export 'package:easy_rich_editor/src/core/api/logger/configs/easy_logger_configu
     hide EasyLogLevel;
 // core -> Nodes
 export 'package:easy_rich_editor/src/core/api/document/nodes/node.dart'
-    hide NodeInsertValueModifications;
+    hide NodeFormattingExt, NodeDeletionExt, NodeInsertionExt, NodeSplitterExt;
 // core -> Parsers
 export 'package:easy_rich_editor/src/core/parser/document_to_nodes.dart';
 export 'package:easy_rich_editor/src/core/parser/markdown_to_nodes_parser.dart';

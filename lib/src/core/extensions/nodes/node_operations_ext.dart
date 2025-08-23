@@ -120,7 +120,7 @@ extension NodeOperations on Node {
   FragmentChangeContext format(
     int start,
     int? len, {
-    required List<Attribute<dynamic>> attributes,
+    required List<EasyAttribute<dynamic>> attributes,
     bool formatBlock = false,
     NodeModifier modifier = NodeModifier.defaultModifier,
   }) {
@@ -133,7 +133,7 @@ extension NodeOperations on Node {
       this,
       start,
       len ?? 1,
-      attributes: <Attribute<dynamic>>[...attributes],
+      attributes: <EasyAttribute<dynamic>>[...attributes],
       formatBlock: formatBlock,
     );
   }
@@ -151,8 +151,9 @@ extension NodeOperations on Node {
     bool forward = false,
     NodeModifier modifier = NodeModifier.defaultModifier,
   }) {
-    if (len <= 0)
-      return FragmentChangeContext.noExecuted(Reason.noRequiredConditions);
+    if (len <= 0) {
+      return FragmentChangeContext.noExecuted();
+    }
     return modifier.delete(
       this,
       start,

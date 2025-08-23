@@ -3,10 +3,9 @@ import '../../../../../easy_rich_editor.dart';
 import '../path/path.dart';
 
 enum Reason {
-  noRequiredConditions,
+  noSatifyConditions,
   invalidEnd,
   invalidStart,
-  auto,
 }
 
 class FragmentChangeContext {
@@ -34,7 +33,7 @@ class FragmentChangeContext {
       : executed = false,
         changeSize = -1,
         node = null,
-        reason = reason ?? Reason.noRequiredConditions,
+        reason = reason ?? Reason.noSatifyConditions,
         lastFragmentLength = -1,
         remainingRanges = null,
         paths = const <int>[];

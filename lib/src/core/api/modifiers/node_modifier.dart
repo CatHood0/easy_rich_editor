@@ -62,7 +62,7 @@ abstract class NodeModifier {
     Node node,
     int start,
     int len, {
-    required List<Attribute<dynamic>> attributes,
+    required List<EasyAttribute<dynamic>> attributes,
     bool formatBlock = false,
   });
 

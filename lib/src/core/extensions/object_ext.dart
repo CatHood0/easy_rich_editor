@@ -18,6 +18,10 @@ extension DynamicCast on dynamic {
 }
 
 extension EasyObjects on Object {
+  TextFragment toFragment(Map<String, dynamic>? attributes) => TextFragment(
+        data: this,
+        attributes: attributes,
+      );
   int get length => this is String ? castString().length : 1;
 
   String text({
@@ -57,6 +61,7 @@ extension IntList on int {
 }
 
 extension StringSubExt on String {
+  String middle(int start, int end) => substring(start, end);
   String left(int offset) => substring(0, offset);
   String right(int offset) => substring(offset);
   String? orNull() => isEmpty ? null : this;

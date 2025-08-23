@@ -1,6 +1,5 @@
 import 'package:easy_rich_editor/attributes.dart';
 import 'package:easy_rich_editor/easy_rich_editor.dart';
-import 'package:easy_rich_editor/src/core/api/attributes/builtin/block/header_attr.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import '../../../resources/doc_rs.dart';
@@ -13,16 +12,19 @@ void main() {
   });
 
   test('should format a single char', () {
+    expect(root, isNotNull);
     final FragmentChangeContext context = root!.format(
-      0,
+      3,
       1,
       formatBlock: true,
       modifier: NodeModifier.defaultModifier,
-      attributes: <Attribute<dynamic>>[
+      attributes: <EasyAttribute<dynamic>>[
         BoldAttribute(value: true),
-        HeaderAttribute(value: 1),
       ],
     );
+    print(root?.dumpTreeStr());
+    expect(context.reason, isNull);
+    expect(context.executed, isTrue);
   });
   test('should format entire block children', () {});
   test('should format single block attributes', () {});

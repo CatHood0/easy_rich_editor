@@ -12,6 +12,7 @@ extension MinimalPathExtension on int {
   int decrIf(bool condition) => condition ? this - 1 : this;
   int get next => this + 1;
   int incrIf(bool condition) => condition ? this + 1 : this;
+  int incrIfLess(int max) => incrIf(this + 1 < max);
   int get incr => this + 1;
 }
 
