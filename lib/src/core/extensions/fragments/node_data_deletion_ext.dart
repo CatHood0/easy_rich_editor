@@ -26,7 +26,7 @@ extension NodeDeletionExt on Node {
     for (int i = fragPosition; i < fragments.length; i++) {
       final TextFragment fragment = fragments[i];
       final Object data = fragment.data;
-      final int fragLength = fragment.length;
+      final int fragLength = fragment.data.castString().characters.length;
       final int currentGlobalOffset = offset + fragLength;
 
       // check if we are into the range of the operation that need to be modified

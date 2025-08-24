@@ -16,6 +16,7 @@ dependencies:
   collection: ^1.18.0
   dart_quill_delta: ^10.8.3
   flutter_quill_delta_easy_parser: ^1.1.8
+  characters: ^1.4.1
 
 
 dev_dependencies:

@@ -3,12 +3,11 @@ import 'dart:ui';
 import 'package:easy_rich_editor/easy_rich_editor.dart';
 import 'package:easy_rich_editor/src/core/api/document/path/path.dart';
 
-///
 class NodePosition {
   /// The node depth path of the node at the cursor position
   final NodeDepthPath path;
 
-  /// Local [position] into the path
+  /// Relative [position] into the path
   ///
   /// You can get the correct [offset] position
   /// (into the [EasyDocument]) making a [query].
@@ -27,7 +26,7 @@ class NodePosition {
 
   final TextAffinity? affinity;
 
-  /// The node where this position is
+  /// The position where [node] is
   final Node node;
 
   NodePosition({

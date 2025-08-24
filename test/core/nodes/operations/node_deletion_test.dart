@@ -1,5 +1,6 @@
 import 'dart:collection';
 
+import 'package:easy_parsers/easy_parsers.dart';
 import 'package:easy_rich_editor/easy_rich_editor.dart';
 import 'package:easy_rich_editor/src/core/extensions/object_ext.dart';
 import 'package:flutter_test/flutter_test.dart';
