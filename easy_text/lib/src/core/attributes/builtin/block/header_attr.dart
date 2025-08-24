@@ -1,14 +1,14 @@
 import 'package:easy_text/src/core/attributes/attribute.dart';
 
 class HeaderAttribute extends EasyExclusiveBlockAttribute<int?> {
-  HeaderAttribute({required super.value});
+  const HeaderAttribute([int? value]) : super(value: value);
 
-  HeaderAttribute.h1() : super(value: 1);
-  HeaderAttribute.h2() : super(value: 2);
-  HeaderAttribute.h3() : super(value: 3);
-  HeaderAttribute.h4() : super(value: 4);
-  HeaderAttribute.h5() : super(value: 5);
-  HeaderAttribute.h6() : super(value: 6);
+  const HeaderAttribute.h1() : super(value: 1);
+  const HeaderAttribute.h2() : super(value: 2);
+  const HeaderAttribute.h3() : super(value: 3);
+  const HeaderAttribute.h4() : super(value: 4);
+  const HeaderAttribute.h5() : super(value: 5);
+  const HeaderAttribute.h6() : super(value: 6);
 
   factory HeaderAttribute.fromLevel({
     required int? level,
@@ -30,9 +30,20 @@ class HeaderAttribute extends EasyExclusiveBlockAttribute<int?> {
           return HeaderAttribute.h6();
       }
     }
-    return HeaderAttribute(value: nullIfUnknown ? null : level);
+    return HeaderAttribute(nullIfUnknown ? null : level);
   }
 
   @override
   String get key => 'header';
+
+  @override
+  HeaderAttribute clone(value) {
+    assert(
+      value is int?,
+      'the value passed '
+      'to $runtimeType is not an '
+      'int. Found: $value',
+    );
+    return HeaderAttribute(value as int?);
+  }
 }

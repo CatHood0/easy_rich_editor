@@ -1,6 +1,8 @@
 include: package:flutter_lints/flutter.yaml
 
 analyzer:
+  errors:
+    unnecessary_this: ignore
   language:
     strict-casts: true 
     strict-inference: false 

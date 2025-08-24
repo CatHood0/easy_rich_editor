@@ -35,15 +35,6 @@ final class EasyTextList extends LinkedList<EasyText> {
     return text;
   }
 
-  void format(EasyAttributeStyles style) {}
-  void insert({
-    required int start,
-    required int len,
-    EasyAttributeStyles? styles,
-  }) {}
-  void delete(EasyAttributeStyles style) {}
-
-  // === HELPER METHODS ===
 
   String toPlainText() {
     if (isEmpty) return '';

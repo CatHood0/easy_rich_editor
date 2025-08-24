@@ -1,7 +1,7 @@
 part of 'attribute.dart';
 
 abstract class EasyInlineAttribute<T extends Object?> extends EasyAttribute<T> {
-  EasyInlineAttribute({required super.value});
+  const EasyInlineAttribute({required super.value});
 
   /// An unique key for this [EasyAttribute]
   @override
@@ -25,7 +25,7 @@ abstract class EasyInlineAttribute<T extends Object?> extends EasyAttribute<T> {
 
 abstract class EasyExclusiveBlockAttribute<T extends Object?>
     extends EasyAttribute<T> {
-  EasyExclusiveBlockAttribute({required super.value});
+  const EasyExclusiveBlockAttribute({required super.value});
 
   /// An unique key for this [EasyAttribute]
   @override
@@ -48,7 +48,7 @@ abstract class EasyExclusiveBlockAttribute<T extends Object?>
 }
 
 abstract class EasyBlockAttribute<T extends Object?> extends EasyAttribute<T> {
-  EasyBlockAttribute({required super.value});
+  const EasyBlockAttribute({required super.value});
 
   /// An unique key for this [EasyAttribute]
   @override
