@@ -1,5 +1,7 @@
 import 'package:flutter/services.dart';
 
+//FIXME: should we remove this? since we implement character package
+// this is probably don't needed
 extension RunesPositioning on String {
   /// This method will return the position of the previous rune.
   ///

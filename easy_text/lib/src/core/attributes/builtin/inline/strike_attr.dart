@@ -1,11 +1,8 @@
-import 'package:easy_rich_editor/src/core/api/attributes/attribute.dart';
+import 'package:easy_text/src/core/attributes/attribute.dart';
 
-class StrikeAttribute extends EasyAttribute<bool> {
-  StrikeAttribute({
-    required super.value,
-  }) : super(
-          key: 'strike',
-          isInline: true,
-          exclusive: false,
-        );
+class StrikeAttribute extends EasyInlineAttribute<bool> {
+  StrikeAttribute({required super.value});
+
+  @override
+  String get key => 'striketrough';
 }

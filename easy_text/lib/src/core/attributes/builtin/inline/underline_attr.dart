@@ -1,11 +1,8 @@
-import 'package:easy_rich_editor/src/core/api/attributes/attribute.dart';
+import 'package:easy_text/src/core/attributes/attribute.dart';
 
-class UnderlineAttribute extends EasyAttribute<bool> {
-  UnderlineAttribute({
-    required super.value,
-  }) : super(
-          key: 'under',
-          isInline: true,
-          exclusive: false,
-        );
+class UnderlineAttribute extends EasyInlineAttribute<bool> {
+  UnderlineAttribute({required super.value});
+
+  @override
+  String get key => 'underline';
 }
