@@ -1,6 +1,9 @@
 import 'package:collection/collection.dart';
 import 'package:easy_text/src/core/attributes/attribute.dart';
 
+const MapEquality<String, EasyAttribute<Object?>> _eq =
+    MapEquality<String, EasyAttribute>();
+
 class EasyAttributeStyles {
   final Map<String, EasyAttribute> attributes;
 
@@ -17,6 +20,39 @@ class EasyAttributeStyles {
               },
             ),
           );
+
+  @override
+  int get hashCode {
+    final Iterable<int> hashes = attributes.entries.map(
+      (MapEntry<String, EasyAttribute<Object?>> entry) => Object.hash(
+        entry.key,
+        entry.value,
+      ),
+    );
+    return Object.hashAll(hashes);
+  }
+
+  bool get isEmpty => attributes.isEmpty;
+
+  bool get isNotEmpty => attributes.isNotEmpty;
+
+  Iterable<String> get keys => attributes.keys;
+
+  EasyAttribute get single => attributes.values.single;
+
+  @override
+  bool operator ==(covariant EasyAttributeStyles other) {
+    if (identical(this, other)) return true;
+    return _eq.equals(attributes, other.attributes);
+  }
+
+  EasyAttributeStyles clearAll() {
+    final EasyAttributeStyles copy = this.copy();
+    attributes.clear();
+    return copy;
+  }
+
+  bool containsKey(String key) => attributes.containsKey(key);
 
   EasyAttributeStyles copy() => EasyAttributeStyles(
         attributes: <String, EasyAttribute<Object?>>{
@@ -51,6 +87,21 @@ class EasyAttributeStyles {
     return map;
   }
 
+  EasyAttributeStyles put(EasyAttribute attribute) {
+    final Map<String, EasyAttribute> m =
+        Map<String, EasyAttribute>.from(attributes);
+    m[attribute.key] = attribute;
+    return EasyAttributeStyles(attributes: m);
+  }
+
+  Map<String, dynamic>? toJson() => attributes.isEmpty
+      ? null
+      : attributes.map<String, dynamic>((_, EasyAttribute<Object?> attribute) =>
+          MapEntry<String, dynamic>(attribute.key, attribute.value));
+
+  @override
+  String toString() => "{${attributes.values.join(', ')}}";
+
   static EasyAttributeStyles fromJson(
     Map<String, dynamic>? attributes, {
     EasyAttribute? Function(String, dynamic)? onUnknownAttribute,
@@ -79,55 +130,4 @@ class EasyAttributeStyles {
     });
     return EasyAttributeStyles(attributes: result);
   }
-
-  Map<String, dynamic>? toJson() => attributes.isEmpty
-      ? null
-      : attributes.map<String, dynamic>((_, EasyAttribute<Object?> attribute) =>
-          MapEntry<String, dynamic>(attribute.key, attribute.value));
-
-  Iterable<String> get keys => attributes.keys;
-
-  bool get isEmpty => attributes.isEmpty;
-
-  bool get isNotEmpty => attributes.isNotEmpty;
-
-  EasyAttribute get single => attributes.values.single;
-
-  bool containsKey(String key) => attributes.containsKey(key);
-
-  EasyAttributeStyles put(EasyAttribute attribute) {
-    final Map<String, EasyAttribute> m =
-        Map<String, EasyAttribute>.from(attributes);
-    m[attribute.key] = attribute;
-    return EasyAttributeStyles(attributes: m);
-  }
-
-  EasyAttributeStyles clearAll() {
-    final EasyAttributeStyles copy = this.copy();
-    attributes.clear();
-    return copy;
-  }
-
-  @override
-  bool operator ==(covariant EasyAttributeStyles other) {
-    if (identical(this, other)) return true;
-    return _eq.equals(attributes, other.attributes);
-  }
-
-  @override
-  int get hashCode {
-    final Iterable<int> hashes = attributes.entries.map(
-      (MapEntry<String, EasyAttribute<Object?>> entry) => Object.hash(
-        entry.key,
-        entry.value,
-      ),
-    );
-    return Object.hashAll(hashes);
-  }
-
-  @override
-  String toString() => "{${attributes.values.join(', ')}}";
 }
-
-const MapEquality<String, EasyAttribute<Object?>> _eq =
-    MapEquality<String, EasyAttribute>();

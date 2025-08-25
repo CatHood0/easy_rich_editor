@@ -12,7 +12,7 @@ export 'src/core/attributes/builtin/inline/color_attr.dart';
 export 'src/core/attributes/builtin/inline/inline_code_attr.dart';
 export 'src/core/attributes/builtin/inline/font_size_attr.dart';
 export 'src/core/attributes/builtin/inline/font_family_attr.dart';
-// Core -> Attributes -> Builtins -> Block 
+// Core -> Attributes -> Builtins -> Block
 export 'src/core/attributes/builtin/block/dimensions_attr.dart';
 export 'src/core/attributes/builtin/block/line_height_attr.dart';
 export 'src/core/attributes/builtin/block/alignment_attr.dart';
