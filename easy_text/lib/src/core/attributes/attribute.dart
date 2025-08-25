@@ -1,16 +1,6 @@
 import 'package:collection/collection.dart';
 import 'package:easy_text/attributes.dart';
-import 'package:easy_text/src/core/attributes/builtin/block/alignment_attr.dart';
-import 'package:easy_text/src/core/attributes/builtin/block/block_indent_attr.dart';
-import 'package:easy_text/src/core/attributes/builtin/block/dimensions_attr.dart';
-import 'package:easy_text/src/core/attributes/builtin/block/line_height_attr.dart';
-import 'package:easy_text/src/core/attributes/builtin/inline/bg_color_attr.dart';
-import 'package:easy_text/src/core/attributes/builtin/inline/color_attr.dart';
-import 'package:easy_text/src/core/attributes/builtin/inline/font_size_attr.dart';
-import 'package:easy_text/src/core/attributes/builtin/inline/inline_code_attr.dart';
 import 'package:easy_text/src/core/attributes/builtin/inline/link_attr.dart';
-import 'builtin/block/direction_attr.dart';
-import 'builtin/inline/font_family_attr.dart';
 
 part 'abstractions.dart';
 
@@ -320,11 +310,13 @@ abstract class EasyAttribute<T extends Object?> {
   EasyAttribute clone(T value);
 
   @override
-  bool operator ==(covariant EasyAttribute<T> other) {
+  bool operator ==(covariant EasyAttribute other) {
     if (identical(this, other)) return true;
-    return key == other.key && value == other.value;
+    return key == other.key &&
+        value.runtimeType == other.value.runtimeType &&
+        value == other.value;
   }
 
   @override
-  int get hashCode => value.hashCode;
+  int get hashCode => key.hashCode ^ value.hashCode;
 }

@@ -102,6 +102,12 @@ class EasyAttributeStyles {
     return EasyAttributeStyles(attributes: m);
   }
 
+  EasyAttributeStyles clearAll() {
+    final EasyAttributeStyles copy = this.copy();
+    attributes.clear();
+    return copy;
+  }
+
   @override
   bool operator ==(covariant EasyAttributeStyles other) {
     if (identical(this, other)) return true;

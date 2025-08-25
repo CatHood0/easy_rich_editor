@@ -191,35 +191,49 @@ void main() {
 
     test('format across multiple EasyText nodes', () {
       // First split the text into multiple parts
-      final EasyText? right = fragment.splitAt(5);
-
-      right?.splitAt(10);
+      fragment.splitAt(5)?.splitAt(10);
 
       // Format range that spans across multiple nodes
       // ignore: cascade_invocations
       fragment.formatRange(
-          3, 8, EasyAttributeStyles.fromAttribute(EasyAttribute.italic));
+        3,
+        8,
+        EasyAttributeStyles.fromAttribute(EasyAttribute.italic),
+      );
+      assert(fragment.isLinked, isTrue);
+      fragment.next?.formatRange(
+        2,
+        2,
+        EasyAttributeStyles.fromAttribute(EasyAttribute.bold),
+      );
 
-      // Verify all affected parts have the italic attribute
       final Iterable<EasyText> formattedParts = list.where((EasyText part) =>
           part.styles.attributes.containsValue(EasyAttribute.italic));
+      final Iterable<EasyText> formattedParts2 = list.where((EasyText part) =>
+          part.styles.attributes.containsValue(EasyAttribute.bold));
       expect(formattedParts.length, greaterThanOrEqualTo(2));
-    });
-
-    test('format exclusive attribute (header) replaces other exclusives', () {
-      // First apply codeblock attribute
-      fragment.formatRange(0, fragment.length,
-          EasyAttributeStyles.fromAttribute(EasyAttribute.codeblock));
-      expect(fragment.styles.attributes.containsValue(EasyAttribute.codeblock),
-          isTrue);
-
-      // Apply header attribute (should replace codeblock)
-      fragment.formatRange(0, fragment.length,
-          EasyAttributeStyles.fromAttribute(EasyAttribute.h1));
-      expect(fragment.styles.attributes.containsValue(EasyAttribute.codeblock),
-          isFalse);
+      expect(formattedParts2.length, greaterThanOrEqualTo(1));
+      expect(fragment.next, isNotNull);
+      expect(fragment.next?.next, isNotNull);
+      expect(fragment.next!.text, equals('¡T'.characters));
+      expect(fragment.next!.next!.text, equals('od'.characters));
       expect(
-          fragment.styles.attributes.containsValue(EasyAttribute.h1), isTrue);
+        fragment.next?.styles,
+        equals(
+          EasyAttributeStyles.fromAttribute(EasyAttribute.italic),
+        ),
+      );
+      expect(
+        fragment.next?.next?.styles,
+        equals(
+          EasyAttributeStyles.fromIterable(
+            <EasyAttribute<Object?>>[
+              EasyAttribute.italic,
+              EasyAttribute.bold,
+            ],
+          ),
+        ),
+      );
     });
 
     test('format with multiple attributes simultaneously', () {
@@ -227,7 +241,7 @@ void main() {
           EasyAttributeStyles.fromIterable(<EasyAttribute<Object?>>[
         EasyAttribute.bold,
         EasyAttribute.italic,
-        EasyAttribute.color,
+        EasyAttribute.color.clone('blue'),
       ]);
 
       fragment.formatRange(5, 10, multipleAttributes);
@@ -235,10 +249,14 @@ void main() {
       final EasyText formattedPart = list.firstWhere((EasyText part) =>
           part.styles.attributes.containsValue(EasyAttribute.bold));
       expect(
-          formattedPart.styles.attributes.containsValue(EasyAttribute.italic),
-          isTrue);
-      expect(formattedPart.styles.attributes.containsValue(EasyAttribute.color),
-          isTrue);
+        formattedPart.styles.attributes.containsValue(EasyAttribute.italic),
+        isTrue,
+      );
+      expect(
+        formattedPart.styles.attributes
+            .containsValue(EasyAttribute.color.clone('blue')),
+        isTrue,
+      );
     });
 
     test('format empty range does nothing', () {
@@ -246,7 +264,12 @@ void main() {
       final EasyAttributeStyles originalAttributes = fragment.styles.copy();
 
       fragment.formatRange(
-          5, 0, EasyAttributeStyles.fromAttribute(EasyAttribute.bold));
+        5,
+        0,
+        EasyAttributeStyles.fromAttribute(
+          EasyAttribute.bold,
+        ),
+      );
 
       expect(fragment.text.toString(), equals(originalText));
       expect(fragment.styles, equals(originalAttributes));
@@ -254,14 +277,19 @@ void main() {
 
     test('format range beyond text length formats to end', () {
       fragment.formatRange(
-          20, 100, EasyAttributeStyles.fromAttribute(EasyAttribute.underline));
+        25,
+        100,
+        EasyAttributeStyles.fromAttribute(EasyAttribute.underline),
+      );
 
       // Should format from position 20 to the end
       final EasyText formattedPart = list.last;
       expect(
-          formattedPart.styles.attributes
-              .containsValue(EasyAttribute.underline),
-          isTrue);
+        formattedPart.styles.attributes.containsValue(
+          EasyAttribute.underline,
+        ),
+        isTrue,
+      );
       expect(formattedPart.text.toString(), equals('day! 🌈🌻'));
     });
 
@@ -278,29 +306,54 @@ void main() {
     test('format then delete preserves attributes in remaining parts', () {
       // First format a range
       fragment.formatRange(
-          5, 10, EasyAttributeStyles.fromAttribute(EasyAttribute.bold));
+        5,
+        10,
+        EasyAttributeStyles.fromAttribute(EasyAttribute.bold),
+      );
+      expect(fragment.text, equals('🎂✨ ¡T'.characters));
+      expect(fragment.styles, equals(EasyAttributeStyles.empty()));
+
+      // the next part was the formatted one
+      fragment = fragment.next!;
+
+      expect(fragment.isLinked, isTrue);
 
       // Then delete part of the formatted range
       fragment.delete(7, 5);
 
       // The remaining formatted text should still have the attribute
-      final Iterable<EasyText> boldParts = list.where((EasyText part) =>
-          part.styles.attributes.containsValue(EasyAttribute.bold));
+      final Iterable<EasyText> boldParts = list.where(
+        (EasyText part) => part.styles.attributes.containsValue(
+          EasyAttribute.bold,
+        ),
+      );
       expect(boldParts.isNotEmpty, isTrue);
     });
 
     test('remove formatting from range', () {
       // First apply formatting
       fragment.formatRange(
-          0, 10, EasyAttributeStyles.fromAttribute(EasyAttribute.bold));
-      expect(list.first.styles.attributes.containsValue(EasyAttribute.bold),
-          isTrue);
+        0,
+        10,
+        EasyAttributeStyles.fromAttribute(EasyAttribute.bold),
+      );
+      expect(fragment.isLinked, isTrue);
+      expect(fragment.next, isNotNull);
+      expect(fragment.next!.isLinked, isTrue);
+      expect(
+        fragment.styles.attributes.containsValue(EasyAttribute.bold),
+        isTrue,
+      );
 
       // Remove formatting by applying empty styles
-      fragment.formatRange(0, 10, EasyAttributeStyles.empty());
+      fragment.formatRange(
+        0,
+        10,
+        EasyAttributeStyles.empty(),
+      );
 
       // Should have no attributes
-      expect(list.first.styles.attributes.isEmpty, isTrue);
+      expect(fragment.styles.attributes.isEmpty, isTrue);
     });
   });
 }

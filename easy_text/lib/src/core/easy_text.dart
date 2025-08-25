@@ -150,6 +150,7 @@ final class EasyText extends LinkedListEntry<EasyText> {
     int index,
     String data, [
     EasyAttributeStyles? style,
+    bool ignoreMerge = false,
   ]) {
     final int length = this.length;
     assert(
@@ -161,7 +162,11 @@ final class EasyText extends LinkedListEntry<EasyText> {
     } else {
       insertAfter(part);
     }
-    part.format(style);
+    part.format(
+      style,
+      true,
+      ignoreMerge,
+    );
   }
 
   /// Applies formatting to a range of text starting at [index] for [len] characters.
@@ -175,11 +180,12 @@ final class EasyText extends LinkedListEntry<EasyText> {
   void formatRange(
     int index,
     int? len,
-    EasyAttributeStyles? style,
-  ) {
-    if (style == null) return;
+    EasyAttributeStyles? style, {
+    bool overrideStylesIfEmpty = true,
+  }) {
+    if (style == null || len == null || len <= 0) return;
 
-    final int local = math.min<int>(length - index, len!);
+    final int local = math.min<int>(length - index, len);
     final int remain = len - local;
     final EasyText part = _splitExactRanges(index, local);
     (list as EasyTextList?)
@@ -187,9 +193,17 @@ final class EasyText extends LinkedListEntry<EasyText> {
       .._lastIndex = null;
 
     if (remain > 0 && part.next != null) {
-      part.next?.formatRange(0, remain, style);
+      part.next?.formatRange(
+        0,
+        remain,
+        style,
+        overrideStylesIfEmpty: overrideStylesIfEmpty,
+      );
     }
-    part.format(style);
+    part.format(
+      style,
+      overrideStylesIfEmpty,
+    );
   }
 
   /// Deletes [len] characters starting from the specified [index].
@@ -205,18 +219,19 @@ final class EasyText extends LinkedListEntry<EasyText> {
   /// ```
   void delete(
     int index,
-    int? len,
-  ) {
+    int len, {
+    bool ignoreMerge = false,
+  }) {
     final int length = this.length;
     assert(index < length, 'offset must be less than the length passed');
 
-    final int local = math.min(length - index, len!);
+    final int local = math.min(length - index, len);
     final EasyText target = _splitExactRanges(index, local);
     final EasyText? prev = target.previous;
     final EasyText? next = target.next;
     // Since getting offset of the current target can have too much
     // cost, we prefer just invalidating the cached text
-    invalidaParentCache();
+    invalidateParentCache();
     target.unlink();
 
     final int remain = len - local;
@@ -224,9 +239,7 @@ final class EasyText extends LinkedListEntry<EasyText> {
       next.delete(0, remain);
     }
 
-    if (prev != null) {
-      prev.tryMerge();
-    }
+    if (prev != null && !ignoreMerge) prev.tryMerge();
   }
 
   /// Split efficiently starting at [index] with specified [length].
@@ -242,11 +255,17 @@ final class EasyText extends LinkedListEntry<EasyText> {
   }
 
   /// Formats this [EasyText] and optimizes it with adjacent [EasyText]s if needed.
-  void format(EasyAttributeStyles? style) {
-    if (style != null && style.isNotEmpty) {
-      applyStyle(style);
+  void format(
+    EasyAttributeStyles? style, [
+    bool overrideStylesIfEmpty = false,
+    bool ignoreMerge = false,
+  ]) {
+    if (style != null) {
+      overrideStylesIfEmpty && style.isEmpty
+          ? styles.clearAll()
+          : applyStyle(style);
     }
-    tryMerge();
+    if (!ignoreMerge) tryMerge();
   }
 
   /// Splits this [EasyText] at specified [offset]
@@ -296,7 +315,7 @@ final class EasyText extends LinkedListEntry<EasyText> {
   ///
   /// Should be called when this fragment's content changes to ensure
   /// the parent list recalculates its cached text representation.
-  void invalidaParentCache() {
+  void invalidateParentCache() {
     if (list == null || (list as EasyTextList)._text == null) return;
     (list as EasyTextList).text = null;
   }
