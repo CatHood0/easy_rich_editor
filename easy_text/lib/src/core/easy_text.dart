@@ -98,6 +98,7 @@ final class EasyText extends LinkedListEntry<EasyText> {
   void tryMergeAdjacentText() {
     // This is a text node and it can only be merged with other text nodes.
     EasyText node = this;
+    final bool isThisLastUsed = (list as EasyTextList?)?._lastUsedText == this;
 
     // Merging it with previous node if style is the same.
     final EasyText? prev = node.previous;
@@ -107,7 +108,13 @@ final class EasyText extends LinkedListEntry<EasyText> {
       prev.text = prev.text + node.text;
       if (prevLength != null) {
         nodeLength ??= node.length;
-        prev._length = prevLength + nodeLength;
+        node._length = prevLength + nodeLength;
+      }
+      // moved the focus to this since at some points, we 
+      // want to move to the wanted fragment without
+      // searching it first manually
+      if (isThisLastUsed) {
+        (list as EasyTextList?)?._lastUsedText = prev;
       }
       node.unlink();
       node = prev;
@@ -155,6 +162,9 @@ final class EasyText extends LinkedListEntry<EasyText> {
     final int local = math.min<int>(length - index, len!);
     final int remain = len - local;
     final EasyText node = _splitExactRanges(index, local);
+    (list as EasyTextList?)
+      ?.._lastUsedText = node
+      .._lastIndex = null;
 
     if (remain > 0 && node.next != null) {
       node.next?.formatRange(0, remain, style);
@@ -189,7 +199,7 @@ final class EasyText extends LinkedListEntry<EasyText> {
     }
   }
 
-  /// Isolates a new leaf starting at [index] with specified [length].
+  /// Isolates a new [EasyText] starting at [index] with specified [length].
   EasyText _splitExactRanges(int index, int length) {
     assert(
       index >= 0 && index < this.length && (index + length <= this.length),
@@ -201,7 +211,7 @@ final class EasyText extends LinkedListEntry<EasyText> {
     return target;
   }
 
-  /// Formats this node and optimizes it with adjacent leaf nodes if needed.
+  /// Formats this [EasyText] and optimizes it with adjacent [EasyText]s if needed.
   void format(EasyAttributeStyles? style) {
     if (style != null && style.isNotEmpty) {
       applyStyle(style);

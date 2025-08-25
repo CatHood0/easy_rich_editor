@@ -1,10 +1,8 @@
 part of '../core/easy_text.dart';
 
-///
 final class EasyTextList extends LinkedList<EasyText> {
   EasyText? _lastUsedText;
   int? _lastIndex;
-
   String? _text;
 
   String get text => _text ??= toPlainText();
@@ -25,7 +23,9 @@ final class EasyTextList extends LinkedList<EasyText> {
     // make a direct jump to the text
     // to avoid iterating
     if (index == _lastIndex) {
-      if (_lastUsedText!.list != null && _lastUsedText!.list == this) {
+      if (_lastUsedText != null &&
+          _lastUsedText!.list != null &&
+          _lastUsedText!.list == this) {
         return _lastUsedText!;
       }
     }
@@ -35,6 +35,8 @@ final class EasyTextList extends LinkedList<EasyText> {
     return text;
   }
 
+  EasyText? get lastUsed => _lastUsedText;
+  int? get lastIndex => _lastIndex;
 
   String toPlainText() {
     if (isEmpty) return '';
