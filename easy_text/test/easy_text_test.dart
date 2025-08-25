@@ -173,9 +173,7 @@ void main() {
       fragment.formatRange(
         1,
         11,
-        EasyAttributeStyles.fromAttribute(
-          EasyAttribute.color.clone(color),
-        ),
+        EasyAttributeStyles.fromAttribute(ColorAttribute(color)),
       );
 
       // The original fragment should be split into multiple parts
@@ -195,7 +193,6 @@ void main() {
       // First split the text into multiple parts
       final EasyText? right = fragment.splitAt(5);
 
-      print(right);
       right?.splitAt(10);
 
       // Format range that spans across multiple nodes

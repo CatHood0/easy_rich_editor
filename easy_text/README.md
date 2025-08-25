@@ -58,8 +58,8 @@ final styledText = EasyText.fromStr(
   'Welcome to EasyText',
   style: EasyAttributeStyles.fromIterable([
     EasyAttribute.bold,
-    EasyAttribute.color(Colors.blue),
-    EasyAttribute.fontSize(16.0),
+    ColorAttribute('#FFBBAA'),
+    FontSizeAttribute(16.0),
   ]),
 );
 
@@ -123,22 +123,6 @@ class HighlightAttribute extends EasyAttribute<Color> {
 // Register and use custom attribute
 EasyAttribute.addCustom({'highlight': HighlightAttribute(Colors.yellow)});
 text.formatRange(0, 5, EasyAttributeStyles.fromAttribute(HighlightAttribute(Colors.yellow)));
-```
-
-### Text Processing
-
-```dart
-// Iterate through text segments
-for (final segment in textList) {
-  print('Text: ${segment.text}, Attributes: ${segment.attributes}');
-}
-
-// Bulk operations
-textList.applyToAll(EasyAttributeStyles.fromAttribute(EasyAttribute.italic));
-
-// Range-based processing
-final selectedRange = textList.range(5, 15);
-selectedRange.applyStyle(EasyAttributeStyles.fromAttribute(EasyAttribute.bold));
 ```
 
 
