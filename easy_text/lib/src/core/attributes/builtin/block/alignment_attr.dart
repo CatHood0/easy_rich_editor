@@ -1,4 +1,3 @@
-import 'package:easy_text/src/core/attributes/builtin/block/direction_attr.dart';
 import 'package:flutter/widgets.dart';
 import '../../../../../../attributes.dart';
 

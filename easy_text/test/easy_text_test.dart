@@ -1,6 +1,5 @@
 import 'package:characters/characters.dart';
 import 'package:easy_text/easy_text.dart';
-import 'package:easy_text/src/core/easy_text.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
