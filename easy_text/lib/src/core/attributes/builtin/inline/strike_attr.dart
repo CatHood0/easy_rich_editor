@@ -7,13 +7,7 @@ class StrikeAttribute extends EasyInlineAttribute<bool> {
   String get key => 'striketrough';
 
   @override
-  StrikeAttribute clone(value) {
-    assert(
-      value is bool,
-      'the value passed '
-      'to $runtimeType is not an '
-      'int. Found: $value',
-    );
-    return StrikeAttribute(value as bool);
+  StrikeAttribute clone(bool value) {
+    return StrikeAttribute(value);
   }
 }

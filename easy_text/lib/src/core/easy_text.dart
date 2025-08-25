@@ -12,9 +12,6 @@ const UuidV4 uuid = UuidV4();
 
 /// Represents a contiguous segment of text with
 /// consistent styling attributes.
-///
-/// Multiple [EasyText] instances can be
-/// linked together to form a complete styled text document.
 final class EasyText extends LinkedListEntry<EasyText> {
   /// Unique identifier for this text fragment
   final String id;
@@ -22,13 +19,13 @@ final class EasyText extends LinkedListEntry<EasyText> {
   /// The styling attributes applied to this text fragment
   final EasyAttributeStyles styles;
 
+  Characters _text;
+
   /// The character content of this text fragment
   ///
   /// We use [Characters] from `character` package
   /// to maintain a better stability when making
   /// inserting, moving or deleting operatinons
-  Characters _text;
-
   Characters get text => _text;
 
   set text(Characters text) {
@@ -90,68 +87,91 @@ final class EasyText extends LinkedListEntry<EasyText> {
   /// Determines if this [EasyText] instance is currently linked to a parent list.
   bool get isLinked => list != null;
 
+  /// Determines if this element is the first one into the list
   bool get isFirst => list == null ? false : list!.first == this;
+
+  /// Determines if this element is the last one into the list
   bool get isLast => list == null ? false : list!.last == this;
 
-  /// tryMergeAdjacentText this text by merging it with adjacent [EasyText] parts if they share
+  /// try to merge this element with adjacents parts if they share
   /// the same style.
-  void tryMergeAdjacentText() {
+  void tryMerge() {
     // This is a text node and it can only be merged with other text nodes.
-    EasyText node = this;
+    EasyText textPart = this;
     final bool isThisLastUsed = (list as EasyTextList?)?._lastUsedText == this;
 
-    // Merging it with previous node if style is the same.
-    final EasyText? prev = node.previous;
-    if (!node.isFirst && prev != null && prev.styles == node.styles) {
+    // Merging it with previous textPart if style is the same.
+    final EasyText? prev = textPart.previous;
+    if (!textPart.isFirst && prev != null && prev.styles == textPart.styles) {
       int? prevLength = prev._length != null ? prev.length : null;
-      int? nodeLength = node._length != null ? node.length : null;
-      prev.text = prev.text + node.text;
+      int? nodeLength = textPart._length != null ? textPart.length : null;
+      prev.text = prev.text + textPart.text;
       if (prevLength != null) {
-        nodeLength ??= node.length;
-        node._length = prevLength + nodeLength;
+        nodeLength ??= textPart.length;
+        textPart._length = prevLength + nodeLength;
       }
-      // moved the focus to this since at some points, we 
+      // moved the focus to this since at some points, we
       // want to move to the wanted fragment without
       // searching it first manually
       if (isThisLastUsed) {
         (list as EasyTextList?)?._lastUsedText = prev;
       }
-      node.unlink();
-      node = prev;
+      textPart.unlink();
+      textPart = prev;
     }
 
     // Merging it with next node if style is the same.
-    final EasyText? next = node.next;
-    if (!node.isLast && next != null && next.styles == node.styles) {
+    final EasyText? next = textPart.next;
+    if (!textPart.isLast && next != null && next.styles == textPart.styles) {
       int? nextLength = next._length != null ? next.length : null;
-      int? nodeLength = node._length != null ? node.length : null;
-      node.text = node.text + next.text;
+      int? nodeLength = textPart._length != null ? textPart.length : null;
+      textPart.text = textPart.text + next.text;
       // computes the new length to avoid unnecessary calculations
       if (nextLength != null) {
-        nodeLength ??= node.length;
+        nodeLength ??= textPart.length;
         next._length = nextLength + nodeLength;
       }
       next.unlink();
     }
   }
 
+  /// Inserts text at the specified [index] with optional styling.
+  ///
+  /// ## Throws:
+  /// - [AssertionError] if [index] is out of bounds (negative or greater than length).
+  ///
+  /// ## Example:
+  /// ```dart
+  /// final text = EasyText('Hello World');
+  /// text.insert(6, 'Beautiful '); // Result: 'Hello Beautiful World'
+  /// text.insert(6, 'Amazing ', style: EasyAttributeStyles(attributes: {'bold': BoldAttribute()}));
+  /// ```
   void insert(
     int index,
     String data, [
     EasyAttributeStyles? style,
   ]) {
     final int length = this.length;
-    assert(index >= 0 && index <= length, '');
-    final EasyText node = EasyText.fromStr(text: data);
+    assert(
+        index >= 0 && index <= length, 'Index must be between 0 and $length');
+    final EasyText part = EasyText.fromStr(text: data);
     (list as EasyTextList?)?.insertText(data, index);
     if (index < length) {
-      splitAt(index)!.insertBefore(node);
+      splitAt(index)!.insertBefore(part);
     } else {
-      insertAfter(node);
+      insertAfter(part);
     }
-    node.format(style);
+    part.format(style);
   }
 
+  /// Applies formatting to a range of text starting at [index] for [len] characters.
+  ///
+  /// ## Example:
+  /// ```dart
+  /// final text = EasyText('Hello World');
+  /// text.formatRange(6, 5, EasyAttributeStyles([BoldAttribute()]));
+  /// // Formats 'World' as bold
+  /// ```
   void formatRange(
     int index,
     int? len,
@@ -161,18 +181,28 @@ final class EasyText extends LinkedListEntry<EasyText> {
 
     final int local = math.min<int>(length - index, len!);
     final int remain = len - local;
-    final EasyText node = _splitExactRanges(index, local);
+    final EasyText part = _splitExactRanges(index, local);
     (list as EasyTextList?)
-      ?.._lastUsedText = node
+      ?.._lastUsedText = part
       .._lastIndex = null;
 
-    if (remain > 0 && node.next != null) {
-      node.next?.formatRange(0, remain, style);
+    if (remain > 0 && part.next != null) {
+      part.next?.formatRange(0, remain, style);
     }
-    node.format(style);
+    part.format(style);
   }
 
-  //FIXME: probably we can find a way to avoid invalidating the cache
+  /// Deletes [len] characters starting from the specified [index].
+  ///
+  /// ## Throws:
+  /// - [AssertionError] if [index] is out of bounds (>= length).
+  ///
+  /// ## Example:
+  /// ```dart
+  /// final text = EasyText('Hello Beautiful World');
+  /// text.delete(6, 10); // Result: 'Hello World'
+  /// text.delete(0, 5);  // Result: 'World'
+  /// ```
   void delete(
     int index,
     int? len,
@@ -184,7 +214,7 @@ final class EasyText extends LinkedListEntry<EasyText> {
     final EasyText target = _splitExactRanges(index, local);
     final EasyText? prev = target.previous;
     final EasyText? next = target.next;
-    // since getting offset of the current target can have too much
+    // Since getting offset of the current target can have too much
     // cost, we prefer just invalidating the cached text
     invalidaParentCache();
     target.unlink();
@@ -195,11 +225,11 @@ final class EasyText extends LinkedListEntry<EasyText> {
     }
 
     if (prev != null) {
-      prev.tryMergeAdjacentText();
+      prev.tryMerge();
     }
   }
 
-  /// Isolates a new [EasyText] starting at [index] with specified [length].
+  /// Split efficiently starting at [index] with specified [length].
   EasyText _splitExactRanges(int index, int length) {
     assert(
       index >= 0 && index < this.length && (index + length <= this.length),
@@ -216,15 +246,12 @@ final class EasyText extends LinkedListEntry<EasyText> {
     if (style != null && style.isNotEmpty) {
       applyStyle(style);
     }
-    tryMergeAdjacentText();
+    tryMerge();
   }
 
   /// Splits this [EasyText] at specified [offset]
   ///
   /// Returns the inserted [EasyText] object
-  ///
-  /// In case a new node is actually split from this one, it inherits this
-  /// node's style.
   EasyText? splitAt(int index) {
     assert(
         index >= 0 && index <= length,
@@ -270,15 +297,13 @@ final class EasyText extends LinkedListEntry<EasyText> {
   /// Should be called when this fragment's content changes to ensure
   /// the parent list recalculates its cached text representation.
   void invalidaParentCache() {
-    if (list == null) return;
+    if (list == null || (list as EasyTextList)._text == null) return;
     (list as EasyTextList).text = null;
   }
 
   /// Inserts the given entry after this entry in the linked list.
   ///
   /// If the entry is already in a list, it will be unlinked first.
-  ///
-  /// @param entry The entry to insert after this one
   @override
   void insertAfter(EasyText entry) {
     if (entry.list != null) entry.unlink();
@@ -310,9 +335,17 @@ final class EasyText extends LinkedListEntry<EasyText> {
     return 'EasyText(text: $text, styles: ${styles.toJson()})';
   }
 
+  /// Whether this element is equals than the other [EasyText]
+  /// comparing its [text] and [styles]
+  bool deepEquals(EasyText other) =>
+      text == other.text && styles == other.styles || this == other;
+
   @override
   int get hashCode => Object.hashAllUnordered(<Object?>[id]);
 
   @override
-  bool operator ==(covariant EasyText other) => id == other.id;
+  bool operator ==(covariant EasyText other) {
+    if (identical(this, other)) return true;
+    return id == other.id;
+  }
 }

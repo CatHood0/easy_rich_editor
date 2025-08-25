@@ -7,13 +7,7 @@ class BoldAttribute extends EasyInlineAttribute<bool> {
   String get key => 'strong';
 
   @override
-  BoldAttribute clone(value) {
-    assert(
-      value is bool,
-      'the value passed '
-      'to $runtimeType is not an '
-      'int. Found: $value',
-    );
-    return BoldAttribute(value as bool);
+  BoldAttribute clone(bool value) {
+    return BoldAttribute(value);
   }
 }

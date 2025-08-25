@@ -10,6 +10,9 @@ class HeaderAttribute extends EasyExclusiveBlockAttribute<int?> {
   const HeaderAttribute.h5() : super(value: 5);
   const HeaderAttribute.h6() : super(value: 6);
 
+  @override
+  String get key => 'header';
+
   factory HeaderAttribute.fromLevel({
     required int? level,
     bool nullIfUnknown = true,
@@ -34,16 +37,7 @@ class HeaderAttribute extends EasyExclusiveBlockAttribute<int?> {
   }
 
   @override
-  String get key => 'header';
-
-  @override
-  HeaderAttribute clone(value) {
-    assert(
-      value is int?,
-      'the value passed '
-      'to $runtimeType is not an '
-      'int. Found: $value',
-    );
-    return HeaderAttribute(value as int?);
+  HeaderAttribute clone(int? value) {
+    return HeaderAttribute(value);
   }
 }

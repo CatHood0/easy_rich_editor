@@ -7,13 +7,7 @@ class UnderlineAttribute extends EasyInlineAttribute<bool> {
   String get key => 'underline';
 
   @override
-  UnderlineAttribute clone(value) {
-    assert(
-      value is bool,
-      'the value passed '
-      'to $runtimeType is not an '
-      'int. Found: $value',
-    );
-    return UnderlineAttribute(value as bool);
+  UnderlineAttribute clone(bool value) {
+    return UnderlineAttribute(value);
   }
 }

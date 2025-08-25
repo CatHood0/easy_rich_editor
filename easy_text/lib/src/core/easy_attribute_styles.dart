@@ -1,4 +1,3 @@
-// ignore_for_file: always_specify_types
 import 'package:collection/collection.dart';
 import 'package:easy_text/src/core/attributes/attribute.dart';
 
@@ -7,6 +6,17 @@ class EasyAttributeStyles {
 
   const EasyAttributeStyles({required this.attributes});
   EasyAttributeStyles.empty() : attributes = <String, EasyAttribute<Object?>>{};
+  EasyAttributeStyles.fromAttribute(EasyAttribute attr)
+      : attributes = <String, EasyAttribute<Object?>>{attr.key: attr};
+
+  EasyAttributeStyles.fromIterable(Iterable<EasyAttribute> attr)
+      : attributes = <String, EasyAttribute<Object?>>{}..addEntries(
+            attr.map<MapEntry<String, EasyAttribute>>(
+              (EasyAttribute<Object?> e) {
+                return MapEntry<String, EasyAttribute>(e.key, e);
+              },
+            ),
+          );
 
   EasyAttributeStyles copy() => EasyAttributeStyles(
         attributes: <String, EasyAttribute<Object?>>{

@@ -7,13 +7,7 @@ class ItalicAttribute extends EasyInlineAttribute<bool> {
   String get key => 'italic';
 
   @override
-  ItalicAttribute clone(value) {
-    assert(
-      value is bool,
-      'the value passed '
-      'to $runtimeType is not an '
-      'int. Found: $value',
-    );
-    return ItalicAttribute(value as bool);
+  ItalicAttribute clone(bool value) {
+    return ItalicAttribute(value);
   }
 }
