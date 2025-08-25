@@ -1,0 +1,13 @@
+import 'package:easy_text/src/core/attributes/attribute.dart';
+
+class ColorAttribute extends EasyInlineAttribute<String?> {
+  const ColorAttribute([String? value]) : super(value: value);
+
+  @override
+  String get key => 'inline-color';
+
+  @override
+  ColorAttribute clone(String? value) {
+    return ColorAttribute(value);
+  }
+}

@@ -1,39 +1,139 @@
-<!--
-This README describes the package. If you publish this package to pub.dev,
-this README's contents appear on the landing page for your package.
+# 📕 EasyText
+A easy and powerful text processing and styling library for Flutter that handles complex Unicode content with ease.
 
-For information about how to write a good package README, see the guide for
-[writing package pages](https://dart.dev/tools/pub/writing-package-pages).
+## Overview
 
-For general information about developing packages, see the Dart guide for
-[creating packages](https://dart.dev/guides/libraries/create-packages)
-and the Flutter guide for
-[developing packages and plugins](https://flutter.dev/to/develop-packages).
--->
-
-TODO: Put a short description of the package here that helps potential users
-know whether this package might be useful for them.
+`EasyText` provides a robust solution for working with text in Flutter applications, especially when dealing with complex Unicode characters like emojis, combined glyphs, and multilingual content. It offers precise control over text styling, formatting, and manipulation while handling the intricacies of `UTF-16` encoding transparently.
 
 ## Features
 
-TODO: List what your package can do. Maybe include images, gifs, or videos.
+### Advanced Unicode Support
+- **Grapheme Cluster Awareness**: Handle emojis, combined characters, and complex Unicode sequences as single visual units
+- **Safe Text Manipulation**: Insert, delete, and format text without corrupting Unicode sequences
+- **Position Accuracy**: Precise cursor positioning and text selection even with complex characters
 
-## Getting started
+### Rich Text Styling
+- **Inline Attributes**: Apply styles to specific text ranges (bold, italic, color, fonts)
+- **Block Attributes**: Format entire paragraphs (alignment, indentation, spacing)
+- **Exclusive Formatting**: Smart handling of mutually exclusive styles (headers, code blocks, lists)
 
-TODO: List prerequisites and provide or point to information on how to
-start using the package.
+### Performance Optimized
+- **Efficient Linked List Structure**: Optimal for frequent text modifications
+- **Lazy Evaluation**: Text processing only when needed
 
-## Usage
+## Installation
 
-TODO: Include short and useful examples for package users. Add longer examples
-to `/example` folder.
+Add `EasyText` to your `pubspec.yaml`:
 
-```dart
-const like = 'sample';
+```yaml
+dependencies:
+  easy_text: ^1.0.0
 ```
 
-## Additional information
+## Quick Start
 
-TODO: Tell users more about the package: where to find more information, how to
-contribute to the package, how to file issues, what response they can expect
-from the package authors, and more.
+### Basic Usage
+
+```dart
+import 'package:easy_text/easy_text.dart';
+
+void main() {
+  // Create a text element with complex Unicode content
+  final text = EasyText.fromStr('Hello 🎂✨ World 🌈');
+  
+  // Manipulate text safely
+  text.insert(6, 'Beautiful ');
+  print(text.text); // Output: Hello Beautiful 🎂✨ World 🌈
+  
+  // Apply formatting
+  text.formatRange(6, 9, EasyAttributeStyles.fromAttribute(EasyAttribute.bold));
+}
+```
+
+### Working with Styles
+
+```dart
+// Create styled text
+final styledText = EasyText.fromStr(
+  'Welcome to EasyText',
+  style: EasyAttributeStyles.fromIterable([
+    EasyAttribute.bold,
+    ColorAttribute('#FFBBAA'),
+    FontSizeAttribute(16.0),
+  ]),
+);
+
+// Format specific ranges
+text.formatRange(0, 5, EasyAttributeStyles.fromAttribute(EasyAttribute.italic));
+text.formatRange(11, 8, EasyAttributeStyles.fromAttribute(EasyAttribute.underline));
+
+// Apply block-level formatting
+text.formatRange(0, text.length, EasyAttributeStyles.fromAttribute(EasyAttribute.h1));
+```
+
+### Handling Complex Text
+
+```dart
+// Safe manipulation with emojis and Unicode
+final complexText = EasyText.fromStr('👨‍👩‍👧‍👦 Family emoji with text');
+
+// These operations won't corrupt the Unicode sequences
+complexText.insert(1, ' Beautiful'); // Inserts after the family emoji
+complexText.delete(0, 1); // Removes the family emoji correctly
+complexText.formatRange(0, 10, EasyAttributeStyles.fromAttribute(EasyAttribute.bold));
+```
+
+## Core Concepts
+
+### EasyText parts 
+The fundamental building blocks that represent text segments with optional styling. Each part manages its own content and attributes while being part of a larger text structure.
+
+### EasyTextList
+A specialized linked list that manages EasyText nodes with optimized text operations and caching mechanisms.
+
+### Attribute System
+- **Inline Attributes**: Style applied to text ranges (colors, fonts, decorations)
+- **Block Attributes**: Paragraph-level formatting (alignment, indentation, direction)
+- **Exclusive Attributes**: Mutually exclusive styles that automatically replace each other
+
+## Advanced Usage
+
+### Custom Attributes
+
+```dart
+class HighlightAttribute extends EasyAttribute<Color> {
+  const HighlightAttribute(Color value) : super(value: value);
+  
+  @override
+  String get key => 'highlight';
+  
+  @override
+  bool get isInline => true;
+  
+  @override
+  bool get exclusive => false;
+  
+  @override
+  bool canMergeWith(EasyAttribute attribute) => true;
+  
+  @override
+  EasyAttribute clone(Color value) => HighlightAttribute(value);
+}
+
+// Register and use custom attribute
+EasyAttribute.addCustom({'highlight': HighlightAttribute(Colors.yellow)});
+text.formatRange(0, 5, EasyAttributeStyles.fromAttribute(HighlightAttribute(Colors.yellow)));
+```
+
+
+## Common Use Cases
+
+- **Rich Text Editors**: Full-featured editing with complex styling
+- **Chat Applications**: Emoji-heavy text with mixed formatting
+- **Content Management Systems**: Structured text with semantic formatting
+- **Localization**: Multilingual text with mixed scripts and directions
+- **Social Media Apps**: User-generated content with emojis and formatting
+
+## License
+
+`EasyText` is released under the MIT License. See [LICENSE](LICENSE) for details.

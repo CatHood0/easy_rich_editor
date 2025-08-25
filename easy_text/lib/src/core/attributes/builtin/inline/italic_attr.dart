@@ -1,11 +1,13 @@
-import 'package:easy_rich_editor/src/core/api/attributes/attribute.dart';
+import 'package:easy_text/src/core/attributes/attribute.dart';
 
-class ItalicAttribute extends EasyAttribute<bool> {
-  ItalicAttribute({
-    required super.value,
-  }) : super(
-          key: 'italic',
-          isInline: true,
-          exclusive: false,
-        );
+class ItalicAttribute extends EasyInlineAttribute<bool> {
+  const ItalicAttribute([bool value = true]) : super(value: value);
+
+  @override
+  String get key => 'italic';
+
+  @override
+  ItalicAttribute clone(bool value) {
+    return ItalicAttribute(value);
+  }
 }

@@ -1,11 +1,13 @@
-import 'package:easy_rich_editor/src/core/api/attributes/attribute.dart';
+import 'package:easy_text/src/core/attributes/attribute.dart';
 
-class BoldAttribute extends EasyAttribute<bool> {
-  BoldAttribute({
-    required super.value,
-  }) : super(
-          key: 'bold',
-          isInline: true,
-          exclusive: false,
-        );
+class BoldAttribute extends EasyInlineAttribute<bool> {
+  const BoldAttribute([bool value = true]) : super(value: value);
+
+  @override
+  String get key => 'strong';
+
+  @override
+  BoldAttribute clone(bool value) {
+    return BoldAttribute(value);
+  }
 }
