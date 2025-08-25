@@ -1,5 +1,5 @@
 import 'package:collection/collection.dart';
-import 'package:easy_text/src/core/attributes/attribute.dart';
+import '../../attributes.dart';
 
 const MapEquality<String, EasyAttribute<Object?>> _eq =
     MapEquality<String, EasyAttribute>();

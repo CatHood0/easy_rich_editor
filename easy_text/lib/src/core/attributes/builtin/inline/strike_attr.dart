@@ -1,4 +1,4 @@
-import 'package:easy_text/src/core/attributes/attribute.dart';
+import '../../attribute.dart';
 
 class StrikeAttribute extends EasyInlineAttribute<bool> {
   const StrikeAttribute([bool value = true]) : super(value: value);

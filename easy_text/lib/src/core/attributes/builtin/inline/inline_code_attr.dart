@@ -1,4 +1,4 @@
-import 'package:easy_text/src/core/attributes/attribute.dart';
+import '../../attribute.dart';
 
 class InlineCodeAttribute extends EasyInlineAttribute<bool> {
   const InlineCodeAttribute([bool value = true]) : super(value: value);

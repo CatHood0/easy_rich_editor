@@ -2,10 +2,8 @@ import 'dart:collection';
 import 'dart:math' as math;
 
 import 'package:characters/characters.dart';
-import 'package:easy_text/src/core/attributes/attribute.dart';
-import 'package:easy_text/src/core/easy_attribute_styles.dart';
 import 'package:uuid/v4.dart';
-
+import '../../easy_text.dart';
 part '../core/easy_text_list.dart';
 
 const UuidV4 uuid = UuidV4();

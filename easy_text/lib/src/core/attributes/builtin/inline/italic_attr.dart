@@ -1,4 +1,4 @@
-import 'package:easy_text/src/core/attributes/attribute.dart';
+import '../../attribute.dart';
 
 class ItalicAttribute extends EasyInlineAttribute<bool> {
   const ItalicAttribute([bool value = true]) : super(value: value);

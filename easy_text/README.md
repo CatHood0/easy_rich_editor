@@ -1,4 +1,4 @@
-# 📕 EasyText
+# 📕 Easy Text
 A easy and powerful text processing and styling library for Flutter that handles complex Unicode content with ease.
 
 ## Overview

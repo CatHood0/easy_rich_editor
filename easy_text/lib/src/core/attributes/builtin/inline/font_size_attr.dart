@@ -1,4 +1,4 @@
-import 'package:easy_text/src/core/attributes/attribute.dart';
+import '../../attribute.dart';
 
 class FontSizeAttribute extends EasyInlineAttribute<double?> {
   const FontSizeAttribute([double? value]) : super(value: value);

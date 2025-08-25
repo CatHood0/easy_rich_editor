@@ -1,6 +1,6 @@
 import 'package:collection/collection.dart';
-import 'package:easy_text/attributes.dart';
-import 'package:easy_text/src/core/attributes/builtin/inline/link_attr.dart';
+import '../../../attributes.dart';
+import 'builtin/inline/link_attr.dart';
 
 part 'abstractions.dart';
 
