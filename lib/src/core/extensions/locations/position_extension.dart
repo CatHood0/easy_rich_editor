@@ -1,4 +1,4 @@
-import 'package:easy_rich_editor/src/core/extensions/runes_positioning.dart';
+import 'package:easy_attribution_text/easy_text.dart';
 import 'package:flutter/material.dart';
 import '../../../../easy_rich_editor.dart';
 

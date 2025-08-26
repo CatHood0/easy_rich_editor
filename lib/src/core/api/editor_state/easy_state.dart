@@ -1,5 +1,4 @@
 import 'package:dart_quill_delta/dart_quill_delta.dart';
-import 'package:easy_parsers/easy_parsers.dart';
 import 'package:easy_rich_editor/easy_rich_editor.dart';
 import 'package:easy_rich_editor/src/core/api/selection/remote/remote_selection.dart';
 import 'package:flutter/material.dart';

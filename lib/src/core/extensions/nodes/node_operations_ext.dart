@@ -120,7 +120,7 @@ extension NodeOperations on Node {
   FragmentChangeContext format(
     int start,
     int? len, {
-    required List<EasyAttribute<dynamic>> attributes,
+    required EasyAttributeStyles attributes,
     bool formatBlock = false,
     NodeModifier modifier = NodeModifier.defaultModifier,
   }) {
@@ -133,7 +133,7 @@ extension NodeOperations on Node {
       this,
       start,
       len ?? 1,
-      attributes: <EasyAttribute<dynamic>>[...attributes],
+      attributes: EasyAttributeStyles,
       formatBlock: formatBlock,
     );
   }

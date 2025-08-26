@@ -1,5 +1,5 @@
 import 'package:collection/collection.dart';
-import 'package:easy_rich_editor/src/core/api/attributes/attribute.dart';
+import 'package:easy_attribution_text/easy_text.dart';
 import 'package:easy_rich_editor/src/core/api/document/nodes/node.dart';
 import 'package:easy_rich_editor/src/core/api/document/path/path.dart';
 import 'package:easy_rich_editor/src/core/exceptions/illegal_node_exception.dart';
@@ -165,7 +165,7 @@ class DefaultNodeModifier extends NodeModifier {
         'global: ${node.globalOffset}, '
         'path: ${node.deepPath})');
     assert(
-        node.hasDefinedValue && node.isFragmentSupported,
+        node.hasDefinedValue,
         'Only nodes with defined values '
         'can be changed. But, '
         'found: ${node.shortInfo()}');
@@ -282,12 +282,9 @@ class DefaultNodeModifier extends NodeModifier {
     Node node,
     int start,
     Object data, {
-    int jumpNodeOffset = 0,
-    int fragmentPosition = 0,
-    int jumpOffset = 0,
-    int stringLimitLength = 300,
     bool computeParentCache = true,
-    Map<String, dynamic>? attributes,
+    EasyAttributeStyles? attributes,
+    NodeCursorPosLocation? location,
   }) {
     if (node.isBlockNode || node.isRootOwner) {
       final NodeCursorPosLocation location =
@@ -297,17 +294,16 @@ class DefaultNodeModifier extends NodeModifier {
       }
 
       if (node.isBlockNode && location.found) {
-        final bool isParagraph = node.type == ParagraphKeys.key;
-        final bool isEmbed = node.type == EmbedKeys.key &&
-            node.isNotEmpty &&
-            !location.node!.isValueEmpty;
-        if (data is! String && (isParagraph || isEmbed)) {
+        final bool isParagraph = node.isBlock;
+        final bool isEmptyEmbed =
+            node.isEmbedBlock && node.isNotEmpty && !location.node!.hasNoEmbed;
+        if (data is! String && (isParagraph || isEmptyEmbed)) {
           final Node embedBlock = Node.embedBlock(data: null);
           if (location.locationOffset == 0 && location.node!.isFirst) {
             node.insertBefore(embedBlock);
           } else if ((location.locationOffset == node.dataLength &&
                   location.node!.isLast) ||
-              isEmbed) {
+              isEmptyEmbed) {
             node.insertAfter(embedBlock);
           } else {
             final (Node? right, MultipleFragmentChangeContext? context) = split(
@@ -315,7 +311,7 @@ class DefaultNodeModifier extends NodeModifier {
               start,
               linePath: location.node!.path.nonNegative,
               jumpOffset: location.jumpOffset.nonNegative,
-              fragmentPath: location.fragmentIndex.nonNegative,
+              fragmentPath: location.textIndex.nonNegative,
               jumpedLineOffset: location.jumpNodeOffset.nonNegative,
             );
 
@@ -459,7 +455,7 @@ class DefaultNodeModifier extends NodeModifier {
         location.locationOffset,
         data,
         jumpNodeOffset: location.jumpNodeOffset,
-        fragmentPosition: location.fragmentIndex.or(fragmentPosition),
+        fragmentPosition: location.textIndex.or(fragmentPosition),
         jumpOffset: location.jumpOffset.nonNegative,
         stringLimitLength: stringLimitLength,
       );
@@ -473,18 +469,14 @@ class DefaultNodeModifier extends NodeModifier {
     }
 
     assert(
-        node.hasDefinedValue && node.isFragmentSupported,
+        node.hasDefinedValue,
         'value must '
         'be defined');
     assert(start >= 0 && start <= node.dataLength.next,
         'start: $start is out of range => 0 to ${node.dataLength.next}');
 
     if (!isSupportedValue(data, node.type) ||
-        // embed nodes can only have a line and fragment per
-        // block
-        data is! String &&
-            node.type == EmbedKeys.childrenKey &&
-            !node.isValueEmpty) {
+        data is! String && node.isEmbedLine && !node.hasNoEmbed) {
       // when we are into a [Line] or [EmbedLine]
       // we prefer go to parent and trying to make
       // an automatic split
@@ -592,8 +584,8 @@ class DefaultNodeModifier extends NodeModifier {
         location.locationOffset,
         len,
         forward: forward,
-        fragmentPosition: location.fragmentIndex.or(fragmentPosition),
-        fragmentEndPosition: endLocation.fragmentIndex,
+        fragmentPosition: location.textIndex.or(fragmentPosition),
+        fragmentEndPosition: endLocation.textIndex,
         jumpOffset: location.jumpOffset.nonNegative,
       );
 
@@ -705,7 +697,7 @@ class DefaultNodeModifier extends NodeModifier {
       effectiveLeftLen,
       jumpNodeOffset: location.jumpNodeOffset,
       jumpOffset: location.jumpOffset.nonNegative,
-      fragmentPosition: location.fragmentIndex.nonNegative,
+      fragmentPosition: location.textIndex.nonNegative,
       computeParentCache: false,
     );
     assert(
@@ -719,7 +711,7 @@ class DefaultNodeModifier extends NodeModifier {
       effectiveRightLen,
       jumpNodeOffset: endLocation.jumpNodeOffset,
       jumpOffset: endLocation.jumpOffset.nonNegative,
-      fragmentPosition: endLocation.fragmentIndex.nonNegative,
+      fragmentPosition: endLocation.textIndex.nonNegative,
       computeParentCache: false,
     );
 
@@ -784,6 +776,7 @@ class DefaultNodeModifier extends NodeModifier {
     int jumpOffset = 0,
     int linePath = 0,
     int jumpedLineOffset = 0,
+    EasyText? text,
   }) {
     if (node.type == EmbedKeys.key || node.type == EmbedKeys.childrenKey) {
       return (null, null);
@@ -905,7 +898,7 @@ class DefaultNodeModifier extends NodeModifier {
     Node node,
     int start,
     int len, {
-    required List<EasyAttribute<dynamic>> attributes,
+    required EasyAttributeStyles attributes,
     bool formatBlock = false,
   }) {
     if (node.isBlockNode || node.isRootOwner) {
@@ -980,7 +973,7 @@ class DefaultNodeModifier extends NodeModifier {
     NodeCursorPosLocation end,
     int len,
     bool formatBlock,
-    List<EasyAttribute<dynamic>> attributes,
+    EasyAttributeStyles attributes,
   ) {
     if (!formatBlock && start.node == end.node) {
       return _formatCharactersInMultipleNodes(
@@ -997,7 +990,7 @@ class DefaultNodeModifier extends NodeModifier {
     Node node,
     int start,
     int len,
-    List<EasyAttribute<dynamic>> attributes,
+    EasyAttributeStyles attributes,
   ) {
     return NodeModifier.defaultNonExecutedContext;
   }
@@ -1006,7 +999,7 @@ class DefaultNodeModifier extends NodeModifier {
     Node node,
     int start,
     int len,
-    List<EasyAttribute<dynamic>> attributes,
+    EasyAttributeStyles attributes,
   ) {
     assert(
         node.hasDefinedValue && node.isFragmentSupported,
@@ -1016,7 +1009,7 @@ class DefaultNodeModifier extends NodeModifier {
     final FragmentChangeContext context = node.formatValueAt(
       start,
       len,
-      <EasyAttribute<dynamic>>[...attributes],
+      attributes.copy(),
     );
 
     return context;
@@ -1026,7 +1019,7 @@ class DefaultNodeModifier extends NodeModifier {
     Node node,
     int start,
     int end,
-    List<EasyAttribute<dynamic>> attributes,
+    EasyAttributeStyles attributes,
   ) {
     assert(
         node.isBlockNode,

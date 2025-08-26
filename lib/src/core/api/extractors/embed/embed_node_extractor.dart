@@ -23,12 +23,10 @@ class EmbedNodeExtractor extends NodeExtractor<TextFragment> {
   @internal
   @override
   List<String> formatObjectToStr(Object obj) {
-    assert(obj is List<TextFragment>,
-        "The value passed must be a list of TextFragment but found ${obj.runtimeType}");
-    return [
-      ...obj.castToFragments().map<String>((TextFragment fr) {
-        return _formatFragment(fr);
-      }),
+    assert(obj is TextFragment,
+        "The value passed must be a list of EasyText but found ${obj.runtimeType}");
+    return <String>[
+      _formatFragment(obj.castToFragment()),
     ];
   }
 
@@ -41,7 +39,6 @@ class EmbedNodeExtractor extends NodeExtractor<TextFragment> {
     Node node, {
     bool Function(Node value)? filter,
   }) {
-    // TODO: implement getLinesFromNode
     throw UnimplementedError();
   }
 
@@ -51,7 +48,7 @@ class EmbedNodeExtractor extends NodeExtractor<TextFragment> {
     bool Function(Node value)? filter,
     bool needsTraverse = true,
   }) {
-    final List<TextFragment> fragments = [];
+    final List<TextFragment> fragments = <TextFragment>[];
 
     if (needsTraverse) {
       if (node.isEmpty) return fragments;
@@ -69,17 +66,17 @@ class EmbedNodeExtractor extends NodeExtractor<TextFragment> {
       }
       return fragments;
     }
-    if (node.type == EmbedKeys.childrenKey) {
+    if (node.isEmbedLine) {
       if (node.value == null) return fragments;
-      if (node.value is! Iterable<TextFragment>) {
+      if (node.value is! TextFragment) {
         throw UnsupportedError(
           "Expected "
-          "List<TextFragment> type, "
+          "TextFragment type, "
           "founded: ${node.value.runtimeType} "
-          "in ${node.type}:${node.id}",
+          "in ${node.shortInfo()}",
         );
       }
-      fragments.addAll(node.value!.cast());
+      fragments.add(node.castToFragment());
     }
     return fragments;
   }
@@ -109,12 +106,12 @@ class EmbedNodeExtractor extends NodeExtractor<TextFragment> {
       final List<NodeValueLocation> locations = <NodeValueLocation>[];
       while (index < node.length) {
         final Node child = node.elementAt(index)
-          ..updatePathsIfNeeded(index, [...path, index]);
+          ..updatePathsIfNeeded(index, <int>[...path, index]);
         final List<NodeValueLocation> location = getLocationsOfValue(
           child,
           value,
           limiter,
-          path: [...path, index],
+          path: <int>[...path, index],
           caseSensitive: caseSensitive,
         );
 
@@ -125,9 +122,9 @@ class EmbedNodeExtractor extends NodeExtractor<TextFragment> {
       return locations;
     }
     assert(
-      node.value is Iterable<TextFragment>,
+      node.supportEmbed,
       "EmbedNodeExtractor only "
-      "accept List<TextFragment> or Iterable<TextFragment> values to get locations and"
+      "accept TextFragment values to get locations and"
       " found ${node.value.runtimeType}",
     );
     if (node.value == value) {

@@ -1,11 +1,10 @@
+import 'package:easy_attribution_text/easy_text.dart';
 import 'package:easy_rich_editor/easy_rich_editor.dart';
-import 'package:easy_rich_editor/src/core/extensions/object_ext.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter/widgets.dart';
-import 'package:flutter_quill_delta_easy_parser/flutter_quill_delta_easy_parser.dart';
 import 'package:meta/meta.dart';
 
-class ParagraphNodeExtractor extends NodeExtractor<TextFragment> {
+class ParagraphNodeExtractor extends NodeExtractor<EasyText> {
   static final ParagraphNodeExtractor _instance = ParagraphNodeExtractor._();
 
   ParagraphNodeExtractor._();
@@ -14,7 +13,7 @@ class ParagraphNodeExtractor extends NodeExtractor<TextFragment> {
 
   @override
   bool canNodeHaveValueType(Node node, Type t) {
-    if (node.type == ParagraphKeys.lineKey && t == TextFragment) {
+    if (node.type == ParagraphKeys.lineKey && t == EasyText) {
       return true;
     }
     return false;
@@ -23,30 +22,30 @@ class ParagraphNodeExtractor extends NodeExtractor<TextFragment> {
   @internal
   @override
   List<String> formatObjectToStr(Object obj) {
-    assert(obj is Iterable<TextFragment> || obj is TextFragment,
-        "The value passed must be a list of fragments or just TextFragment");
+    assert(obj is EasyTextList || obj is EasyText,
+        "The value passed must be a EasyTextList or just EasyText");
     return <String>[
-      if (obj is TextFragment) _formatFragment(obj),
-      if (obj is Iterable<TextFragment>)
-        ...obj.map<String>((TextFragment fr) {
+      if (obj is EasyText) _formatFragment(obj),
+      if (obj is EasyTextList)
+        ...obj.map<String>((EasyText fr) {
           return _formatFragment(fr);
         }),
     ];
   }
 
-  String _formatFragment(TextFragment fragment) {
-    return fragment.attributes != null
-        ? "{${fragment.data.toString()} -> ${fragment.attributes.toString()}}"
-        : fragment.data.toString();
+  String _formatFragment(EasyText fragment) {
+    return fragment.styles.isEmpty
+        ? "{${fragment.text} -> ${fragment.styles.toJson()}}"
+        : '${fragment.text}';
   }
 
   @override
-  List<TextFragment> getValueFromNode(
+  List<EasyText> getValueFromNode(
     Node node, {
     bool Function(Node value)? filter,
     bool needsTraverse = true,
   }) {
-    final List<TextFragment> fragments = <TextFragment>[];
+    final List<EasyText> fragments = <EasyText>[];
 
     if (needsTraverse) {
       if (node.isEmpty) return fragments;
@@ -64,17 +63,17 @@ class ParagraphNodeExtractor extends NodeExtractor<TextFragment> {
       }
       return fragments;
     }
-    if (node.type == ParagraphKeys.lineKey) {
+    if (node.isBlockLine) {
       if (node.value == null) return fragments;
-      if (node.value is! Iterable<TextFragment>) {
+      if (node.value is! EasyTextList) {
         throw UnsupportedError(
           "Expected "
-          "List<TextFragment> type, "
+          "EasyTextList type, "
           "founded: ${node.value.runtimeType} "
-          "in ${node.type}:${node.id}",
+          "in ${node.shortInfo()}",
         );
       }
-      fragments.addAll(node.value!.cast());
+      fragments.addAll(node.texts);
     }
     return fragments;
   }
@@ -131,9 +130,9 @@ class ParagraphNodeExtractor extends NodeExtractor<TextFragment> {
     }
 
     assert(
-      node.value is Iterable<TextFragment>,
+      node.supportEasyText,
       "ParagraphNodeExtractor only "
-      "accept List<TextFragment> or Iterable<TextFragment> values to get locations and"
+      "accept EasyTextList values to get locations and"
       " found ${node.value.runtimeType}",
     );
     final List<TextRange> ranges = <TextRange>[];

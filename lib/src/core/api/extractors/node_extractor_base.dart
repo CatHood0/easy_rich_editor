@@ -18,7 +18,7 @@ abstract class NodeExtractor<T extends Object?> {
 
   /// Get the value from the Node passed
   ///
-  /// The node passed, usually is direct Node that contains the value. 
+  /// The node passed, usually is direct Node that contains the value.
   List<T> getValueFromNode(
     Node node, {
     bool Function(Node value)? filter,

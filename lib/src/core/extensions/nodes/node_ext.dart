@@ -17,78 +17,65 @@ extension NodeExt on Node {
     return Rect.zero;
   }
 
-  bool get hasDefinedValue => value != null && value is List<TextFragment>;
+  /// Whether this [Node]  has defined it's value
+  bool get hasDefinedValue =>
+      (isEmbedLine ? supportEmbed : supportEasyText) || value != null;
+
+  /// Whether this [Node] is a block (a container of children lines)
   bool get isBlockNode => metadata['block'] as bool? ?? !hasDefinedValue;
 
-  bool get isValueEmpty => isBlankText;
-
+  /// Whether this [Node] has some text into
   bool get hasText =>
-      value != null &&
-      value is List<TextFragment> &&
-      value!.cast<List<TextFragment>>().isNotEmpty &&
-      value!.cast<List<TextFragment>>().first.data is String;
+      supportEasyText && texts.isNotEmpty && texts.first.text.isNotEmpty;
 
-  bool get isNewLine =>
-      value != null &&
-      value is List<TextFragment> &&
-      value!.cast<List<TextFragment>>().isNotEmpty &&
-      value!.cast<List<TextFragment>>().first.data == '\n';
+  /// Whether this [Node] hasn't some text into
+  bool get hasNoText =>
+      supportEasyText &&
+      (texts.isEmpty || texts.length == 1 && texts.first.text.isEmpty);
 
-  bool get isFragmentSupported => value != null && value is List<TextFragment>;
+  /// Whether this [Node] has [TextFragment] content
+  bool get hasEmbed => supportEmbed && value.castToFragment().data is Map;
 
-  bool get isEmptyText =>
-      value != null &&
-      value is List<TextFragment> &&
-      fragments.first.text().isEmpty;
+  /// Whether this [Node] has not [TextFragment] content
+  bool get hasNoEmbed => supportEmbed && value == null;
 
-  bool get isBlankOrEmpty => isBlankText || isEmptyText;
+  /// Whether this [Node] supports [EasyText] and [EasyTextList]
+  bool get supportEasyText =>
+      isBlockLine || value != null && value is EasyTextList;
 
-  bool get isEmbedBlock =>
-      type == EmbedKeys.key || type == EmbedKeys.childrenKey;
+  /// Whether this [Node] support [TextFragment] content
+  bool get supportEmbed =>
+      isEmbedLine || value != null && value is TextFragment;
 
-  bool get isBlock =>
-      type == ParagraphKeys.key || type == ParagraphKeys.lineKey;
+  /// Whether this [Node] supports is fully empty
+  bool get isBlankOrEmpty => isEmbedLine ? !hasEmbed : isBlankText;
 
-  bool get isBlankText =>
-      value != null &&
-      value is List<TextFragment> &&
-      value!.cast<List<TextFragment>>().isEmpty;
+  /// Whether this [Node] is [Embed]
+  bool get isEmbedBlock => type == EmbedKeys.key;
 
+  /// Whether this [Node] is [EmbedLine]
+  bool get isEmbedLine => type == EmbedKeys.childrenKey;
+
+  /// Whether this [Node] is [Paragraph]
+  bool get isBlock => type == ParagraphKeys.key;
+
+  /// Whether this [Node] is [Line]
+  bool get isBlockLine => type == ParagraphKeys.lineKey;
+
+  /// Whether this [Node] is blank
+  bool get isBlankText => supportEasyText && texts.isEmpty;
+
+  /// Whether this [Node] is not blank
   bool get isNotBlankText => !isBlankText;
 
-  bool get hasEmbed =>
-      value != null &&
-      value is List<TextFragment> &&
-      value!.cast<List<TextFragment>>().isNotEmpty &&
-      value!.cast<List<TextFragment>>().first.data is Map<String, dynamic>;
+  EasyTextList get texts => value.castToEasyText();
+
+  /// Whether this [Node] has no value defined, and count as blank block
+  bool get isBlank => value == null;
 
   void get assertRoot {
     assert(isRootOwner, 'The node ${shortInfo()} is not the wanted one');
   }
-
-  List<TextFragment> get fragments => value.castToFragments();
-  bool get isBlank => value == null;
-}
-
-extension NodeEquality on Iterable<Node> {
-  bool equals(Iterable<Node> other) {
-    if (length != other.length) {
-      return false;
-    }
-    for (int i = 0; i < length; i++) {
-      if (!_nodeEquals(elementAt(i), other.elementAt(i))) {
-        return false;
-      }
-    }
-    return true;
-  }
-
-  bool _nodeEquals<T, U>(T base, U other) =>
-      identical(this, other) ||
-      base is Node &&
-          other is Node &&
-          other.type == base.type &&
-          other.children.equals(base.children);
 }
 
 extension NodeUtilities on Node {
@@ -111,14 +98,20 @@ extension NodeUtilities on Node {
   }
 
   Node deepCopy() {
+    Object? v;
+    if (supportEasyText) {
+      v = EasyTextList()
+        ..addAll(
+          texts.map<EasyText>((EasyText n) => n.copyWith()),
+        );
+    }
+    v ??= value;
     return Node(
       id: id,
       type: type,
-      value: isFragmentSupported ? fragments.toList() : value,
-      // we cannot use deepCopy for parent to
-      // avoid circular references (stackoverflow)
+      value: v,
       parent: parent?.copyWith(),
-      children: children.map<Node>((Node e) => e.deepCopy()).toList(),
+      children: <Node>[...children.map<Node>((Node e) => e.deepCopy())],
       metadata: <String, dynamic>{...metadata},
       blockAttributes: blockAttributes,
       canModifyChildrenLength: canAddOrRemovedChildren,
@@ -139,41 +132,4 @@ extension NodeUtilities on Node {
       index++;
     }
   }
-
-  Node copyWith({
-    String? type,
-    String? id,
-    Map<String, dynamic>? metadata,
-    List<Node>? children,
-    Node? parent,
-    Object? value,
-  }) {
-    return Node(
-      type: type ?? this.type,
-      value: value ?? this.value,
-      id: id ?? this.id,
-      parent: parent ?? this.parent,
-      children: children ?? <Node>[...this.children],
-    );
-  }
-
-  Map<String, dynamic> toJson() {
-    return <String, dynamic>{
-      "type": type,
-      "id": id,
-      "value": value,
-      "metadata": metadata,
-      "children": children
-          .map(
-            (Node e) => e.toJson(),
-          )
-          .toList(),
-    };
-  }
-
-  @internal
-  bool get isRootOwner =>
-      id == Node.rootId ||
-      type == Node.rootId ||
-      metadata['root'] != null && metadata['root'] as bool;
 }

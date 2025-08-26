@@ -1,6 +1,7 @@
 import 'package:easy_rich_editor/src/tree_manager/tree.dart';
 import 'package:flutter/material.dart';
 import '../../../../easy_rich_editor.dart';
+import '../operations/fixed_list_length.dart';
 
 class EasyDocument {
   final Tree _tree;

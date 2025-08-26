@@ -1,6 +1,5 @@
+import 'package:easy_attribution_text/easy_text.dart';
 import 'package:flutter_quill_delta_easy_parser/flutter_quill_delta_easy_parser.dart';
-
-import '../../../../attributes.dart';
 import '../../../../easy_rich_editor.dart';
 
 typedef VerifyTypeFn = bool Function(Object);
@@ -62,7 +61,7 @@ abstract class NodeModifier {
     Node node,
     int start,
     int len, {
-    required List<EasyAttribute<dynamic>> attributes,
+    required EasyAttributeStyles attributes,
     bool formatBlock = false,
   });
 

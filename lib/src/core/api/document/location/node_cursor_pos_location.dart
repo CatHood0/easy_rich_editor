@@ -1,3 +1,4 @@
+import 'package:easy_attribution_text/easy_text.dart';
 import 'package:easy_rich_editor/easy_rich_editor.dart';
 
 /// The location of the current Node and
@@ -9,11 +10,14 @@ class NodeCursorPosLocation {
   final NodeLocation? location;
 
   /// The exact index position of the [TextFragment]
-  final int fragmentIndex;
+  final int textIndex;
+
+  /// The particular [EasyText] where the cursor match
+  final EasyText? text;
 
   /// The exact relative cursor position
   /// into the [TextFragment] defined in
-  /// [fragmentIndex]
+  /// [textIndex]
   final int fragmentOffset;
 
   /// The exact relative cursor position
@@ -40,16 +44,18 @@ class NodeCursorPosLocation {
           path: node.deepPath,
           node: node,
         ),
+        text = null,
         fragmentOffset = -1,
         jumpOffset = -1,
-        fragmentIndex = -1;
+        textIndex = -1;
 
   NodeCursorPosLocation({
     required this.location,
     required this.locationOffset,
     required this.jumpNodeOffset,
+    this.text,
     this.jumpOffset = -1,
-    this.fragmentIndex = -1,
+    this.textIndex = -1,
     this.fragmentOffset = -1,
   });
 
@@ -59,21 +65,22 @@ class NodeCursorPosLocation {
         jumpOffset = -1,
         jumpNodeOffset = -1,
         locationOffset = -1,
-        fragmentIndex = -1;
+        text = null,
+        textIndex = -1;
 
   /// Determines if we not found the [Node]
   bool get notFoundLocation =>
-      location == null && fragmentIndex <= -1 && locationOffset <= -1;
+      location == null && textIndex <= -1 && locationOffset <= -1;
 
   /// Determines if we found the [Node]
   bool get found =>
-      location != null && fragmentIndex > -1 && locationOffset > -1 ||
+      location != null && textIndex > -1 && locationOffset > -1 ||
       location != null && node!.hasDefinedValue;
 
   /// Determines if we found the [Node] but not the [TextFragment]
   /// at the specified [Offset]
   bool get foundButNotFragment =>
-      location != null && fragmentOffset <= -1 && fragmentIndex <= -1;
+      location != null && fragmentOffset <= -1 && textIndex <= -1;
 
   Node? get node => location?.node;
 
@@ -84,7 +91,7 @@ class NodeCursorPosLocation {
   NodeCursorPosLocation withOffset(int offset) {
     return NodeCursorPosLocation(
       location: location,
-      fragmentIndex: fragmentIndex,
+      textIndex: textIndex,
       jumpNodeOffset: jumpNodeOffset,
       fragmentOffset: fragmentOffset,
       locationOffset: offset,
@@ -96,14 +103,16 @@ class NodeCursorPosLocation {
     NodeLocation? location,
     int? jumpOffset,
     int? jumpNodeOffset,
-    int? fragmentIndex,
+    int? textIndex,
     int? fragmentOffset,
     int? locationOffset,
+    EasyText? text,
   }) {
     return NodeCursorPosLocation(
       location: location ?? this.location,
       jumpOffset: jumpOffset ?? this.jumpOffset,
-      fragmentIndex: fragmentIndex ?? this.fragmentIndex,
+      text: text ?? this.text,
+      textIndex: textIndex ?? this.textIndex,
       fragmentOffset: fragmentOffset ?? this.fragmentOffset,
       locationOffset: locationOffset ?? this.locationOffset,
       jumpNodeOffset: jumpNodeOffset ?? this.jumpNodeOffset,
@@ -112,7 +121,7 @@ class NodeCursorPosLocation {
 
   @override
   String toString() {
-    return 'NodeValueLocation(index: $fragmentIndex, '
+    return 'NodeValueLocation(index: $textIndex, '
         'offset: $fragmentOffset, '
         'jumpOffset: $jumpOffset, '
         'locationOffset: $locationOffset, '

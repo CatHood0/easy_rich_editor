@@ -104,7 +104,8 @@ extension NodeSearchExt on Node {
   Node? jumpToPrevious() {
     if (previous != null) return previous;
 
-    return jumpToOptionalParent(stopAt: (Node n) => n.previous != null)?.previous;
+    return jumpToOptionalParent(stopAt: (Node n) => n.previous != null)
+        ?.previous;
   }
 
   Node? jumpToNext() {
@@ -181,13 +182,12 @@ extension NodeSearchExt on Node {
       if (cursorPos < len ||
           (includeLastNode && cursorPos == len && node.isLast)) {
         // this means that we are in a `Node` of type `Line` or `EmbedLine`
-        if (node.hasDefinedValue) {
-          final List<TextFragment> frags = node.value!.castToFragments();
+        int i = 0;
+        if (node.supportEasyText && node.isNotBlankText) {
+          final EasyTextList frags = node.castToEasyText();
           int fragOffset = 0;
-          for (int i = 0; i < frags.length; i++) {
-            final TextFragment frag = frags[i];
-            final int fragmentLength =
-                frag.data is String ? frag.data.castString().length : 1;
+          for (EasyText frag in frags) {
+            final int fragmentLength = frag.length;
 
             final int effectivePosition = fragOffset + fragmentLength;
             // if the cursor is in this exact fragment
@@ -198,13 +198,15 @@ extension NodeSearchExt on Node {
                   node: node,
                 ),
                 jumpNodeOffset: offset,
-                fragmentIndex: i,
+                text: frag,
+                textIndex: i,
                 fragmentOffset: cursorPos - fragOffset,
                 locationOffset: cursorPos,
               );
             }
 
             fragOffset += fragmentLength;
+            i++;
           }
         }
 
@@ -261,13 +263,17 @@ extension NodeSearchExt on Node {
       return NodeCursorPosLocation(
         location: NodeLocation.from(lastNode),
         jumpNodeOffset: lastNode.offset,
-        jumpOffset: lastNode.isBlockNode || lastNode.isBlankText
+        jumpOffset: lastNode.isBlockNode ||
+                !lastNode.supportEasyText ||
+                lastNode.isBlankText
             ? -1
-            : (lastNode.dataLength - lastNode.fragments.last.length)
-                .nonNegative,
-        fragmentIndex: lastNode.isBlockNode || !lastNode.hasDefinedValue
+            : (lastNode.dataLength - lastNode.texts.last.length).nonNegative,
+        text: lastNode.supportEasyText ? lastNode.texts.last : null,
+        textIndex: lastNode.isBlockNode || !lastNode.hasDefinedValue
             ? -1
-            : lastNode.fragments.length.decr.nonNegative,
+            : !lastNode.supportEasyText
+                ? 0
+                : lastNode.texts.length.decr.nonNegative,
         fragmentOffset: lastNode.isBlockNode || !lastNode.hasDefinedValue
             ? -1
             : lastNode.dataLength,
@@ -334,12 +340,28 @@ extension NodeSearchExt on Node {
       return NodeCursorPosLocation.notFound();
     }
 
-    if (hasDefinedValue) {
-      final List<TextFragment> frags = value!.castToFragments();
-      int fragOffset = 0;
+    if (supportEmbed) {
+      final TextFragment frag = value.castToFragment();
+      final int fragLength = frag.length;
+      if (cursorPos < fragLength || inclusive && cursorPos <= fragLength) {
+        return NodeCursorPosLocation(
+          location: NodeLocation(
+            path: <int>[...deepPath],
+            node: this,
+          ),
+          jumpNodeOffset: -1,
+          textIndex: 0,
+          fragmentOffset: cursorPos,
+          locationOffset: cursorPos,
+          jumpOffset: 0,
+        );
+      }
+    }
 
-      for (int i = 0; i < frags.length; i++) {
-        final TextFragment frag = frags[i];
+    if (supportEasyText) {
+      int fragOffset = 0;
+      int i = 0;
+      for (EasyText frag in texts) {
         final int fragmentLength = frag.length;
 
         final int fragEnd = fragOffset + fragmentLength;
@@ -351,13 +373,14 @@ extension NodeSearchExt on Node {
               node: this,
             ),
             jumpNodeOffset: -1,
-            fragmentIndex: i,
+            text: frag,
+            textIndex: i,
             fragmentOffset: cursorPos - fragOffset,
             locationOffset: cursorPos,
             jumpOffset: fragOffset,
           );
         }
-
+        i++;
         fragOffset += fragmentLength;
       }
     }

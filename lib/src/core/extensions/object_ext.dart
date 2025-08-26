@@ -1,3 +1,4 @@
+import 'package:easy_attribution_text/easy_text.dart';
 import 'package:easy_rich_editor/src/core/api/document/path/path.dart';
 import 'package:flutter_quill_delta_easy_parser/flutter_quill_delta_easy_parser.dart';
 
@@ -6,14 +7,16 @@ import '../../../easy_rich_editor.dart';
 extension CastExt on Object {
   T cast<T>() => this as T;
   T? castOrNull<T>() => this is T ? this as T : null;
-  List<TextFragment> castToFragments() => cast<List<TextFragment>>();
+  EasyTextList castToEasyText() => cast<EasyTextList>();
+  TextFragment castToFragment() => cast<TextFragment>();
   String castString() => cast<String>();
 }
 
 extension DynamicCast on dynamic {
   T cast<T>() => this as T;
   T? castOrNull<T>() => this is T ? this as T : null;
-  List<TextFragment> castToFragments() => cast<List<TextFragment>>();
+  EasyTextList castToEasyText() => cast<EasyTextList>();
+  TextFragment castToFragment() => cast<TextFragment>();
   String castString() => cast<String>();
 }
 

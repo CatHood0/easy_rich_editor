@@ -2,9 +2,9 @@ import 'dart:collection';
 import 'dart:convert';
 
 import 'package:collection/collection.dart';
+import 'package:easy_attribution_text/easy_text.dart';
 import 'package:easy_rich_editor/src/core/api/document/path/path.dart';
 import 'package:easy_rich_editor/src/core/api/editor_state/easy_state.dart';
-import 'package:easy_rich_editor/src/core/extensions/attributes/attributes_ext.dart';
 import 'package:easy_rich_editor/src/core/extensions/object_ext.dart';
 import 'package:easy_rich_editor/src/utils/background_isolate_runner/isolate_runner.dart';
 import 'package:easy_rich_editor/src/utils/utils.dart';
@@ -16,7 +16,6 @@ import 'package:easy_rich_editor/internal.dart';
 import 'package:easy_rich_editor/easy_rich_editor.dart';
 import 'package:meta/meta.dart';
 
-import '../../../../../attributes.dart';
 import '../../../../editor/common/selectable_mixin.dart';
 
 part 'package:easy_rich_editor/src/core/extensions/fragments/node_data_formatting_ext.dart';
@@ -195,9 +194,7 @@ final class Node extends ChangeNotifier {
       'can_modify_children_length': false,
       ...?metadata,
     };
-    _value = data == null
-        ? <TextFragment>[]
-        : <TextFragment>[TextFragment(data: data)];
+    _value = data == null ? null : TextFragment(data: data);
     _dataLength = data == null ? 0 : 1;
     _text = data == null ? null : Node.kObjectReplacementCharacter;
   }
@@ -220,9 +217,7 @@ final class Node extends ChangeNotifier {
     };
     final Node lineNode = Node(
       type: EmbedKeys.childrenKey,
-      value: data == null
-          ? <TextFragment>[]
-          : <TextFragment>[TextFragment(data: data)],
+      value: data == null ? null : TextFragment(data: data),
       parent: this,
       canModifyChildrenLength: false,
     )..text = data?.text();
@@ -262,9 +257,7 @@ final class Node extends ChangeNotifier {
           final String line = lines[i];
           final Node lineNode = Node(
             type: childType,
-            value: <TextFragment>[
-              TextFragment(data: line),
-            ],
+            value: EasyTextList()..add(EasyText.fromStr(text: line)),
             children: <Node>[],
             parent: this,
             canModifyChildrenLength: false,
@@ -278,7 +271,10 @@ final class Node extends ChangeNotifier {
 
       final Node lineNode = Node(
         type: childType,
-        value: <TextFragment>[TextFragment(data: data.castString())],
+        value: EasyTextList()
+          ..add(EasyText.fromStr(
+            text: data.castString(),
+          )),
         children: <Node>[],
         parent: this,
         canModifyChildrenLength: false,
@@ -412,16 +408,19 @@ final class Node extends ChangeNotifier {
     }
 
     if (_dataLength != null) return _dataLength!;
-    if (_value is! List<TextFragment>) {
-      throw Exception('Only List<TextFragment> are accepted');
+    if (_value == null) return 0;
+    if (_value is TextFragment) {
+      _text ??= Node.kObjectReplacementCharacter;
+      return _dataLength = 1;
     }
 
     int length = 0;
-    for (TextFragment frag in _value!.castToFragments()) {
-      length += frag.length;
-      if (_text == "" || _text == null) {
+    bool requiresTextUpdate = _text == "" || _text == null;
+    for (EasyText text in texts) {
+      length += text.length;
+      if (requiresTextUpdate) {
         _text = "${_text.orEmpty}"
-            "${frag.text(ifNot: Node.kObjectReplacementCharacter)}";
+            "$text";
       }
     }
     return _dataLength = length;
@@ -438,20 +437,22 @@ final class Node extends ChangeNotifier {
       return _text!;
     }
 
-    int length = 0;
-    for (TextFragment frag in _value!.castToFragments()) {
+    if (supportEmbed) {
       if (_dataLength == null) {
-        length += frag.length;
+        int length = 0;
+        length += value.castToFragment().length;
+        _dataLength ??= length;
       }
-      final String obj = frag.text(
-        ifNotBuilder: embedBuilder == null
-            ? null
-            : (Object e) => embedBuilder(
-                  this,
-                  e,
-                ),
-      );
-      buffer.write(obj);
+      buffer.write(text);
+      return _text = '$buffer';
+    }
+
+    int length = 0;
+    for (EasyText text in _value!.castToEasyText()) {
+      if (_dataLength == null) {
+        length += text.length;
+      }
+      buffer.write(text);
     }
     _dataLength ??= length;
     return _text = '$buffer';
@@ -937,6 +938,43 @@ final class Node extends ChangeNotifier {
       callback: (NodePathCacheResult result) {},
     );
   }
+
+  Node copyWith({
+    String? type,
+    String? id,
+    Map<String, dynamic>? metadata,
+    List<Node>? children,
+    Node? parent,
+    Object? value,
+  }) {
+    return Node(
+      type: type ?? this.type,
+      value: value ?? this.value,
+      id: id ?? this.id,
+      parent: parent ?? this.parent,
+      children: children ?? <Node>[...this.children],
+    );
+  }
+
+  Map<String, dynamic> toJson() {
+    return <String, dynamic>{
+      "id": id,
+      "type": type,
+      "value": value,
+      "metadata": metadata,
+      "children": children
+          .map(
+            (Node e) => e.toJson(),
+          )
+          .toList(),
+    };
+  }
+
+  @internal
+  bool get isRootOwner =>
+      id == Node.rootId ||
+      type == Node.rootId ||
+      metadata['root'] != null && metadata['root'] as bool;
 
   // =================== NOTE ===================
   // We dont implement a custom equals and hashcode
