@@ -3,6 +3,8 @@ import 'package:flutter_quill_delta_easy_parser/flutter_quill_delta_easy_parser.
     as espr;
 import 'package:meta/meta.dart';
 
+import '../../easy_rich_editor.dart';
+
 @immutable
 class DocumentToNodesParser {
   static final espr.DocumentParser _docParser =

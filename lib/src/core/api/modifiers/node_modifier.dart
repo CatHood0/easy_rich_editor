@@ -45,12 +45,13 @@ abstract class NodeModifier {
     Node node,
     int start,
     Object data, {
-    Map<String, dynamic>? attributes,
-    int jumpNodeOffset = 0,
+    EasyText? frag,
     int fragmentPosition = 0,
+    int jumpNodeOffset = 0,
     int jumpOffset = 0,
-    bool computeParentCache = true,
     int stringLimitLength = 300,
+    bool computeParentCache = true,
+    EasyAttributeStyles? attributes,
   });
 
   /// Format any character or block using the attributes styles

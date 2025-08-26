@@ -1,69 +1,50 @@
 import 'package:flutter/material.dart';
 import '../../../../../easy_rich_editor.dart';
-import '../path/path.dart';
 
-enum Reason {
+enum NoExecutionReason {
   noSatifyConditions,
   invalidEnd,
   invalidStart,
+  noElement,
 }
 
 class FragmentChangeContext {
-  final TextRange? remainingRanges;
   final bool executed;
-  final FragmentPath paths;
   final int changeSize;
-  final int lastFragmentLength;
   final Node? node;
-  /// Set the exact [Reason] why this [FragmentChangeContext]
-  /// was not executed successfully
-  final Reason? reason;
+  final NoExecutionReason? reason;
 
   const FragmentChangeContext({
     required this.executed,
-    required this.paths,
     required this.node,
     this.changeSize = -1,
-    this.lastFragmentLength = -1,
-    this.remainingRanges,
     this.reason,
   });
 
-  const FragmentChangeContext.noExecuted([Reason? reason])
+  const FragmentChangeContext.noExecuted([NoExecutionReason? reason])
       : executed = false,
         changeSize = -1,
         node = null,
-        reason = reason ?? Reason.noSatifyConditions,
-        lastFragmentLength = -1,
-        remainingRanges = null,
-        paths = const <int>[];
+        reason = reason ?? NoExecutionReason.noSatifyConditions;
 
   FragmentChangeContext copyWith({
-    TextRange? remainingRanges,
     bool? executed,
-    FragmentPath? paths,
     int? changeSize,
-    int? lastFragmentLength,
     Node? node,
   }) {
     return FragmentChangeContext(
       executed: executed ?? this.executed,
-      paths: paths ?? this.paths,
       node: node ?? this.node,
-      remainingRanges: remainingRanges ?? this.remainingRanges,
       changeSize: changeSize ?? this.changeSize,
-      lastFragmentLength: lastFragmentLength ?? this.lastFragmentLength,
     );
   }
 
   @override
   String toString() {
     return 'FragmentChangeContext(executed: $executed, '
-        'pathChanges: $paths, '
         'size: $changeSize, '
         'node: $node, '
-        'oldFragmentLength: $lastFragmentLength, '
-        'remainingRanges: $remainingRanges)';
+        'reason: $reason)';
   }
 }
 
@@ -73,19 +54,15 @@ class MultipleFragmentChangeContext extends FragmentChangeContext {
     required super.executed,
     required this.changes,
     super.node,
-    super.lastFragmentLength,
-    super.remainingRanges,
     super.changeSize,
-  }) : super(paths: <int>[]);
+  });
 
   @override
   MultipleFragmentChangeContext copyWith({
     TextRange? remainingRanges,
     bool? executed,
     List<FragmentChangeContext>? changes,
-    FragmentPath? paths,
     int? changeSize,
-    int? lastFragmentLength,
     Node? node,
   }) {
     return MultipleFragmentChangeContext(
@@ -93,8 +70,6 @@ class MultipleFragmentChangeContext extends FragmentChangeContext {
       changes: changes ?? this.changes,
       node: node ?? this.node,
       changeSize: changeSize ?? this.changeSize,
-      remainingRanges: remainingRanges ?? this.remainingRanges,
-      lastFragmentLength: lastFragmentLength ?? this.lastFragmentLength,
     );
   }
 }

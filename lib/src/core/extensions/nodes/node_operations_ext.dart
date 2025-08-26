@@ -91,6 +91,8 @@ extension NodeOperations on Node {
   FragmentChangeContext insert(
     int start,
     Object data, {
+    EasyAttributeStyles? styles,
+    EasyText? frag,
     int fragmentPosition = 0,
     int jumpNodeOffset = 0,
     int jumpOffset = 0,
@@ -105,6 +107,8 @@ extension NodeOperations on Node {
       this,
       start,
       data,
+      frag: frag,
+      attributes: styles,
       jumpNodeOffset: jumpNodeOffset,
       fragmentPosition: fragmentPosition,
       jumpOffset: jumpOffset,
@@ -133,7 +137,7 @@ extension NodeOperations on Node {
       this,
       start,
       len ?? 1,
-      attributes: EasyAttributeStyles,
+      attributes: attributes,
       formatBlock: formatBlock,
     );
   }

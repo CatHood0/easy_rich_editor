@@ -2,7 +2,6 @@ part of 'package:easy_rich_editor/src/core/api/document/nodes/node.dart';
 
 extension NodeSearchExt on Node {
   /// Search easily the node at the index passed using ranges
-  //TODO: implement binary search
   Node? fastSearch(int index) {
     throw UnimplementedError("fastSearch is not implemented yet");
   }
@@ -390,5 +389,48 @@ extension NodeSearchExt on Node {
       jumpNodeOffset: -1,
       locationOffset: cursorPos,
     );
+  }
+
+  Object? queryFragment(
+    int cursorPos, {
+    bool inclusive = false,
+  }) {
+    if (cursorPos < 0 || cursorPos > dataLength) {
+      return null;
+    }
+
+    if (supportEmbed) {
+      final TextFragment frag = value.castToFragment();
+      final int fragLength = frag.length;
+      if (cursorPos < fragLength || inclusive && cursorPos <= fragLength) {
+        return NodeCursorPosLocation(
+          location: NodeLocation(
+            path: <int>[...deepPath],
+            node: this,
+          ),
+          jumpNodeOffset: -1,
+          textIndex: 0,
+          fragmentOffset: cursorPos,
+          locationOffset: cursorPos,
+          jumpOffset: 0,
+        );
+      }
+      return null;
+    }
+
+    if (supportEasyText) {
+      int fragOffset = 0;
+      for (EasyText frag in texts) {
+        final int fragmentLength = frag.length;
+        final int fragEnd = fragOffset + fragmentLength;
+        // if the cursor is in this exact fragment
+        if (cursorPos < fragEnd || inclusive && cursorPos <= fragEnd) {
+          return frag;
+        }
+        fragOffset += fragmentLength;
+      }
+    }
+
+    return null;
   }
 }

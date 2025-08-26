@@ -1,6 +1,5 @@
 import 'dart:collection';
 
-import 'package:easy_parsers/easy_parsers.dart';
 import 'package:easy_rich_editor/easy_rich_editor.dart';
 import 'package:easy_rich_editor/src/core/extensions/object_ext.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -23,7 +22,6 @@ void main() {
 
     expect(context.executed, isTrue);
     expect(context.changeSize, equals(1));
-    expect(context.paths, equals(<int>[0]));
     expect(() => context.node!.deepPath, throwsA(isA<Exception>()));
     expect(context.node!.jumpToParent().isRootOwner, isFalse);
     expect(root!.contains(context.node!.id), isFalse);
@@ -38,7 +36,6 @@ void main() {
 
     expect(context.executed, isTrue);
     expect(context.changeSize, equals(1));
-    expect(context.paths, equals(<int>[0]));
     expect(context.node!.deepPath, equals(<int>[2, 2]));
     expect(
       context.node!.toPlainText(),
@@ -178,7 +175,7 @@ void main() {
     expect(root!.contains(lastEmptyNode.id), isTrue);
     expect(context.executed, isFalse);
     expect(context.changeSize, equals(-1));
-    expect(context.reason, equals(Reason.invalidEnd));
+    expect(context.reason, equals(NoExecutionReason.invalidEnd));
 
     final FragmentChangeContext contextExecuted = root!.delete(
       318,

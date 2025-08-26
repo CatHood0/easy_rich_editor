@@ -1,8 +1,6 @@
-import 'package:easy_parsers/easy_parsers.dart';
-import 'package:easy_rich_editor/attributes.dart';
+import 'package:easy_attribution_text/easy_text.dart';
 import 'package:easy_rich_editor/easy_rich_editor.dart';
 import 'package:flutter_test/flutter_test.dart';
-
 import '../../../resources/doc_rs.dart';
 
 void main() {
@@ -20,21 +18,16 @@ void main() {
       2,
       1,
       formatBlock: false,
-      modifier: NodeModifier.defaultModifier,
-      attributes: <EasyAttribute<dynamic>>[
-        BoldAttribute(value: true),
-      ],
+      attributes: EasyAttributeStyles.fromAttribute(BoldAttribute()),
     );
     line.format(
       14,
-      2,
+      4,
       formatBlock: false,
-      modifier: NodeModifier.defaultModifier,
-      attributes: <EasyAttribute<dynamic>>[
-        ItalicAttribute(value: true),
-      ],
+      attributes: EasyAttributeStyles.fromAttribute(ItalicAttribute()),
     );
     print(line.dumpTreeStr());
+    expect(context.executed, isTrue);
   });
   test('should format entire block children', () {});
   test('should format single block attributes', () {});

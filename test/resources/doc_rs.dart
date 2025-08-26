@@ -64,7 +64,7 @@ pr.Document get commonDoc => pr.Document(
             pr.Line.fromData(
               id: 'line of normal pr 2-(2)',
               data: "testing",
-              attributes: <String, dynamic>{"underline": true, "bold": true},
+              attributes: <String, dynamic>{"underline": true, "strong": true},
             ),
             pr.Line.fromData(
               id: 'line of normal pr 2-(3)',
@@ -95,7 +95,7 @@ pr.Document get commonDoc => pr.Document(
             pr.Line.fromData(
               id: 'line of header sub section 2',
               data: "any part",
-              attributes: <String, dynamic>{"underline": true, "bold": true},
+              attributes: <String, dynamic>{"underline": true, "strong": true},
             ),
             pr.Line.fromData(
               id: 'line of header sub section 3',
@@ -174,7 +174,7 @@ pr.Document get largeDoc {
           pr.Line.fromData(
             id: 'line of normal pr 2-(2) [loop - $i]',
             data: "testing",
-            attributes: <String, dynamic>{"underline": true, "bold": true},
+            attributes: <String, dynamic>{"underline": true, "strong": true},
           ),
           pr.Line.fromData(
             id: 'line of normal pr 2-(3) [loop - $i]',
@@ -205,7 +205,7 @@ pr.Document get largeDoc {
           pr.Line.fromData(
             id: 'line of header sub section 2 [loop - $i]',
             data: "any part",
-            attributes: <String, dynamic>{"underline": true, "bold": true},
+            attributes: <String, dynamic>{"underline": true, "strong": true},
           ),
           pr.Line.fromData(
             id: 'line of header sub section 3 [loop - $i]',
@@ -287,7 +287,7 @@ pr.Document specifyDocLength(int length) {
           pr.Line.fromData(
             id: 'line of normal pr 2-(2) [loop - $i]',
             data: "testing",
-            attributes: <String, dynamic>{"underline": true, "bold": true},
+            attributes: <String, dynamic>{"underline": true, "strong": true},
           ),
           pr.Line.fromData(
             id: 'line of normal pr 2-(3) [loop - $i]',
@@ -318,7 +318,7 @@ pr.Document specifyDocLength(int length) {
           pr.Line.fromData(
             id: 'line of header sub section 2 [loop - $i]',
             data: "any part",
-            attributes: <String, dynamic>{"underline": true, "bold": true},
+            attributes: <String, dynamic>{"underline": true, "strong": true},
           ),
           pr.Line.fromData(
             id: 'line of header sub section 3 [loop - $i]',

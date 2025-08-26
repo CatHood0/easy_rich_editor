@@ -10,38 +10,6 @@ extension NodeTreeDumperExt on Node {
         'end: ${global ? globalEnd : endOffset})';
   }
 
-  String toPlainText({
-    String Function(Node node, Object value)? onDetectEmbed,
-  }) {
-    final StringBuffer buffer = StringBuffer();
-    // means that we are into a parent
-    if (!isBlockNode) {
-      forEach((Node n, int index) {
-        buffer.write(n.toPlainText(embedBuilder: onDetectEmbed));
-      });
-      return buffer.toString();
-    }
-
-    if (value == null) return "";
-    // as we say, all the blank lines are
-    // referenced as a new line
-    if (isBlankText) return "\\n";
-
-    for (final TextFragment frag in value!.castToFragments()) {
-      if (frag.data is! String) {
-        buffer.write(
-          onDetectEmbed?.call(this, frag.data) ??
-              Node.kObjectReplacementCharacter,
-        );
-        continue;
-      }
-
-      buffer.write(frag.data.cast<String>());
-    }
-
-    return buffer.toString();
-  }
-
   String dumpTreeStr({
     int tab = 0,
     List<int>? paths,

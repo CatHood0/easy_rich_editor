@@ -132,7 +132,7 @@ final class Node extends ChangeNotifier {
       // customizations, its better just allow saving them
       final Node line = Node(
         type: EmbedKeys.childrenKey,
-        value: <TextFragment>[...child.fragments],
+        value: child.fragments.first,
         children: <Node>[],
         parent: this,
         id: child.id,
@@ -163,11 +163,8 @@ final class Node extends ChangeNotifier {
         type: ParagraphKeys.lineKey,
         // we will never accept new lines
         // as fragments
-        value: (line.isNewLine)
-            ? <TextFragment>[TextFragment.empty()]
-            : <TextFragment>[
-                ...line.fragments,
-              ],
+        value: EasyTextList()
+          ..addAll(line.isNewLine ? <EasyText>[] : line.toEasyText),
         children: <Node>[],
         parent: this,
         id: line.id,
@@ -409,7 +406,7 @@ final class Node extends ChangeNotifier {
 
     if (_dataLength != null) return _dataLength!;
     if (_value == null) return 0;
-    if (_value is TextFragment) {
+    if (supportEmbed) {
       _text ??= Node.kObjectReplacementCharacter;
       return _dataLength = 1;
     }

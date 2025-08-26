@@ -20,7 +20,6 @@ void main() {
 
     expect(context.executed, isTrue);
     expect(context.changeSize, equals(1));
-    expect(context.paths, equals(<int>[0]));
     // must split the current node to a next one with the correct type
     // and the context should work
     expect(context.node!.deepPath, equals(<int>[0, 0]));
@@ -39,7 +38,6 @@ void main() {
 
     expect(context.executed, isTrue);
     expect(context.changeSize, equals(1));
-    expect(context.paths, equals(<int>[0]));
     // must split the current node to a next one with the correct type
     // and the context should work
     expect(context.node!.deepPath, equals(<int>[2, 0]));
@@ -55,7 +53,6 @@ void main() {
 
     expect(context.executed, isTrue);
     expect(context.changeSize, equals(1));
-    expect(context.paths, equals(<int>[0]));
     expect(context.node!.deepPath, equals(<int>[1, 0]));
     expect(context.node!.text, equals('|'));
   });
@@ -108,9 +105,9 @@ void main() {
     expect(block.length, equals(2));
     expect(location.node, isNotNull);
     expect(location.found, isTrue);
-    expect(location.fragmentIndex, equals(0));
+    expect(location.textIndex, equals(0));
     expect(
-      location.node!.value.castToFragments()[location.fragmentIndex].data,
+      location.node!.value.castToFragment().data,
       equals(obj),
     );
     expect(line.parent, block);
@@ -127,7 +124,6 @@ void main() {
 
     expect(context.executed, isTrue);
     expect(context.changeSize, equals(1));
-    expect(context.paths, equals(<int>[0]));
     expect(context.node!.deepPath, equals(<int>[5, 0]));
     expect(context.node!.toPlainText(), equals('|So, since we are just '));
   });
@@ -141,7 +137,6 @@ void main() {
 
     expect(context.executed, isTrue);
     expect(context.changeSize, equals(1));
-    expect(context.paths, equals(<int>[0]));
     expect(context.node!.deepPath, equals(<int>[5, 2]));
     expect(context.node!.toPlainText(),
         equals('to take as an example how work this visualizer (2). |'));
@@ -159,7 +154,6 @@ void main() {
 
     expect(context.executed, isTrue);
     expect(context.changeSize, equals(5));
-    expect(context.paths, equals(<int>[0]));
     expect(context.node!.deepPath, equals(<int>[6, 0]));
     expect(context.node!.toPlainText(), equals('First Test example:'));
   });
@@ -177,7 +171,6 @@ void main() {
 
     expect(context.executed, isTrue);
     expect(context.changeSize, equals(5));
-    expect(context.paths, equals(<int>[0]));
     final Node? newBlock = root!.queryPath(<int>[1]);
     expect(newBlock, isNotNull);
     expect(context.node!.jumpToParentExceptRoot(), equals(newBlock));
@@ -195,7 +188,6 @@ void main() {
 
     expect(context.executed, isTrue);
     expect(context.changeSize, equals(5));
-    expect(context.paths, equals(<int>[0]));
     expect(context.node!.deepPath, equals(<int>[9, 0]));
     expect(context.node!.text, equals('Test '));
   });

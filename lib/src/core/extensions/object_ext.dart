@@ -34,6 +34,23 @@ extension EasyObjects on Object {
       this is String ? castString() : ifNotBuilder?.call(this) ?? ifNot;
 }
 
+extension EasyFragments on List<TextFragment> {
+  List<EasyText> fragmentsToEasyText() {
+    return <EasyText>[
+      ...map<EasyText>((TextFragment n) => EasyText.fromStr(
+            text: n.data.castString(),
+            styles: EasyAttributeStyles.fromJson(
+              n.attributes,
+            ),
+          ))
+    ];
+  }
+}
+
+extension LineParse on Line {
+  List<EasyText> get toEasyText => fragments.fragmentsToEasyText();
+}
+
 extension NonNegativeInt on int {
   int get nonNegative => this < 0 ? 0 : this;
 }
