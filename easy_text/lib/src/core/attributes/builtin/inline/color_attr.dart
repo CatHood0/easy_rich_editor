@@ -1,4 +1,4 @@
-import '../../attribute.dart';
+import '../../../../../attributes.dart';
 
 class ColorAttribute extends EasyInlineAttribute<String?> {
   const ColorAttribute([String? value]) : super(value: value);

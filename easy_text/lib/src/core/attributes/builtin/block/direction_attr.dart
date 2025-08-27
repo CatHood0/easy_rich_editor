@@ -1,5 +1,5 @@
 import 'package:flutter/widgets.dart';
-import '../../../../../../attributes.dart';
+import '../../../../../attributes.dart';
 
 class TextDirectionAttribute extends EasyBlockAttribute<String?> {
   const TextDirectionAttribute([String? value]) : super(value: value);

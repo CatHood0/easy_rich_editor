@@ -1,4 +1,4 @@
-import '../../attribute.dart';
+import '../../../../../attributes.dart';
 
 class LinkAttribute extends EasyInlineAttribute<String?> {
   const LinkAttribute([String? value]) : super(value: value);

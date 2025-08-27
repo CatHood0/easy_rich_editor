@@ -1,4 +1,4 @@
-import '../../attribute.dart';
+import '../../../../../attributes.dart';
 
 class UnderlineAttribute extends EasyInlineAttribute<bool> {
   const UnderlineAttribute([bool value = true]) : super(value: value);

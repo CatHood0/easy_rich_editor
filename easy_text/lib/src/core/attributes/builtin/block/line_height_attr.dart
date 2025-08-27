@@ -1,4 +1,4 @@
-import '../../../../../../attributes.dart';
+import '../../../../../attributes.dart';
 
 class LineheightAttribute extends EasyBlockAttribute<double?> {
   const LineheightAttribute([double? height]) : super(value: height);

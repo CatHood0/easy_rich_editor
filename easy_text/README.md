@@ -17,17 +17,13 @@ A easy and powerful text processing and styling library for Flutter that handles
 - **Block Attributes**: Format entire paragraphs (alignment, indentation, spacing)
 - **Exclusive Formatting**: Smart handling of mutually exclusive styles (headers, code blocks, lists)
 
-### Performance Optimized
-- **Efficient Linked List Structure**: Optimal for frequent text modifications
-- **Lazy Evaluation**: Text processing only when needed
-
 ## Installation
 
 Add `EasyText` to your `pubspec.yaml`:
 
 ```yaml
 dependencies:
-  easy_text: ^1.0.0
+  easy_attribution_text: <lastes_version> 
 ```
 
 ## Quick Start
@@ -35,7 +31,7 @@ dependencies:
 ### Basic Usage
 
 ```dart
-import 'package:easy_text/easy_text.dart';
+import 'package:easy_attribution_text/easy_text.dart';
 
 void main() {
   // Create a text element with complex Unicode content
@@ -43,7 +39,7 @@ void main() {
   
   // Manipulate text safely
   text.insert(6, 'Beautiful ');
-  print(text.text); // Output: Hello Beautiful 🎂✨ World 🌈
+  print(text.str); // Output: Hello Beautiful 🎂✨ World 🌈
   
   // Apply formatting
   text.formatRange(6, 9, EasyAttributeStyles.fromAttribute(EasyAttribute.bold));
@@ -66,9 +62,6 @@ final styledText = EasyText.fromStr(
 // Format specific ranges
 text.formatRange(0, 5, EasyAttributeStyles.fromAttribute(EasyAttribute.italic));
 text.formatRange(11, 8, EasyAttributeStyles.fromAttribute(EasyAttribute.underline));
-
-// Apply block-level formatting
-text.formatRange(0, text.length, EasyAttributeStyles.fromAttribute(EasyAttribute.h1));
 ```
 
 ### Handling Complex Text
@@ -89,7 +82,7 @@ complexText.formatRange(0, 10, EasyAttributeStyles.fromAttribute(EasyAttribute.b
 The fundamental building blocks that represent text segments with optional styling. Each part manages its own content and attributes while being part of a larger text structure.
 
 ### EasyTextList
-A specialized linked list that manages EasyText nodes with optimized text operations and caching mechanisms.
+A specialized linked list that manages `EasyText` nodes with optimized text operations and caching mechanisms.
 
 ### Attribute System
 - **Inline Attributes**: Style applied to text ranges (colors, fonts, decorations)
@@ -133,7 +126,3 @@ text.formatRange(0, 5, EasyAttributeStyles.fromAttribute(HighlightAttribute(Colo
 - **Content Management Systems**: Structured text with semantic formatting
 - **Localization**: Multilingual text with mixed scripts and directions
 - **Social Media Apps**: User-generated content with emojis and formatting
-
-## License
-
-`EasyText` is released under the MIT License. See [LICENSE](LICENSE) for details.

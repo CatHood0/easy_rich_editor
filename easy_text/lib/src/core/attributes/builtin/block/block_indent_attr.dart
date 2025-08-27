@@ -1,4 +1,4 @@
-import '../../../../../../attributes.dart';
+import '../../../../../attributes.dart';
 
 class BlockIndentAttribute extends EasyBlockAttribute<int?> {
   const BlockIndentAttribute([int? level]) : super(value: level);

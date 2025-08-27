@@ -1,4 +1,4 @@
-import '../../../attribute.dart';
+import '../../../../../../attributes.dart';
 
 class HeaderAttribute extends EasyExclusiveBlockAttribute<int?> {
   const HeaderAttribute([int? value]) : super(value: value);

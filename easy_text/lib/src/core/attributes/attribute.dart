@@ -38,16 +38,19 @@ part 'abstractions.dart';
 /// }
 /// ```
 abstract class EasyAttribute<T extends Object?> {
+  /// Creates an [EasyAttribute] with the given [value].
+  const EasyAttribute({required this.value});
+
   /// The value of this attribute. The type [T] depends on the specific attribute.
   ///
   /// Examples:
   /// - [ColorAttribute]: `Color` value
   /// - [FontSizeAttribute]: `double` value
   /// - [BoldAttribute]: `bool` value (usually `true`)
+  ///
+  /// To remove an attribute from its [EasyAttributeStyles] container
+  /// just set [value] to [null], and use [merge] to make this.
   final T value;
-
-  /// Creates an [EasyAttribute] with the given [value].
-  const EasyAttribute({required this.value});
 
   /// A unique identifier key for this attribute type.
   ///
@@ -77,6 +80,56 @@ abstract class EasyAttribute<T extends Object?> {
   ///
   /// Returns `true` if this attribute can coexist with the given [attribute].
   bool canMergeWith(EasyAttribute attribute);
+
+  /// Returns all the names that are related with this [EasyAttributeStyles]
+  ///
+  /// We use this static map commonly to maintain compatibility with other
+  /// **WYSIWYG Editors** that contains similar attributes, but with different
+  /// names
+  ///
+  /// [BoldAttribute] is referenced here as `strong`, but in **Fluter Quill** and **AppFlowy**, is referenced as `bold`
+  static final Map<String, EasyAttribute> alternativeNames =
+      Map<String, EasyAttribute>.unmodifiable(
+    <String, EasyAttribute>{
+      // from Flutter Quill
+      'bold': bold,
+      'strike': strike,
+      'title': header,
+      'script': script,
+      'direction': direction,
+      'alignment': align,
+      'size': fontSize,
+      'font': fontFamily,
+      'link': link,
+      'color': color,
+      'background': bg,
+      'code-block': codeblock,
+      'width': DimensionsAttribute.width(),
+      'height': DimensionsAttribute.height(),
+      'indent': indentation,
+      'unchecked': ListAttribute.todo(),
+      'checked': ListAttribute.todo(true),
+      // from AppFlowy
+      'h1': h1,
+      'h2': h2,
+      'h3': h3,
+      'h4': h4,
+      'h5': h5,
+      'h6': h6,
+      'subtype': script,
+      'ltr': ltr,
+      'rtl': rtl,
+      'bgColor': bg,
+      'href': link,
+      'checkbox': todo,
+      'number-list': ol,
+      'textColor': color,
+      'quote': blockquote,
+      'bulleted-list': ul,
+      'textdirection': direction,
+      'auto': TextDirectionAttribute(),
+    },
+  );
 
   // ========== STATIC REGISTRY AND ATTRIBUTE MANAGEMENT ==========
 
@@ -143,6 +196,7 @@ abstract class EasyAttribute<T extends Object?> {
       fontSize.key: fontSize,
       fontFamily.key: fontFamily,
       color.key: color,
+      script.key: script,
     },
   );
 
@@ -173,9 +227,18 @@ abstract class EasyAttribute<T extends Object?> {
   /// ```dart
   /// final attribute = EasyAttribute.fromKeyValue('bold', true);
   /// ```
-  static EasyAttribute? fromKeyValue(String key, dynamic value) {
-    final EasyAttribute<Object?>? origin =
-        _registry[key] ?? _customAttributes[key];
+  static EasyAttribute? fromKeyValue(
+    String key,
+    dynamic value, {
+    bool acceptUnknown = true,
+  }) {
+    EasyAttribute<Object?>? origin = _registry[key] ??
+        _customAttributes[key] ??
+        alternativeNames[key] ??
+        alternativeNames[value];
+    if (acceptUnknown && origin == null) {
+      origin = UnknownAttribute(key: key, value: value);
+    }
     if (origin == null) return null;
     final EasyAttribute<Object?> attribute = origin.clone(value);
     return attribute;
@@ -187,6 +250,15 @@ abstract class EasyAttribute<T extends Object?> {
 
   /// Italic text formatting attribute.
   static const ItalicAttribute italic = ItalicAttribute();
+
+  /// Script font formatting attribute.
+  static const ScriptAttribute script = ScriptAttribute();
+
+  /// Subscript font formatting attribute.
+  static const ScriptAttribute subscript = ScriptAttribute.sub();
+
+  /// Superscript font formatting attribute.
+  static const ScriptAttribute superscript = ScriptAttribute.sup();
 
   /// Bold text formatting attribute.
   static const BoldAttribute bold = BoldAttribute();

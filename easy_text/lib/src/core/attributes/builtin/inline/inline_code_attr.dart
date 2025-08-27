@@ -1,4 +1,4 @@
-import '../../attribute.dart';
+import '../../../../../attributes.dart';
 
 class InlineCodeAttribute extends EasyInlineAttribute<bool> {
   const InlineCodeAttribute([bool value = true]) : super(value: value);

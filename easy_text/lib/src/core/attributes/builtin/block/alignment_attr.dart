@@ -1,5 +1,5 @@
 import 'package:flutter/widgets.dart';
-import '../../../../../../attributes.dart';
+import '../../../../../attributes.dart';
 
 class AlignmentAttribute extends EasyBlockAttribute<String?> {
   const AlignmentAttribute([String? value]) : super(value: value);

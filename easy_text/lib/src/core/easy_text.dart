@@ -74,6 +74,9 @@ final class EasyText extends LinkedListEntry<EasyText> {
     return text.getRange(point);
   }
 
+  /// Returns the [String] associated to the [Characters] instance
+  String str() => '$text';
+
   /// The length of this text fragment in characters.
   ///
   /// This value is cached after first calculation for performance.

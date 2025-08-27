@@ -1,5 +1,24 @@
 part of 'attribute.dart';
 
+class UnknownAttribute extends EasyInlineAttribute<dynamic> {
+  final String _key;
+  UnknownAttribute({
+    required String key,
+    required super.value,
+  }) : _key = key;
+
+  @override
+  UnknownAttribute clone(dynamic value) {
+    return UnknownAttribute(
+      value: value,
+      key: key,
+    );
+  }
+
+  @override
+  String get key => _key;
+}
+
 abstract class EasyInlineAttribute<T extends Object?> extends EasyAttribute<T> {
   const EasyInlineAttribute({required super.value});
 

@@ -9,6 +9,7 @@ export 'src/core/attributes/builtin/inline/strike_attr.dart';
 export 'src/core/attributes/builtin/inline/underline_attr.dart';
 export 'src/core/attributes/builtin/inline/bg_color_attr.dart';
 export 'src/core/attributes/builtin/inline/color_attr.dart';
+export 'src/core/attributes/builtin/inline/script_attr.dart';
 export 'src/core/attributes/builtin/inline/inline_code_attr.dart';
 export 'src/core/attributes/builtin/inline/font_size_attr.dart';
 export 'src/core/attributes/builtin/inline/font_family_attr.dart';

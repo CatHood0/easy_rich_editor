@@ -1,4 +1,4 @@
-import '../../attribute.dart';
+import '../../../../../attributes.dart';
 
 class FontFamilyAttribute extends EasyInlineAttribute<String?> {
   const FontFamilyAttribute([String? value]) : super(value: value);
