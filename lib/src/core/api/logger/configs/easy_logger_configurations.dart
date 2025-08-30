@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:logging/logging.dart';
 import 'package:meta/meta.dart';
 
@@ -20,25 +21,39 @@ typedef EasyLogHandler = void Function(String message);
 /// Set the log level and config the handler depending on your need.
 class EasyLoggerConfiguration {
   EasyLoggerConfiguration._() {
-    Logger.root.onRecord.listen((record) {
+    Logger.root.onRecord.listen((
+      LogRecord record,
+    ) {
       if (handler != null) {
         handler!(
-          '[${record.level.toLogLevel().name}][${record.loggerName}]: ${record.time}: ${record.message}',
+          '[${record.level.toLogLevel().name}]'
+          '[${record.loggerName}]: '
+          '${record.time}: '
+          '${record.message}',
         );
       }
     });
   }
 
-  factory EasyLoggerConfiguration() => _logConfiguration;
+  factory EasyLoggerConfiguration() => instance;
 
-  static final EasyLoggerConfiguration _logConfiguration =
-      EasyLoggerConfiguration._();
+  static final EasyLoggerConfiguration instance = EasyLoggerConfiguration._();
 
   EasyLogHandler? handler;
 
   EasyLogLevel _level = EasyLogLevel.off;
 
   EasyLogLevel get level => _level;
+
+  void activeHandler({bool force = false}) {
+    if (kDebugMode || force) {
+      handler = debugPrint;
+    }
+  }
+
+  void deactivateHandler() {
+    if (handler != null) handler = null;
+  }
 
   void all() {
     _level = EasyLogLevel.all;

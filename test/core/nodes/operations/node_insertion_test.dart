@@ -83,9 +83,6 @@ void main() {
       4,
       obj,
     );
-    expect(context, isA<MultipleFragmentChangeContext>());
-    expect(context.cast<MultipleFragmentChangeContext>().changes.first.node,
-        equals(line));
     expect(block.length, equals(2));
     expect(line.next, isNull);
     final Node? embedLeft = root!.queryPath(<int>[3]);
@@ -98,6 +95,7 @@ void main() {
     // was splitted from the offset passed
     expect(line.nsText, equals('use '));
     // and here is where end the part of the line splitted
+    expect(rightSplitted.isParagraphBlock, isTrue);
     expect(rightSplitted.first.text, equals("it "));
     expect(context.executed, isTrue);
     expect(context.changeSize, equals(108));
@@ -106,6 +104,7 @@ void main() {
     expect(location.node, isNotNull);
     expect(location.found, isTrue);
     expect(location.textIndex, equals(0));
+    expect(location.node!.isEmbedLine, isTrue);
     expect(
       location.node!.value.castToFragment().data,
       equals(obj),

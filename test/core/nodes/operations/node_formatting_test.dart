@@ -98,6 +98,8 @@ void main() {
   test('should format more than one block with block level attributes', () {});
   test('should format more than one line with inline attributes', () {});
   test('should unformat when toggle attributes in specified offset', () {});
-  test('should unformat when toggle block attributes in specified offset',
-      () {});
+  test(
+    'should unformat when toggle block attributes in specified offset',
+    () {},
+  );
 }

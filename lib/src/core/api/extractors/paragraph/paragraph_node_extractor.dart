@@ -63,7 +63,7 @@ class ParagraphNodeExtractor extends NodeExtractor<EasyText> {
       }
       return fragments;
     }
-    if (node.isBlockLine) {
+    if (node.isLineBlock) {
       if (node.value == null) return fragments;
       if (node.value is! EasyTextList) {
         throw UnsupportedError(

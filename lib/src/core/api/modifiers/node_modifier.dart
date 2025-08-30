@@ -51,7 +51,7 @@ abstract class NodeModifier {
     int jumpOffset = 0,
     int stringLimitLength = 300,
     bool computeParentCache = true,
-    EasyAttributeStyles? attributes,
+    EasyAttributeStyles? styles,
   });
 
   /// Format any character or block using the attributes styles
@@ -70,6 +70,7 @@ abstract class NodeModifier {
     Node node,
     int start,
     int len, {
+    EasyText? text,
     int jumpOffset = 0,
     bool forward = false,
     int jumpNodeOffset = 0,

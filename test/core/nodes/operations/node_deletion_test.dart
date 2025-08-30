@@ -19,7 +19,6 @@ void main() {
       0,
       1,
     );
-
     expect(context.executed, isTrue);
     expect(context.changeSize, equals(1));
     expect(() => context.node!.deepPath, throwsA(isA<Exception>()));
@@ -79,7 +78,7 @@ void main() {
     expect(embed.parent, isNotNull);
     expect(embed.parent, equals(root));
     final FragmentChangeContext context = root!.delete(
-      2,
+      1,
       1,
     );
 
@@ -159,12 +158,11 @@ void main() {
     );
   });
 
-
   test('Should ignores deletion if there\'s no element to remove', () {
     expect(root, isNotNull);
     final Node lastEmptyNode = root!.last;
     expect(root!.contains(lastEmptyNode.id), isTrue);
-    // tries to delete one character forward 
+    // tries to delete one character forward
     // but is ignored
     final FragmentChangeContext context = root!.delete(
       318,

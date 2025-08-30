@@ -18,8 +18,7 @@ extension NodeExt on Node {
   }
 
   /// Whether this [Node]  has defined it's value
-  bool get hasDefinedValue =>
-      (isEmbedLine ? supportEmbed : supportEasyText) || value != null;
+  bool get hasDefinedValue => value != null;
 
   /// Whether this [Node] is a block (a container of children lines)
   bool get isBlockNode => metadata['block'] as bool? ?? !hasDefinedValue;
@@ -34,14 +33,20 @@ extension NodeExt on Node {
       (texts.isEmpty || texts.length == 1 && texts.first.text.isEmpty);
 
   /// Whether this [Node] has [TextFragment] content
-  bool get hasEmbed => supportEmbed && value.castToFragment().data is Map;
+  bool get hasEmbed =>
+      supportEmbed &&
+      value.castToFragment().data is Map<String, dynamic> &&
+      value.castToFragment().data.cast<Map<String, dynamic>>().isNotEmpty;
 
   /// Whether this [Node] has not [TextFragment] content
-  bool get hasNoEmbed => supportEmbed && value == null;
+  bool get hasNoEmbed =>
+      supportEmbed &&
+      (value == null ||
+          value.castToFragment().data.cast<Map<String, dynamic>>().isEmpty);
 
   /// Whether this [Node] supports [EasyText] and [EasyTextList]
   bool get supportEasyText =>
-      isBlockLine || value != null && value is EasyTextList;
+      isLineBlock || value != null && value is EasyTextList;
 
   /// Whether this [Node] support [TextFragment] content
   bool get supportEmbed =>
@@ -57,24 +62,40 @@ extension NodeExt on Node {
   bool get isEmbedLine => type == EmbedKeys.childrenKey;
 
   /// Whether this [Node] is [Paragraph]
-  bool get isBlock => type == ParagraphKeys.key;
+  bool get isParagraphBlock => type == ParagraphKeys.key;
 
   /// Whether this [Node] is [Line]
-  bool get isBlockLine => type == ParagraphKeys.lineKey;
+  bool get isLineBlock => type == ParagraphKeys.lineKey;
 
   /// Whether this [Node] is blank
   bool get isBlankText => supportEasyText && texts.isEmpty;
+
+  /// Whether this [Node] is strictly blank (text must be single or empty)
+  bool get isStrictlyBlankText =>
+      supportEasyText &&
+      (texts.isEmpty || texts.length == 1 && !texts.first.hasText);
 
   /// Whether this [Node] is not blank
   bool get isNotBlankText => !isBlankText;
 
   EasyTextList get texts => value.castToEasyText();
 
-  /// Whether this [Node] has no value defined, and count as blank block
-  bool get isBlank => value == null;
+  /// Whether this [Node] has no value into itself
+  bool get isBlank => isEmbedLine ? hasNoEmbed : isBlankText;
 
+  /// Whether this [Node] has value into it
+  bool get isNotBlank => isEmbedLine ? hasEmbed : isNotBlankText;
+
+  /// Whether this [Node] has no value hasDefined
+  bool get isStrictlyBlank => isEmbedLine ? hasEmbed : isStrictlyBlankText;
+
+  /// Whether this [Node] has value defined and must satisfy some strict
+  /// conditions
+  bool get isNotStrictlyBlank => isEmbedLine ? hasEmbed : !isStrictlyBlankText;
+
+  @internal
   void get assertRoot {
-    assert(isRootOwner, 'The node ${shortInfo()} is not the wanted one');
+    assert(isRootOwner, 'The node ${shortInfo()} is not the expected');
   }
 }
 
@@ -102,7 +123,9 @@ extension NodeUtilities on Node {
     if (supportEasyText) {
       v = EasyTextList()
         ..addAll(
-          texts.map<EasyText>((EasyText n) => n.copyWith()),
+          texts.map<EasyText>(
+            (EasyText n) => n.copyWith(),
+          ),
         );
     }
     v ??= value;

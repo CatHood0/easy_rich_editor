@@ -1,4 +1,5 @@
 import 'package:easy_rich_editor/easy_rich_editor.dart';
+import 'package:easy_rich_editor/src/core/extensions/object_ext.dart';
 import 'package:flutter_quill_delta_easy_parser/flutter_quill_delta_easy_parser.dart'
     as pr;
 import 'package:flutter_test/flutter_test.dart';
@@ -18,7 +19,7 @@ void main() {
         pr.TextFragment(
             data: "if is this good?",
             attributes: <String, dynamic>{'bold': true}),
-      ],
+      ].toEasyList(),
       id: 'Test id',
       canModifyChildrenLength: false,
     );
@@ -42,7 +43,7 @@ void main() {
         pr.TextFragment(
             data: "if is this good?",
             attributes: <String, dynamic>{'bold': true}),
-      ],
+      ].toEasyList(),
       id: 'Test id',
       canModifyChildrenLength: false,
     );

@@ -19,12 +19,11 @@ extension NodeDeletionExt on Node {
 
     if (supportEmbed) {
       if (hasNoEmbed) {
-        return FragmentChangeContext.noExecuted(NoExecutionReason.noElement);
+        return FragmentChangeContext.noExecuted(
+          NoExecutionReason.noElement,
+        );
       }
-      final TextFragment frag = value.castToFragment();
-      if (start >= 0 && len - frag.length <= 0) {
-        value = null;
-      }
+      value = null;
       return FragmentChangeContext(
         node: this,
         executed: true,
@@ -32,7 +31,7 @@ extension NodeDeletionExt on Node {
       );
     }
 
-    final EasyText? frag = text ?? queryFragments(start).cast<EasyText?>();
+    final EasyText? frag = text ?? queryFragment(start).cast<EasyText?>();
     if (frag == null) {
       return FragmentChangeContext.noExecuted(isBlankText
           ? NoExecutionReason.noElement

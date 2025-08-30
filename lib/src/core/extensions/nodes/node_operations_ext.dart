@@ -101,14 +101,14 @@ extension NodeOperations on Node {
     NodeModifier modifier = NodeModifier.defaultModifier,
   }) {
     if (start < 0 || start > dataLength) {
-      return FragmentChangeContext.noExecuted();
+      return FragmentChangeContext.noExecuted(NoExecutionReason.invalidStart);
     }
     return modifier.insert(
       this,
       start,
       data,
       frag: frag,
-      attributes: styles,
+      styles: styles,
       jumpNodeOffset: jumpNodeOffset,
       fragmentPosition: fragmentPosition,
       jumpOffset: jumpOffset,
@@ -146,6 +146,7 @@ extension NodeOperations on Node {
   FragmentChangeContext delete(
     int start,
     int len, {
+    EasyText? text,
     int jumpNodeOffset = 0,
     int fragmentPosition = 0,
     int fragmentEndPosition = 0,
@@ -162,6 +163,7 @@ extension NodeOperations on Node {
       this,
       start,
       len,
+      text: text,
       computeParentCache: computeParentCache,
       forward: forward,
       jumpNodeOffset: jumpNodeOffset,

@@ -1,3 +1,4 @@
+import 'package:easy_attribution_text/easy_text.dart';
 import 'package:easy_rich_editor/easy_rich_editor.dart';
 import 'package:easy_rich_editor/src/core/api/document/path/path.dart';
 import 'package:easy_rich_editor/src/core/extensions/object_ext.dart';
@@ -41,13 +42,13 @@ void main() {
       root = Node.root(children: <Node>[paragraph1, paragraph2]);
       line1 = Node(
         type: ParagraphKeys.lineKey,
-        value: <TextFragment>[TextFragment(data: 'Hello')],
+        value: EasyTextList()..add(EasyText.fromStr(text: 'Hello')),
         canModifyChildrenLength: false,
       );
 
       line2 = Node(
         type: ParagraphKeys.lineKey,
-        value: <TextFragment>[TextFragment(data: 'World')],
+        value: EasyTextList()..add(EasyText.fromStr(text: 'World')),
         canModifyChildrenLength: false,
       );
       paragraph1.insertNode(line1, path: paragraph1.length.prev.nonNegative);
@@ -82,9 +83,8 @@ void main() {
 
     test('Offset invalidation', () {
       final int initialOffset = line2.globalOffset;
-      line1.value = <TextFragment>[
-        TextFragment(data: 'Hi')
-      ]; // Change from 'Hello' to 'Hi'
+      line1.value = <TextFragment>[TextFragment(data: 'Hi')]
+          .toEasyList(); // Change from 'Hello' to 'Hi'
 
       expect(line2.globalOffset, isNot(equals(initialOffset)));
       // 'Hi' = 2 chars but every block has a extra char pos, so, for line2
@@ -103,13 +103,13 @@ void main() {
       paragraph1 = Node(type: ParagraphKeys.key, value: null, parent: root);
       line1 = Node(
         type: ParagraphKeys.lineKey,
-        value: <TextFragment>[TextFragment(data: 'First')],
+        value: <TextFragment>[TextFragment(data: 'First')].toEasyList(),
         canModifyChildrenLength: false,
       );
       paragraph2 = Node(type: ParagraphKeys.key, value: null, parent: root);
       line2 = Node(
         type: ParagraphKeys.lineKey,
-        value: <TextFragment>[TextFragment(data: 'Second')],
+        value: <TextFragment>[TextFragment(data: 'Second')].toEasyList(),
         canModifyChildrenLength: false,
       );
       root.adoptChildren(<Node>[paragraph1, paragraph2]);
@@ -151,7 +151,7 @@ void main() {
     test('Deep path computation', () {
       final Node line = Node(
         type: ParagraphKeys.lineKey,
-        value: <TextFragment>[TextFragment(data: 'Test')],
+        value: <TextFragment>[TextFragment(data: 'Test')].toEasyList(),
         parent: paragraph2,
         canModifyChildrenLength: false,
       );
@@ -182,7 +182,7 @@ void main() {
       );
       final Node emptyLine = Node(
         type: ParagraphKeys.lineKey,
-        value: <TextFragment>[],
+        value: <TextFragment>[].toEasyList(),
         parent: emptyParagraph,
         canModifyChildrenLength: false,
       );
@@ -206,7 +206,7 @@ void main() {
           TextFragment(data: 'Hello'),
           TextFragment(data: Node.kObjectReplacementCharacter),
           TextFragment(data: 'World'),
-        ],
+        ].toEasyList(),
         parent: paragraph,
         canModifyChildrenLength: false,
       );
@@ -249,7 +249,7 @@ void main() {
       root.adoptChildren(<Node>[paragraph]);
       final Node line = Node(
         type: ParagraphKeys.lineKey,
-        value: <TextFragment>[TextFragment(data: 'First line')],
+        value: <TextFragment>[TextFragment(data: 'First line')].toEasyList(),
         canModifyChildrenLength: false,
       );
       paragraph.insertNode(line);
@@ -258,7 +258,7 @@ void main() {
     test('Insert before', () {
       final Node newLine = Node(
         type: ParagraphKeys.lineKey,
-        value: <TextFragment>[TextFragment(data: 'New line')],
+        value: <TextFragment>[TextFragment(data: 'New line')].toEasyList(),
         canModifyChildrenLength: false,
       );
       paragraph.firstChild!.insertBefore(newLine);
@@ -271,7 +271,7 @@ void main() {
     test('Insert after', () {
       final Node newLine = Node(
         type: ParagraphKeys.lineKey,
-        value: <TextFragment>[TextFragment(data: 'New line')],
+        value: <TextFragment>[TextFragment(data: 'New line')].toEasyList(),
         canModifyChildrenLength: false,
       );
       paragraph.firstChild!.insertAfter(newLine);
@@ -297,7 +297,7 @@ void main() {
           TextFragment(data: 'Hello'),
           TextFragment(data: ' '),
           TextFragment(data: 'World'),
-        ],
+        ].toEasyList(),
         canModifyChildrenLength: false,
       );
 
@@ -312,7 +312,7 @@ void main() {
               data: 'Hello', attributes: <String, dynamic>{'bold': true}),
           TextFragment(data: ' '),
           TextFragment(data: 'World'),
-        ],
+        ].toEasyList(),
         canModifyChildrenLength: false,
       );
 

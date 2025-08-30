@@ -121,7 +121,7 @@ class NodeCursorPosLocation {
 
   @override
   String toString() {
-    return 'NodeValueLocation(index: $textIndex, '
+    return 'NodeCursorPosition(index: $textIndex, '
         'offset: $fragmentOffset, '
         'jumpOffset: $jumpOffset, '
         'locationOffset: $locationOffset, '

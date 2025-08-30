@@ -14,7 +14,7 @@ class EmbedNodeExtractor extends NodeExtractor<TextFragment> {
 
   @override
   bool canNodeHaveValueType(Node node, Type t) {
-    if (node.type == EmbedKeys.childrenKey && t == Map) {
+    if (node.isEmbedLine && t == Map) {
       return true;
     }
     return false;
@@ -127,7 +127,7 @@ class EmbedNodeExtractor extends NodeExtractor<TextFragment> {
       "accept TextFragment values to get locations and"
       " found ${node.value.runtimeType}",
     );
-    if (node.value == value) {
+    if (node.value?.castToFragment().data == value) {
       return <NodeValueLocation>[
         NodeValueLocation(
           location: NodeLocation(path: path, node: node),

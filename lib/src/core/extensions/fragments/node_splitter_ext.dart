@@ -26,7 +26,7 @@ extension NodeSplitterExt on Node {
         final (List<EasyText> left, List<EasyText> right) = line.take(
           localOffset,
           text: text,
-          jumpedOffset: jumpedOffset,
+          jumpedOffset: text == null ? 0 : jumpedOffset,
           fragmentPath: fragmentPath,
         );
         line.nsValue = EasyTextList()..addAll(left);
@@ -83,21 +83,23 @@ extension NodeSplitterExt on Node {
     }
 
     assert(
-        efText != null,
-        'the EasyText fragment must '
-        'be defined at this '
-        'point. ');
+      efText != null,
+      'the EasyText fragment must '
+      'be defined at this '
+      'point. ',
+    );
     final String currentId = efText!.id;
     final EasyText? rightText = efText.splitAt(
       (start - fragOffset).nonNegative,
     );
-    assert(
-        efText.isLinked,
-        'was founded '
-        'a EasyText instance that '
-        'was unlinked from its '
-        'parent list');
-    left.add(efText);
+    // sometimes, during [tryMerge] method execution
+    // the current text fragment could be merged
+    // with a next or previous text fragment, so
+    // we prefer just avoiding adding if it's not
+    // in the parent list
+    if (efText.isLinked) {
+      left.add(efText);
+    }
     efText = rightText != null && rightText.id != currentId
         ? rightText
         : efText.next;

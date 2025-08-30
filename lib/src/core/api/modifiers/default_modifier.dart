@@ -6,11 +6,8 @@ import 'package:easy_rich_editor/src/core/exceptions/illegal_node_exception.dart
 import 'package:easy_rich_editor/src/core/extensions/object_ext.dart';
 import 'package:flutter_quill_delta_easy_parser/flutter_quill_delta_easy_parser.dart';
 import 'package:meta/meta.dart';
-
 import '../../../../easy_rich_editor.dart';
 
-//FIXME: we need to use deepCopy method instead of using direct instances
-// since context works as a "recorder" of some changes
 /// A default implementation of [NodeModifier] that provides standard
 /// operations for handling paragraph and embed nodes in a document tree.
 ///
@@ -52,9 +49,7 @@ class DefaultNodeModifier extends NodeModifier {
 
   @override
   bool isSupportedValue(Object data, String type) {
-    final VerifyTypeFn? verify =
-        supportedTypeValues[type].castOrNull<VerifyTypeFn>();
-    if (verify == null) return false;
+    final VerifyTypeFn verify = supportedTypeValues[type].cast<VerifyTypeFn>();
 
     return verify(data);
   }
@@ -272,31 +267,31 @@ class DefaultNodeModifier extends NodeModifier {
     int jumpOffset = 0,
     int stringLimitLength = 300,
     bool computeParentCache = true,
-    EasyAttributeStyles? attributes,
+    EasyAttributeStyles? styles,
   }) {
     if (node.isBlockNode || node.isRootOwner) {
       final NodeCursorPosLocation location =
           node.queryPosition(start, inclusive: true);
+
       if (location.notFoundLocation) {
         return NodeModifier.defaultNonExecutedContext;
       }
 
-      if (node.isBlockNode && location.found) {
-        final bool isParagraph = node.isBlock;
-        final bool isEmptyEmbed =
-            node.isEmbedBlock && node.isNotEmpty && !location.node!.hasNoEmbed;
-        if (data is! String && (isParagraph || isEmptyEmbed)) {
-          final Node embedBlock = Node.embedBlock(data: null);
+      if (node.isBlockNode && location.found && location.node!.isNotBlank) {
+        final bool isEmbed = node.isEmbedBlock && node.isNotEmpty;
+        if (data is! String && (node.isParagraphBlock || node.isEmbedBlock)) {
+          final Node embedBlock = Node.embedBlock(blockAttributes: styles);
           if (location.locationOffset == 0 && location.node!.isFirst) {
             node.insertBefore(embedBlock);
-          } else if ((location.locationOffset == node.dataLength &&
-                  location.node!.isLast) ||
-              isEmptyEmbed) {
+          } else if (location.locationOffset == node.dataLength &&
+                  location.node!.isLast ||
+              isEmbed) {
             node.insertAfter(embedBlock);
           } else {
             final Node? right = split(
               node,
               start,
+              text: location.text,
               linePath: location.node!.path.nonNegative,
               jumpOffset: location.jumpOffset.nonNegative,
               fragmentPath: location.textIndex.nonNegative,
@@ -315,10 +310,11 @@ class DefaultNodeModifier extends NodeModifier {
               location.node!.unlink();
             }
             assert(
-                right != null,
-                'Node: ${node.shortInfo()} '
-                'should be splitted at ${location.locationOffset} '
-                'by unsupported type "$data"');
+              right != null,
+              'Node: ${node.shortInfo()} '
+              'should be splitted at ${location.locationOffset} '
+              'by unsupported type "$data"',
+            );
             // set automatically the length
             // expected to avoid unnecessary
             // calculations
@@ -332,7 +328,7 @@ class DefaultNodeModifier extends NodeModifier {
             // that are already expected
             // to avoid unnecessary calculations
             embedBlock.children[0]
-              ..value = TextFragment(data: data)
+              ..value = TextFragment(data: data, attributes: styles?.toJson())
               ..dataLength = 1
               ..text = Node.kObjectReplacementCharacter;
             node.insertAfter(embedBlock);
@@ -345,7 +341,7 @@ class DefaultNodeModifier extends NodeModifier {
             assert(node.parent!.contains(right.id),
                 generalAssertNodeInfo(embedBlock, right));
 
-            EasyEditorLogger.tree.debug('Inserting new "$data" in a'
+            EasyEditorLogger.tree.debug('Inserting new "$data" in a '
                 'new node by an invalid data type for '
                 '${node.shortInfo()} founded. '
                 'right: ${embedBlock.shortInfo()}, '
@@ -354,21 +350,22 @@ class DefaultNodeModifier extends NodeModifier {
             final int changeSize = node.dataLength.decr +
                 embedBlock.dataLength.decr +
                 right.dataLength.decr;
-            EasyEditorLogger.tree.debug('ChangeInfo('
-                'offset: ${node.offset}, '
-                'changeSize: $changeSize, '
-                'endOffset: ${right.endOffset})');
+
+            // we prefer just removing empty nodes directly after split
+            if (node.isStrictlyBlank) {
+              node.unlink();
+            }
 
             return FragmentChangeContext(
               executed: true,
-              node: node,
+              node: node.parent == null ? embedBlock.parent : node,
               changeSize: changeSize,
             );
           }
-          EasyEditorLogger.tree.debug('Inserting new "$data" in a'
+          EasyEditorLogger.tree.debug('Inserting new "$data" in a '
               'new node by an invalid data type for '
               '${node.shortInfo()} founded. '
-              'New info ${embedBlock.shortInfo()}');
+              'right: ${embedBlock.shortInfo()}');
 
           assert(node.parent!.contains(embedBlock.id),
               generalAssertNodeInfo(node, embedBlock));
@@ -381,12 +378,20 @@ class DefaultNodeModifier extends NodeModifier {
           return embedBlock.insert(
             0,
             data,
+            styles: styles,
+            computeParentCache: computeParentCache,
+            jumpOffset: 0,
+            fragmentPosition: 0,
+            stringLimitLength: stringLimitLength,
+            jumpNodeOffset: node.endOffset,
           );
         }
 
-        // By now, [Embeds] can only
-        // have one [EmbedLine]
-        if (data is String && node.type == EmbedKeys.key) {
+        // NOTE: should we implement a way to have more
+        // than one embed object per block?
+        //
+        // Something like this: https://github.com/singerdmx/flutter-quill/issues/2430
+        if (data is String && node.isEmbedBlock) {
           final Node block = Node.block(data: "");
           if (location.locationOffset == 0) {
             node.insertBefore(block);
@@ -401,11 +406,12 @@ class DefaultNodeModifier extends NodeModifier {
           );
 
           assert(
-              node.parent!.contains(block.id),
-              '${block.shortInfo()} '
-              'should be inserted already '
-              'into ${node.shortInfo()} its parent after doing a '
-              'insertion, but was not founded. ${node.parent?.shortInfo()}');
+            node.parent!.contains(block.id),
+            '${block.shortInfo()} '
+            'should be inserted already '
+            'into ${node.shortInfo()} its parent after doing a '
+            'insertion, but was not founded. ${node.parent?.shortInfo()}',
+          );
 
           EasyEditorLogger.tree.debug('Moving '
               'start location => '
@@ -415,6 +421,12 @@ class DefaultNodeModifier extends NodeModifier {
           return block.insert(
             0,
             data,
+            styles: styles,
+            computeParentCache: computeParentCache,
+            jumpOffset: 0,
+            fragmentPosition: 0,
+            stringLimitLength: stringLimitLength,
+            jumpNodeOffset: node.endOffset,
           );
         }
       }
@@ -422,10 +434,10 @@ class DefaultNodeModifier extends NodeModifier {
       final FragmentChangeContext context = location.node!.insert(
         location.locationOffset,
         data,
-        styles: attributes,
+        styles: styles,
         frag: location.text,
         jumpNodeOffset: location.jumpNodeOffset,
-        fragmentPosition: location.textIndex.or(fragmentPosition),
+        fragmentPosition: location.textIndex.or(() => fragmentPosition),
         jumpOffset: location.jumpOffset.nonNegative,
         stringLimitLength: stringLimitLength,
       );
@@ -440,22 +452,30 @@ class DefaultNodeModifier extends NodeModifier {
 
     assert(
         node.hasDefinedValue,
-        'value must '
+        'value must'
         'be defined');
-    assert(start >= 0 && start <= node.dataLength.next,
-        'start: $start is out of range => 0 to ${node.dataLength.next}');
+    assert(
+      start >= 0 && start <= node.dataLength.next,
+      'start: $start is out of '
+      'range => 0 to ${node.dataLength.next}',
+    );
+    assert(
+      // common cases, shouldn't need to throw any assertion
+      (data is String || data is! String && !node.isEmbedLine) ||
+          // just this specific case should be throwed when required
+          data is! String && node.isEmbedLine && node.hasNoEmbed,
+      'Cannot insert "$data" in $node since is not empty',
+    );
 
-    if (!isSupportedValue(data, node.type) ||
-        data is! String && node.isEmbedLine && !node.hasNoEmbed) {
+    if (!isSupportedValue(data, node.type)) {
       // when we are into a [Line] or [EmbedLine]
       // we prefer go to parent and trying to make
       // an automatic split
       return node.jumpToParentExceptRoot()!.insert(
             // get the exact start into the block
-            jumpNodeOffset.or(node.offset, min: 0) + start,
+            jumpNodeOffset.or(() => node.offset, min: 0) + start,
             data,
-            modifier: this,
-            styles: attributes,
+            styles: styles,
             stringLimitLength: stringLimitLength,
           );
     }
@@ -463,7 +483,7 @@ class DefaultNodeModifier extends NodeModifier {
     final FragmentChangeContext context = node.insertValueAt(
       data,
       start,
-      styles: attributes,
+      styles: styles,
       text: frag,
       fragmentPath: fragmentPosition,
       jumpedOffset: jumpOffset,
@@ -502,6 +522,7 @@ class DefaultNodeModifier extends NodeModifier {
     Node node,
     int start,
     int len, {
+    EasyText? text,
     bool forward = false,
     int jumpNodeOffset = 0,
     int fragmentPosition = 0,
@@ -525,7 +546,7 @@ class DefaultNodeModifier extends NodeModifier {
       if (node.isBlockNode) {
         // both are different
         if (location.node != endLocation.node) {
-          _mergeNodesAtLocations(
+          return _mergeNodesAtLocations(
             node,
             start,
             len,
@@ -556,8 +577,9 @@ class DefaultNodeModifier extends NodeModifier {
       final FragmentChangeContext context = location.node!.delete(
         location.locationOffset,
         len,
+        text: location.text ?? text,
         forward: forward,
-        fragmentPosition: location.textIndex.or(fragmentPosition),
+        fragmentPosition: location.textIndex.or(() => fragmentPosition),
         fragmentEndPosition: endLocation.textIndex,
         jumpOffset: location.jumpOffset.nonNegative,
       );
@@ -578,7 +600,8 @@ class DefaultNodeModifier extends NodeModifier {
         'start: $start, or end: $end are '
         'out of range => 0 to ${node.dataLength.next}. '
         'Node-info: ${node.shortInfo()}');
-    if (node.isBlankOrEmpty &&
+    // we prefer just removing empty nodes directly before deletion
+    if (node.isStrictlyBlankText &&
         // parent has just one line
         node.parent!.length == 1 &&
         // and, if the ends exceeds
@@ -595,19 +618,20 @@ class DefaultNodeModifier extends NodeModifier {
       block.unlink();
       return FragmentChangeContext(
         executed: true,
-        changeSize: 1,
+        changeSize: len,
         node: node,
       );
     }
     final FragmentChangeContext context = node.deleteValueAt(
       start,
       len,
+      text: text,
       fragmentPath: fragmentPosition.nonNegative,
       jumpedOffset: jumpOffset.nonNegative,
     );
     if (!context.executed) return context;
     // commonly, we removes entire embeds when are empty
-    if (node.isBlankText && node.type == EmbedKeys.childrenKey) {
+    if (node.isEmbedLine && node.hasNoEmbed) {
       node.jumpToParent().overrideChild(
             node.jumpToParentExceptRoot()!.path,
             Node.block(data: ""),
@@ -671,12 +695,13 @@ class DefaultNodeModifier extends NodeModifier {
       fragmentPosition: location.textIndex.nonNegative,
       computeParentCache: false,
     );
+
     assert(
       startctx.executed,
       'the first node deletion was not executed as expected',
     );
 
-    endLocation.node!.delete(
+    final FragmentChangeContext endctx = endLocation.node!.delete(
       0,
       // we need to get the effective len
       effectiveRightLen,
@@ -684,6 +709,11 @@ class DefaultNodeModifier extends NodeModifier {
       jumpOffset: endLocation.jumpOffset.nonNegative,
       fragmentPosition: endLocation.textIndex.nonNegative,
       computeParentCache: false,
+    );
+
+    assert(
+      endctx.executed,
+      'the end node deletion wasn\'t executed as expected',
     );
 
     // parent text must be updated here to avoid
@@ -789,7 +819,7 @@ class DefaultNodeModifier extends NodeModifier {
       'type must be equals in both',
     );
     node
-      ..value.castToEasyText().addAll(other.texts)
+      ..value.castToEasyText().addAll(<EasyText>[...other.texts])
       ..text = '${node.nsText.orEmpty}${other.nsText.orEmpty}'.orNull()
       ..dataLength = node.dataLength + other.dataLength;
     other.unlink();

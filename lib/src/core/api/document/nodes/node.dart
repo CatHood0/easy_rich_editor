@@ -164,7 +164,9 @@ final class Node extends ChangeNotifier {
         // we will never accept new lines
         // as fragments
         value: EasyTextList()
-          ..addAll(line.isNewLine ? <EasyText>[] : line.toEasyText),
+          ..addAll(
+            line.isNewLine ? <EasyText>[EasyText.empty()] : line.toEasyText,
+          ),
         children: <Node>[],
         parent: this,
         id: line.id,
@@ -200,7 +202,7 @@ final class Node extends ChangeNotifier {
     String? id,
     this.parent,
     Map<String, dynamic>? metadata,
-    Map<String, dynamic>? blockAttributes,
+    EasyAttributeStyles? blockAttributes,
     Object? data,
   }) : type = EmbedKeys.key {
     assert(data == null || data is! String,
@@ -212,14 +214,14 @@ final class Node extends ChangeNotifier {
       'can_modify_children_length': true,
       ...?metadata,
     };
-    final Node lineNode = Node(
+    final Node child = Node(
       type: EmbedKeys.childrenKey,
-      value: data == null ? null : TextFragment(data: data),
+      value: TextFragment(data: data ?? <String, dynamic>{}),
       parent: this,
       canModifyChildrenLength: false,
     )..text = data?.text();
     text = data?.text();
-    insertNode(lineNode);
+    insertNode(child);
   }
 
   Node.block({
@@ -406,7 +408,7 @@ final class Node extends ChangeNotifier {
 
     if (_dataLength != null) return _dataLength!;
     if (_value == null) return 0;
-    if (supportEmbed) {
+    if (_value != null && (supportEmbed || !supportEasyText)) {
       _text ??= Node.kObjectReplacementCharacter;
       return _dataLength = 1;
     }
@@ -417,7 +419,7 @@ final class Node extends ChangeNotifier {
       length += text.length;
       if (requiresTextUpdate) {
         _text = "${_text.orEmpty}"
-            "$text";
+            "${text.str()}";
       }
     }
     return _dataLength = length;
@@ -440,7 +442,7 @@ final class Node extends ChangeNotifier {
         length += value.castToFragment().length;
         _dataLength ??= length;
       }
-      buffer.write(text);
+      buffer.write(Node.kObjectReplacementCharacter);
       return _text = '$buffer';
     }
 
@@ -449,7 +451,7 @@ final class Node extends ChangeNotifier {
       if (_dataLength == null) {
         length += text.length;
       }
-      buffer.write(text);
+      buffer.write(text.str());
     }
     _dataLength ??= length;
     return _text = '$buffer';
@@ -617,7 +619,7 @@ final class Node extends ChangeNotifier {
   Node? get firstChild => children.firstOrNull;
   Node? firstWhere(bool Function(Node) expr) => children.firstWhereOrNull(expr);
 
-  Node? get lastChild => isEmpty ? null : children[length.decr.nonNegative];
+  Node? get lastChild => isEmpty ? null : children.lastOrNull;
   Node? lastWhere(bool Function(Node) expr) => children.lastWhereOrNull(expr);
 
   Node get first => firstChild!;
@@ -696,6 +698,7 @@ final class Node extends ChangeNotifier {
     // since we insert an element before this
     // the path changes, and we need a new reallocation
     int lastPathKnowed = path;
+    assert(path > -1, 'path founded has no valid value: $lastPathKnowed');
     parent!.children.insert(lastPathKnowed, entry);
     entry
       ..parent = parent
@@ -713,7 +716,7 @@ final class Node extends ChangeNotifier {
     lastPathKnowed++;
     path = lastPathKnowed;
     deepPath = <int>[
-      ...parent!._deepPath,
+      ...parent!.deepPath,
       lastPathKnowed,
     ];
     if (next != null) {
@@ -761,8 +764,7 @@ final class Node extends ChangeNotifier {
 
   /// Get the relative path to this node from its parent
   int get path {
-    if (isRootOwner) return -1;
-    if (!needsComputePath) return _path;
+    if (!needsComputePath || isRootOwner) return _path;
 
     assert(
         parent != null,
@@ -816,7 +818,7 @@ final class Node extends ChangeNotifier {
     /// This never happen, since, when `needsComputePath`
     /// is `true`, it means that the Node was moved, and requires
     /// a new value to be catched
-    if (_path == _notFoundPath) {
+    if (_path == _notFoundPath && !isRootOwner) {
       EasyEditorLogger.treeFailures.warn(
         "Not found "
         "child("

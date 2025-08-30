@@ -17,6 +17,7 @@ extension DynamicCast on dynamic {
   T? castOrNull<T>() => this is T ? this as T : null;
   EasyTextList castToEasyText() => cast<EasyTextList>();
   TextFragment castToFragment() => cast<TextFragment>();
+  TextFragment? castNullableFragment() => castOrNull<TextFragment>();
   String castString() => cast<String>();
 }
 
@@ -44,6 +45,22 @@ extension EasyFragments on List<TextFragment> {
             ),
           ))
     ];
+  }
+
+  EasyTextList toEasyList() {
+    return EasyTextList()
+      ..addAll(
+        <EasyText>[
+          ...map<EasyText>(
+            (TextFragment n) => EasyText.fromStr(
+              text: n.data.castString(),
+              styles: EasyAttributeStyles.fromJson(
+                n.attributes,
+              ),
+            ),
+          ),
+        ],
+      );
   }
 }
 
@@ -75,8 +92,8 @@ extension IntList on int {
     return this > max ? max : this;
   }
 
-  int or(int another, {int min = -1}) {
-    return this <= min ? another : this;
+  int or(int Function() another, {int min = -1}) {
+    return this <= min ? another() : this;
   }
 }
 
