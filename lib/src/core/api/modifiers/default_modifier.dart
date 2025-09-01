@@ -57,198 +57,6 @@ class DefaultNodeModifier extends NodeModifier {
   @override
   Map<String, VerifyTypeFn> get supportedTypeValues => _supportMap;
 
-  /// Applies a delta operation to a node, handling insertions, deletions, and replacements.
-  ///
-  /// This method processes [DeltaNode] changes and applies them to the target [node].
-  /// It handles various scenarios including:
-  ///
-  /// - Root node operations (delegates to appropriate child nodes)
-  /// - Entire node selection and deletion
-  /// - Collapsed and non-collapsed delta ranges
-  /// - Text fragment modifications
-  ///
-  /// Params:
-  /// - [node]: The target node to apply the delta to
-  /// - [delta]: The delta operation containing change information
-  /// - [removedIfRequired]: If true, allows node removal when entire content is deleted
-  /// - [transformOffsetWhenRequired]: If true, transforms offsets when delegating to child nodes
-  @override
-  DeltaChangeResult receiveDelta(
-    Node node,
-    DeltaNode delta, {
-    bool removedIfRequired = false,
-    bool transformOffsetWhenRequired = true,
-  }) {
-    if (node.isRootOwner) {
-      final NodeCursorPosLocation location = node.queryPosition(delta.start);
-      if (location.notFoundLocation || location.node == null) {
-        return DeltaChangeResult.noExecution();
-      }
-      return receiveDelta(
-        location.node!,
-        delta.transformRanges(
-          location.node!.offset,
-          decrease: true,
-        ),
-        removedIfRequired: true,
-        transformOffsetWhenRequired: transformOffsetWhenRequired,
-      );
-    }
-
-    if (!isSupported(node.type)) {
-      throw IllegalNodeException(
-          node: node,
-          message: 'Non supported type detected in $runtimeType. We recommend '
-              'using first isSupported method before calling '
-              'receiveDelta or any of the other methods');
-    }
-    assert(
-        delta.isNormalized,
-        "the delta passed must be "
-        "normalized before "
-        "making any change");
-
-    final int lineStartOffset = node.offset;
-    int lineEndOffset = lineStartOffset + node.dataLength;
-    if (node.isBlockNode) {
-      // for block nodes, dataLength has 1 extra pos point
-      // so, to validate as the range correctly, we need to
-      // decrease that value to its original one
-      lineEndOffset = lineEndOffset.prev;
-      // is removing this node
-      if (delta.isDeletion &&
-          delta.newLength == 0 &&
-          delta.isSelectingEntireRanges(lineStartOffset, lineEndOffset)) {
-        if (removedIfRequired) {
-          node
-            ..clearBlock()
-            ..unlinkIfNeeded()
-            ..invalidateDataOffset();
-          return DeltaChangeResult(
-            removed: true,
-            newValidCursorPosition: lineStartOffset.decr.nonNegative,
-            removedEntireNode: true,
-          );
-        }
-
-        // we need to find all the nodes between selection
-        if (!delta.isCollapsed) {}
-      }
-      // just search the exact line point
-      // to make the modification
-      if (delta.isCollapsed) {
-        final NodeCursorPosLocation location = node.queryPosition(delta.start);
-        if (location.notFoundLocation || location.node == null) {
-          return DeltaChangeResult.noExecution();
-        }
-        return receiveDelta(
-          location.node!,
-          delta,
-          removedIfRequired: true,
-          transformOffsetWhenRequired: transformOffsetWhenRequired,
-        );
-      }
-
-      return DeltaChangeResult.noExecution();
-    }
-
-    assert(
-        delta.start >= 0 && delta.end <= node.dataLength,
-        'DeltaNode must have a '
-        'valid range to be used into '
-        '${node.type}(id: ${node.id}, '
-        'global: ${node.globalOffset}, '
-        'path: ${node.deepPath})');
-    assert(
-        node.hasDefinedValue,
-        'Only nodes with defined values '
-        'can be changed. But, '
-        'found: ${node.shortInfo()}');
-
-    // if we are in a situation like the paragraph has no text
-    // and the delta received is a deletion, will removed this paragraph
-    if (node.isBlankOrEmpty &&
-        delta.isCollapsed &&
-        delta.isDeletion &&
-        delta.isSelectingEntireRanges(lineStartOffset, lineEndOffset)) {
-      node
-          .jumpToParent()
-          // saves the content that changes
-          .rebuildNodes(shouldNotify: true, changes: <String, int>{
-        node.jumpToParentExceptRoot()!.id: 1,
-      });
-      node
-        ..unlinkIfNeeded()
-        ..invalidateDataOffset()
-        ..invalidateCache()
-        ..value = <TextFragment>[TextFragment(data: "")]
-        ..setDataLength(null, invalidate: false);
-      return DeltaChangeResult(
-        removed: true,
-        removedEntireNode: true,
-        newValidCursorPosition: lineStartOffset.decr.nonNegative,
-        executed: true,
-      );
-    }
-
-    // determines the length of the deletion
-    final int deltaLength = delta.newLength - delta.oldLength;
-
-    // if we are selecting an entire line, and, we
-    // pass a new character, then this will be executed
-    //
-    // will delete entire content of the line, and pass
-    // if required the inserted value
-    if (delta.isSelectingEntireRanges(
-          lineStartOffset,
-          lineEndOffset,
-          strict: false,
-        ) &&
-        deltaLength > 0 &&
-        (delta.isReplace || delta.isDeletion)) {
-      //FIXME: this is invalidating incorrectly
-      // we probably can recompute the parent plain text
-      // is it's available to be used
-      node
-        ..value = <TextFragment>[
-          TextFragment(data: delta.isInsertion ? delta.inserted! : "")
-        ]
-        ..invalidateDataOffset()
-        ..setDataLength(delta.isInsertion ? delta.inserted!.length : 0)
-        ..text = "";
-      return DeltaChangeResult(
-        removed: true,
-        executed: true,
-        newValidCursorPosition: lineStartOffset.decr.nonNegative,
-      );
-    }
-
-    // jump to the most nearest node of the [Root] one
-    final Node? block = node.jumpToParentExceptRoot();
-
-    if (block == null) {
-      throw UnimplementedError(
-          "not implemented root cases or non parent cases");
-    } else if (block.path == -1) {
-      throw IllegalNodeException(node: block, message: "Invalid Parent");
-    }
-
-    // these methods should also update the internal cache automatically
-    if (delta.isInsertion) {
-      // FIXME: we need to have a way to override the stringLimitLength
-      node.insert(delta.start, delta.inserted!, stringLimitLength: 300);
-    }
-
-    if (!delta.isCollapsed && (delta.isDeletion || (delta.isReplace))) {
-      node.delete(
-          delta.isInsertion ? delta.start.next : delta.start, delta.end);
-    }
-
-    block.jumpToParent().rebuildNodes(changes: <String, int>{block.id: 1});
-
-    return DeltaChangeResult(removed: true, executed: true);
-  }
-
   /// Inserts data into a node at the specified position.
   ///
   /// Handles various insertion scenarios including:
@@ -1027,5 +835,204 @@ class DefaultNodeModifier extends NodeModifier {
         'block to format at '
         'specified offset (start and end)');
     return NodeModifier.defaultNonExecutedContext;
+  }
+
+  /// Applies a delta operation to a node, handling insertions, deletions, and replacements.
+  ///
+  /// This method processes [DeltaNode] changes and applies them to the target [node].
+  /// It handles various scenarios including:
+  ///
+  /// - Root node operations (delegates to appropriate child nodes)
+  /// - Entire node selection and deletion
+  /// - Collapsed and non-collapsed delta ranges
+  /// - Text fragment modifications
+  ///
+  /// Params:
+  /// - [node]: The target node to apply the delta to
+  /// - [delta]: The delta operation containing change information
+  /// - [removedIfRequired]: If true, allows node removal when entire content is deleted
+  /// - [transformOffsetWhenRequired]: If true, transforms offsets when delegating to child nodes
+  @override
+  DeltaChangeResult receiveDelta(
+    Node node,
+    DeltaNode delta, {
+    bool removedIfRequired = false,
+    bool transformOffsetWhenRequired = true,
+  }) {
+    if (node.isRootOwner) {
+      final NodeCursorPosLocation location = node.queryPosition(delta.start);
+      if (location.notFoundLocation || location.node == null) {
+        return DeltaChangeResult.noExecution();
+      }
+      return receiveDelta(
+        location.node!,
+        delta.transformRanges(
+          location.node!.offset,
+          decrease: true,
+        ),
+        removedIfRequired: true,
+        transformOffsetWhenRequired: transformOffsetWhenRequired,
+      );
+    }
+
+    if (!isSupported(node.type)) {
+      throw IllegalNodeException(
+          node: node,
+          message: 'Non supported type detected in $runtimeType. We recommend '
+              'using first isSupported method before calling '
+              'receiveDelta or any of the other methods');
+    }
+    assert(
+        delta.isNormalized,
+        "the delta passed must be "
+        "normalized before "
+        "making any change");
+
+    final int lineStartOffset = node.offset;
+    int lineEndOffset = lineStartOffset + node.dataLength;
+    if (node.isBlockNode) {
+      // for block nodes, dataLength has 1 extra pos point
+      // so, to validate as the range correctly, we need to
+      // decrease that value to its original one
+      lineEndOffset = lineEndOffset.prev;
+      // is removing this node
+      if (delta.isDeletion &&
+          delta.newLength == 0 &&
+          delta.isSelectingEntireRanges(lineStartOffset, lineEndOffset)) {
+        if (removedIfRequired) {
+          node
+            ..clearBlock()
+            ..unlinkIfNeeded()
+            ..invalidateDataOffset();
+          return DeltaChangeResult(
+            nodeId: node.id,
+            removed: true,
+            newValidCursorPosition: lineStartOffset.decr.nonNegative,
+            removedEntireNode: true,
+          );
+        }
+
+        // we need to find all the nodes between selection
+        if (!delta.isCollapsed) {}
+      }
+      // just search the exact line point
+      // to make the modification
+      if (delta.isCollapsed) {
+        final NodeCursorPosLocation location = node.queryPosition(delta.start);
+        if (location.notFoundLocation || location.node == null) {
+          return DeltaChangeResult.noExecution();
+        }
+        return receiveDelta(
+          location.node!,
+          delta,
+          removedIfRequired: true,
+          transformOffsetWhenRequired: transformOffsetWhenRequired,
+        );
+      }
+
+      return DeltaChangeResult.noExecution();
+    }
+
+    assert(
+        delta.start >= 0 && delta.end <= node.dataLength,
+        'DeltaNode must have a '
+        'valid range to be used into '
+        '${node.type}(id: ${node.id}, '
+        'global: ${node.globalOffset}, '
+        'path: ${node.deepPath})');
+    assert(
+        node.hasDefinedValue,
+        'Only nodes with defined values '
+        'can be changed. But, '
+        'found: ${node.shortInfo()}');
+
+    // if we are in a situation like the paragraph has no text
+    // and the delta received is a deletion, will removed this paragraph
+    if (node.isBlankOrEmpty &&
+        delta.isCollapsed &&
+        delta.isDeletion &&
+        delta.isSelectingEntireRanges(lineStartOffset, lineEndOffset)) {
+      node
+          .jumpToParent()
+          // saves the content that changes
+          .rebuildNodes(shouldNotify: true, changes: <String, int>{
+        node.jumpToParentExceptRoot()!.id: 1,
+      });
+      node
+        ..unlinkIfNeeded()
+        ..invalidateDataOffset()
+        ..invalidateCache()
+        ..value = <TextFragment>[TextFragment(data: "")]
+        ..setDataLength(null, invalidate: false);
+      return DeltaChangeResult(
+        nodeId: node.id,
+        removed: true,
+        removedEntireNode: true,
+        newValidCursorPosition: lineStartOffset.decr.nonNegative,
+        executed: true,
+      );
+    }
+
+    // determines the length of the deletion
+    final int deltaLength = delta.newLength - delta.oldLength;
+
+    // if we are selecting an entire line, and, we
+    // pass a new character, then this will be executed
+    //
+    // will delete entire content of the line, and pass
+    // if required the inserted value
+    if (delta.isSelectingEntireRanges(
+          lineStartOffset,
+          lineEndOffset,
+          strict: false,
+        ) &&
+        deltaLength > 0 &&
+        (delta.isReplace || delta.isDeletion)) {
+      //FIXME: this is invalidating incorrectly
+      // we probably can recompute the parent plain text
+      // is it's available to be used
+      node
+        ..value = <TextFragment>[
+          TextFragment(data: delta.isInsertion ? delta.inserted! : "")
+        ]
+        ..invalidateDataOffset()
+        ..setDataLength(delta.isInsertion ? delta.inserted!.length : 0)
+        ..text = "";
+      return DeltaChangeResult(
+        removed: true,
+        executed: true,
+        nodeId: node.id,
+        newValidCursorPosition: lineStartOffset.decr.nonNegative,
+      );
+    }
+
+    // jump to the most nearest node of the [Root] one
+    final Node? block = node.jumpToParentExceptRoot();
+
+    if (block == null) {
+      throw UnimplementedError(
+          "not implemented root cases or non parent cases");
+    } else if (block.path == -1) {
+      throw IllegalNodeException(node: block, message: "Invalid Parent");
+    }
+
+    // these methods should also update the internal cache automatically
+    if (delta.isInsertion) {
+      // FIXME: we need to have a way to override the stringLimitLength
+      node.insert(delta.start, delta.inserted!, stringLimitLength: 300);
+    }
+
+    if (!delta.isCollapsed && (delta.isDeletion || (delta.isReplace))) {
+      node.delete(
+          delta.isInsertion ? delta.start.next : delta.start, delta.end);
+    }
+
+    block.jumpToParent().rebuildNodes(changes: <String, int>{block.id: 1});
+
+    return DeltaChangeResult(
+      removed: true,
+      executed: true,
+      nodeId: node.id,
+    );
   }
 }

@@ -5,6 +5,7 @@ import 'package:collection/collection.dart';
 import 'package:easy_attribution_text/easy_text.dart';
 import 'package:easy_rich_editor/src/core/api/document/path/path.dart';
 import 'package:easy_rich_editor/src/core/api/editor_state/easy_state.dart';
+import 'package:easy_rich_editor/src/core/builders/table/table_keys.dart';
 import 'package:easy_rich_editor/src/core/extensions/object_ext.dart';
 import 'package:easy_rich_editor/src/utils/background_isolate_runner/isolate_runner.dart';
 import 'package:easy_rich_editor/src/utils/utils.dart';
@@ -112,6 +113,229 @@ final class Node extends ChangeNotifier {
     this.metadata['pr_attributes'] = blockAttributes;
   }
 
+  factory Node.fromJson(
+    Map<String, dynamic> json, {
+    bool jsonHasCachedData = false,
+  }) {
+    final List<Node> children = (json['children'] as List<dynamic>?)
+            ?.map((dynamic e) => Node.fromJson(e as Map<String, dynamic>))
+            .toList() ??
+        <Node>[];
+
+    final Node node = Node(
+      id: json['id'] as String,
+      type: json['type'] as String,
+      value: json['value'],
+      metadata: Map<String, dynamic>.from(
+        <String, dynamic>{...?(json['metadata'] as Map<String, dynamic>?)},
+      ),
+      children: children,
+    );
+
+    // Establecer parent a los hijos después de crearlos
+    for (final Node child in children) {
+      child.parent = node;
+    }
+
+    return node;
+  }
+
+  Node.embedBlock({
+    String? id,
+    this.parent,
+    Map<String, dynamic>? metadata,
+    EasyAttributeStyles? blockAttributes,
+    Object? data,
+  }) : type = EmbedKeys.key {
+    assert(data == null || data is! String,
+        'Only non embed blocks can have text data');
+    this.id = id ?? EasyTreeState.createNodeId();
+    this.metadata = <String, dynamic>{
+      'block': true,
+      'pr_attributes': blockAttributes,
+      'can_modify_children_length': true,
+      ...?metadata,
+    };
+    final Node child = Node(
+      type: EmbedKeys.childrenKey,
+      value: TextFragment(data: data ?? <String, dynamic>{}),
+      parent: this,
+      canModifyChildrenLength: false,
+    )..text = data?.text();
+    text = data?.text();
+    insertNode(child);
+  }
+
+  Node.block({
+    String? id,
+    this.parent,
+    this.type = ParagraphKeys.key,
+    String childType = ParagraphKeys.lineKey,
+    Map<String, dynamic>? metadata,
+    EasyAttributeStyles? blockAttributes,
+    List<Node> children = const <Node>[],
+    Object? data,
+    bool noInvalidation = false,
+  }) {
+    assert(type.trim().isNotEmpty, 'type cannot be empty');
+    assert(childType.trim().isNotEmpty, 'childType cannot be empty');
+    assert(
+        data == null || data is String,
+        'Only embed blocks can '
+        'contain objects of type ${data.runtimeType}');
+    this.id = id ?? EasyTreeState.createNodeId();
+    this.metadata = <String, dynamic>{
+      'block': true,
+      'pr_attributes': blockAttributes,
+      ...?metadata,
+    };
+    //FIXME: implement a better search to know if the
+    // text contains new lines
+    if (data != null) {
+      if (data.castString().contains(Utils.CR)) {
+        final List<String> lines = LineSplitter().convert(data.castString());
+        for (int i = 0; i < lines.length; i++) {
+          final String line = lines[i];
+          final Node lineNode = Node(
+            type: childType,
+            value: EasyTextList()..add(EasyText.fromStr(text: line)),
+            children: <Node>[],
+            parent: this,
+            canModifyChildrenLength: false,
+          )..text = line;
+          text = nsText == null ? line : '${nsText.orEmpty}\n$line';
+          insertNode(lineNode);
+        }
+        adoptChildren(children);
+        return;
+      }
+
+      final Node lineNode = Node(
+        type: childType,
+        value: EasyTextList()
+          ..add(EasyText.fromStr(
+            text: data.castString(),
+          )),
+        children: <Node>[],
+        parent: this,
+        canModifyChildrenLength: false,
+      )..text = data.castString();
+      text = data.castString();
+      insertNode(lineNode);
+    }
+    adoptChildren(children);
+  }
+
+  Node.table({
+    required int columnNum,
+    required int rowNum,
+    String? id,
+    this.parent,
+    List<Node>? children,
+    Map<String, dynamic>? metadata,
+    EasyAttributeStyles? blockAttributes,
+  }) : type = TableKeys.key {
+    children ??= <Node>[];
+    this.id = id ?? EasyTreeState.createNodeId();
+    this.metadata = <String, dynamic>{
+      'block': true,
+      'pr_attributes': blockAttributes,
+      ...?metadata,
+    };
+    adoptChildren(
+      children,
+      check: (Node n) {
+        assert(
+            n.type == TableKeys.columnKey,
+            'expected ${TableKeys.columnKey} as '
+            'a child, but '
+            'was found: ${n.type}');
+      },
+    );
+
+    if (children.isEmpty) {
+      final int effectiveLen = columnNum - children.length;
+      if (effectiveLen <= 0) return;
+      adoptChildren(children
+        ..addAll(
+          List<Node>.generate(
+            effectiveLen,
+            (int index) => Node.tableColumn(rowNum: rowNum),
+          ),
+        ));
+    }
+    assert(
+        this.children.length == columnNum,
+        'Expected '
+        'children length: $columnNum but '
+        'found ${this.children.length}');
+  }
+
+  Node.tableColumn({
+    required int rowNum,
+    String? id,
+    this.parent,
+    List<Node> children = const <Node>[],
+    Map<String, dynamic>? metadata,
+    EasyAttributeStyles? blockAttributes,
+  }) : type = TableKeys.columnKey {
+    this.id = id ?? EasyTreeState.createNodeId();
+    this.metadata = <String, dynamic>{
+      'block': true,
+      'column': true,
+      'pr_attributes': blockAttributes,
+      ...?metadata,
+    };
+    adoptChildren(
+      children,
+      check: (Node n) {
+        assert(
+            n.isBlockNode && n.type != type,
+            'expected non ${TableKeys.columnKey} type as '
+            'a child, but '
+            'was found: ${n.shortInfo()}');
+      },
+    );
+
+    if (children.isEmpty) {
+      final int effectiveLen = rowNum - children.length;
+      if (effectiveLen <= 0) return;
+      adoptChildren(
+        children
+          ..addAll(
+            List<Node>.generate(
+              effectiveLen,
+              (int index) => Node.tableColumn(rowNum: rowNum),
+            ),
+          ),
+      );
+    }
+    assert(
+        this.children.length == rowNum,
+        'Expected '
+        'children length: $rowNum but '
+        'found ${this.children.length}');
+  }
+
+  Node.embedChild({
+    String? id,
+    this.parent,
+    Map<String, dynamic>? metadata,
+    Object? data,
+  }) : type = EmbedKeys.childrenKey {
+    assert(data == null || data is! String,
+        'Only non embed blocks can have text data');
+    this.id = id ?? EasyTreeState.createNodeId();
+    this.metadata = <String, dynamic>{
+      ...?metadata,
+      'block': false,
+      'can_modify_children_length': false,
+    };
+    _value = data == null ? null : TextFragment(data: data);
+    _dataLength = data == null ? 0 : 1;
+    _text = data == null ? null : Node.kObjectReplacementCharacter;
+  }
+
   Node.fromParagraphEmbed({
     String? id,
     this.parent,
@@ -175,113 +399,6 @@ final class Node extends ChangeNotifier {
       insertNode(lineNode);
       _fastIndexTreePart[lineNode.id] = lineNode;
     }
-  }
-
-  Node.embedChild({
-    String? id,
-    this.parent,
-    Map<String, dynamic>? metadata,
-    Map<String, dynamic>? blockAttributes,
-    Object? data,
-  }) : type = EmbedKeys.childrenKey {
-    assert(data == null || data is! String,
-        'Only non embed blocks can have text data');
-    this.id = id ?? EasyTreeState.createNodeId();
-    this.metadata = <String, dynamic>{
-      'block': true,
-      'pr_attributes': blockAttributes,
-      'can_modify_children_length': false,
-      ...?metadata,
-    };
-    _value = data == null ? null : TextFragment(data: data);
-    _dataLength = data == null ? 0 : 1;
-    _text = data == null ? null : Node.kObjectReplacementCharacter;
-  }
-
-  Node.embedBlock({
-    String? id,
-    this.parent,
-    Map<String, dynamic>? metadata,
-    EasyAttributeStyles? blockAttributes,
-    Object? data,
-  }) : type = EmbedKeys.key {
-    assert(data == null || data is! String,
-        'Only non embed blocks can have text data');
-    this.id = id ?? EasyTreeState.createNodeId();
-    this.metadata = <String, dynamic>{
-      'block': true,
-      'pr_attributes': blockAttributes,
-      'can_modify_children_length': true,
-      ...?metadata,
-    };
-    final Node child = Node(
-      type: EmbedKeys.childrenKey,
-      value: TextFragment(data: data ?? <String, dynamic>{}),
-      parent: this,
-      canModifyChildrenLength: false,
-    )..text = data?.text();
-    text = data?.text();
-    insertNode(child);
-  }
-
-  Node.block({
-    String? id,
-    this.parent,
-    this.type = ParagraphKeys.key,
-    String childType = ParagraphKeys.lineKey,
-    Map<String, dynamic>? metadata,
-    Map<String, dynamic>? blockAttributes,
-    List<Node> children = const <Node>[],
-    Object? data,
-    bool noInvalidation = false,
-  }) {
-    assert(type.trim().isNotEmpty, 'type cannot be empty');
-    assert(childType.trim().isNotEmpty, 'childType cannot be empty');
-    assert(
-        data == null || data is String,
-        'Only embed blocks can '
-        'contain objects of type ${data.runtimeType}');
-    this.id = id ?? EasyTreeState.createNodeId();
-    this.metadata = <String, dynamic>{
-      'block': true,
-      'pr_attributes': blockAttributes,
-      ...?metadata,
-    };
-    //FIXME: implement a better search to know if the
-    // text contains new lines
-    if (data != null) {
-      if (data.castString().contains(Utils.CR)) {
-        final List<String> lines = LineSplitter().convert(data.castString());
-        for (int i = 0; i < lines.length; i++) {
-          final String line = lines[i];
-          final Node lineNode = Node(
-            type: childType,
-            value: EasyTextList()..add(EasyText.fromStr(text: line)),
-            children: <Node>[],
-            parent: this,
-            canModifyChildrenLength: false,
-          )..text = line;
-          text = nsText == null ? line : '${nsText.orEmpty}\n$line';
-          insertNode(lineNode);
-        }
-        adoptChildren(children);
-        return;
-      }
-
-      final Node lineNode = Node(
-        type: childType,
-        value: EasyTextList()
-          ..add(EasyText.fromStr(
-            text: data.castString(),
-          )),
-        children: <Node>[],
-        parent: this,
-        canModifyChildrenLength: false,
-      )..text = data.castString();
-      text = data.castString();
-      insertNode(lineNode);
-    }
-    adoptChildren(children);
   }
 
   Object? get value => _value;
@@ -570,8 +687,10 @@ final class Node extends ChangeNotifier {
     return false;
   }
 
-  void adoptChildren(List<Node> nodes, {bool noInvalidation = false}) {
+  void adoptChildren(List<Node> nodes,
+      {bool noInvalidation = false, void Function(Node)? check}) {
     for (Node node in nodes) {
+      check?.call(node);
       insertNode(node, after: true);
     }
   }
@@ -955,12 +1074,23 @@ final class Node extends ChangeNotifier {
     );
   }
 
-  Map<String, dynamic> toJson() {
+  Map<String, dynamic> toJson({bool passCacheData = false}) {
     return <String, dynamic>{
       "id": id,
       "type": type,
-      "value": value,
-      "metadata": metadata,
+      "value": supportEasyText
+          ? texts.map((EasyText e) => e.copyWith()).toList()
+          : value,
+      "metadata": passCacheData
+          ? <String, dynamic>{
+              ...metadata,
+              'path': _path,
+              'deepPath': _deepPath,
+              'text': _text,
+              'offset': _offset,
+              'dataLength': _dataLength,
+            }
+          : metadata,
       "children": children
           .map(
             (Node e) => e.toJson(),

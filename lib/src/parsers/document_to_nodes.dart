@@ -10,6 +10,10 @@ class DocumentToNodesParser {
   static final espr.DocumentParser _docParser =
       espr.DocumentParser(mergerBuilder: espr.BlockMergerBuilder());
 
+  static Node json(Map<String, dynamic> json) {
+    return Node.fromJson(json);
+  }
+
   static Node markdownParse(String markdown) {
     throw UnimplementedError("Not implemented markdownParse");
   }

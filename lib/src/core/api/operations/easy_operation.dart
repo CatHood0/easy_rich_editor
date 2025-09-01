@@ -1,3 +1,4 @@
+import 'package:easy_attribution_text/easy_text.dart';
 import 'package:easy_rich_editor/src/core/api/document/path/path.dart';
 import 'package:easy_rich_editor/src/core/extensions/object_ext.dart';
 
@@ -13,6 +14,8 @@ abstract class EasyOperation {
   });
 
   EasyOperation invert();
+
+  DeltaNode toDelta();
 }
 
 class EasyFormatOperation extends EasyOperation {
@@ -41,6 +44,19 @@ class EasyFormatOperation extends EasyOperation {
       cursorPosition: cursorPosition,
     );
   }
+
+  @override
+  DeltaNode toDelta() {
+    assert(!node.isRootOwner, 'root node must not be stored as a node change');
+    final bool isSelectinEntireBlock =
+        cursorPosition == 0 && cursorPosition + len == node.dataLength;
+    return DeltaNode.format(
+      len: len,
+      start: cursorPosition,
+      styles: EasyAttributeStyles.fromJson(attributes),
+      inlineStyles: !isSelectinEntireBlock || !node.isBlockNode,
+    );
+  }
 }
 
 class EasyInsertOperation extends EasyOperation {
@@ -64,6 +80,15 @@ class EasyInsertOperation extends EasyOperation {
       len: data.length,
       forward: false,
       cursorPosition: cursorPosition,
+    );
+  }
+
+  @override
+  DeltaNode toDelta() {
+    return DeltaNode.insert(
+      insert: data,
+      start: cursorPosition,
+      styles: EasyAttributeStyles.fromJson(attributes),
     );
   }
 }
@@ -94,6 +119,28 @@ class EasyDeleteOperation extends EasyOperation {
       node: node,
       data: deletedContent ?? '',
       cursorPosition: cursorPosition,
+    );
+  }
+
+  @override
+  DeltaNode toDelta() {
+    if (affectedNodes != null && affectedNodes!.isNotEmpty) {
+      EasyEditorLogger.operations.debug('Cannot be returned a '
+          'correct DeltaNode struct when there are '
+          'registered more than one affected '
+          'node => $affectedNodes');
+      return DeltaNode.invalid();
+    }
+    if (deletedContent != null) {
+      return DeltaNode.replace(
+        inserted: deletedContent,
+        start: cursorPosition,
+        end: cursorPosition + len,
+      );
+    }
+    return DeltaNode.delete(
+      start: cursorPosition,
+      end: cursorPosition + len,
     );
   }
 }

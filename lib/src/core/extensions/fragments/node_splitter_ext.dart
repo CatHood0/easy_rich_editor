@@ -33,7 +33,7 @@ extension NodeSplitterExt on Node {
         final List<Node> rightLines = children.sublist(i.next.limit(length));
         final Node nextBlock = Node.block(
           type: type,
-          blockAttributes: blockAttributes,
+          blockAttributes: EasyAttributeStyles.fromJson(blockAttributes),
           children: <Node>[
             Node(
               type: line.type,
