@@ -253,16 +253,14 @@ final class Node extends ChangeNotifier {
       },
     );
 
-    if (children.isEmpty) {
-      final int effectiveLen = columnNum - children.length;
-      if (effectiveLen <= 0) return;
-      adoptChildren(children
-        ..addAll(
-          List<Node>.generate(
-            effectiveLen,
-            (int index) => Node.tableColumn(rowNum: rowNum),
-          ),
-        ));
+    final int effectiveLen = columnNum - children.length;
+    if (effectiveLen > 0) {
+      adoptChildren(
+        List<Node>.generate(
+          effectiveLen,
+          (int index) => Node.tableColumn(rowNum: rowNum),
+        ),
+      );
     }
     assert(
         this.children.length == columnNum,
@@ -297,17 +295,13 @@ final class Node extends ChangeNotifier {
       },
     );
 
-    if (children.isEmpty) {
-      final int effectiveLen = rowNum - children.length;
-      if (effectiveLen <= 0) return;
+    final int effectiveLen = rowNum - children.length;
+    if (effectiveLen > 0) {
       adoptChildren(
-        children
-          ..addAll(
-            List<Node>.generate(
-              effectiveLen,
-              (int index) => Node.tableColumn(rowNum: rowNum),
-            ),
-          ),
+        List<Node>.generate(
+          effectiveLen,
+          (int index) => Node.tableColumn(rowNum: rowNum),
+        ),
       );
     }
     assert(
