@@ -33,7 +33,7 @@ extension NodeFormattingExt on Node {
       );
     }
 
-    final EasyText? frag = text ?? queryFragment(start).cast<EasyText?>();
+    final EasyText? frag = text ?? queryObjectAtOffset(start).cast<EasyText?>();
     if (frag == null) {
       return FragmentChangeContext.noExecuted(
         isBlankText

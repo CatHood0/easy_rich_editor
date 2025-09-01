@@ -122,7 +122,7 @@ class Tree extends ValueNotifier<Node> implements TreeOperations {
       if (childLocation.foundButNotFragment) {
         final NodeCursorPosLocation effectiveLocation = childLocation
             .location!.node
-            .queryFragments(childLocation.locationOffset);
+            .queryOffset(childLocation.locationOffset);
 
         if (effectiveLocation.found) {
           return effectiveLocation;

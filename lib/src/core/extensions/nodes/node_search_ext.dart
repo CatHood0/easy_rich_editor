@@ -29,7 +29,7 @@ extension NodeSearchExt on Node {
           'pos: $cursorPos, '
           'incl: $inclusive) => '
           'Searching in fragments of ${shortInfo()}');
-      return queryFragments(cursorPos, inclusive: true);
+      return queryOffset(cursorPos, inclusive: true);
     }
 
     if (inclusive && cursorPos == dataLength && isNotEmpty) {
@@ -109,11 +109,11 @@ extension NodeSearchExt on Node {
     }
 
     return foundNode
-        .queryFragments(localOffset, inclusive: true)
+        .queryOffset(localOffset, inclusive: true)
         .copyWith(jumpNodeOffset: nodeOffset);
   }
 
-  NodeCursorPosLocation queryFragments(
+  NodeCursorPosLocation queryOffset(
     int cursorPos, {
     bool inclusive = false,
   }) {
@@ -173,7 +173,7 @@ extension NodeSearchExt on Node {
     );
   }
 
-  Object? queryFragment(
+  Object? queryObjectAtOffset(
     int cursorPos, {
     bool inclusive = false,
   }) {
@@ -220,16 +220,6 @@ extension NodeSearchExt on Node {
   ///
   /// The result may contain the found node or `null` if no node is found
   /// at specified offset.
-  ///
-  /// [NodeCursorPosLocation.fragmentIndex] is set to relative fragment index
-  /// within returned child node
-  ///
-  /// [NodeCursorPosLocation.fragmentOffset] is set to relative offset into the fragments
-  /// within returned child node which points at the same character position in the document
-  ///
-  /// [NodeCursorPosLocation.locationOffset] is set to relative offset within returned child node
-  /// which points at the same character position in the document as the
-  /// original [offset]
   NodeCursorPosLocation queryPositionLinear(
     int cursorPos, {
     bool includeLastNode = false,
@@ -298,6 +288,7 @@ extension NodeSearchExt on Node {
   Node? elementAtOrNull(int index) =>
       isEmpty || index < 0 || index >= length ? null : children[index];
 
+  /// Whether this [Node] is into the N.T.P registry 
   bool contains(String id) => _fastIndexTreePart[id] != null;
 
   /// Determines if inside this node the range is valid
@@ -352,6 +343,7 @@ extension NodeSearchExt on Node {
     return selection.start.position >= 0 && selection.end.position <= nodeEnd;
   }
 
+  /// Whether this [Node] is into the [selection] range
   bool inSelection(NodeSelection selection) {
     if (selection.start.path <= selection.end.path) {
       return selection.start.path <= deepPath && deepPath <= selection.end.path;
@@ -360,9 +352,12 @@ extension NodeSearchExt on Node {
     }
   }
 
+  /// Returns the [Node] that matches with the [id] passed
+  ///
+  /// - [deep]: Determines if this will search the [Node] into its children
   Node? findById(String id, {bool deep = true}) {
     if (this.id == id) return this;
-    if (isEmpty) return null;
+    if (isEmpty || canAddOrRemovedChildren) return null;
 
     if (contains(id)) {
       return _fastIndexTreePart[id]!;
@@ -379,27 +374,60 @@ extension NodeSearchExt on Node {
     return null;
   }
 
+  /// Whether this [Node] has a [next] node into its
+  /// parent or the siblings of its parent
   bool get hasPossibleNextNode {
-    return jumpToNext() != null;
+    return jumpToNext(findLines: true) != null;
   }
 
+  /// Whether this [Node] has a [previous] node into its
+  /// parent or the siblings of its parent
   bool get hasPossiblePrevNode {
-    return jumpToPrevious() != null;
+    return jumpToPrevious(findLines: true) != null;
   }
 
-  Node? jumpToPrevious() {
+  /// Jump to the most nearest previous [Node]
+  ///
+  /// - [findLines]: Determines if will be retorned [Line] or [EmbedLine] nodes instead block in jump cases
+  Node? jumpToPrevious({bool findLines = false}) {
     if (previous != null) return previous;
 
-    return jumpToOptionalParent(stopAt: (Node n) => n.previous != null)
-        ?.previous;
+    final Node? node =
+        jumpToOptionalParent(stopAt: (Node n) => n.previous != null)?.previous;
+    if (node != null && node.isBlockNode && findLines) {
+      assert(
+          node.lastChild == null || node.lastChild!.isBlockNode,
+          'last node into ${node.shortInfo()} '
+          'must be inline, but '
+          'found: ${node.lastChild?.shortInfo()}');
+      return node.lastChild ?? node;
+    }
+    return node;
   }
 
-  Node? jumpToNext() {
+  /// Jump to the most nearest next [Node]
+  ///
+  /// - [findLines]: Determines if will be retorned [Line] or [EmbedLine] nodes instead block in jump cases
+  Node? jumpToNext({bool findLines = false}) {
     if (next != null) return next;
+    final Node? node =
+        jumpToOptionalParent(stopAt: (Node n) => n.next != null)?.next;
 
-    return jumpToOptionalParent(stopAt: (Node n) => n.next != null)?.next;
+    if (node != null && node.isBlockNode && findLines) {
+      assert(
+          node.firstChild == null || node.firstChild!.isBlockNode,
+          'first node into ${node.shortInfo()} '
+          'must be inline, but '
+          'found: ${node.lastChild?.shortInfo()}');
+      return node.firstChild ?? node;
+    }
+    return node;
   }
 
+  /// Jump directly to the parent until
+  /// [stopAt] returns [true] or found root [Node]
+  ///
+  /// if found root, return it
   Node jumpToParent({bool Function(Node)? stopAt}) {
     if (parent == null || stopAt != null && stopAt(this)) {
       return this;
@@ -408,15 +436,20 @@ extension NodeSearchExt on Node {
     return parent!.jumpToParent(stopAt: stopAt);
   }
 
+  /// Jump directly to the parent until
+  /// [stopAt] returns [true] or found root [Node]
+  ///
+  /// if found root, return null
   Node? jumpToOptionalParent({bool Function(Node)? stopAt}) {
     if (parent == null || isRootOwner) return null;
     if (stopAt != null && stopAt(this)) {
       return this;
     }
 
-    return parent!.jumpToParent(stopAt: stopAt);
+    return parent!.jumpToOptionalParent(stopAt: stopAt);
   }
 
+  /// Jump to the parent that is a direct child of root [Node]
   Node? jumpToParentExceptRoot() {
     if (isRootOwner || parent == null) return null;
     if (parent!.isRootOwner) return this;
