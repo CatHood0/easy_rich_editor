@@ -3,7 +3,7 @@ A easy and powerful text processing and styling library for Flutter that handles
 
 ## Overview
 
-`EasyText` provides a robust solution for working with text in Flutter applications, especially when dealing with complex Unicode characters like emojis, combined glyphs, and multilingual content. It offers precise control over text styling, formatting, and manipulation while handling the intricacies of `UTF-16` encoding transparently.
+`EasyText` provides a easy-to-use solution for working with text in Flutter applications, especially when dealing with complex Unicode characters like emojis, combined glyphs, and multilingual content. It offers precise control over text styling, formatting, and manipulation while handling the intricacies of `UTF-16` encoding transparently thanks of `characters` library implementation.
 
 ## Features
 
@@ -14,7 +14,6 @@ A easy and powerful text processing and styling library for Flutter that handles
 
 ### Rich Text Styling
 - **Inline Attributes**: Apply styles to specific text ranges (bold, italic, color, fonts)
-- **Block Attributes**: Format entire paragraphs (alignment, indentation, spacing)
 - **Exclusive Formatting**: Smart handling of mutually exclusive styles (headers, code blocks, lists)
 
 ## Installation
@@ -27,6 +26,16 @@ dependencies:
 ```
 
 ## Quick Start
+
+Take in account that every `EasyText` instance must be linked/inserted into an `EasyTextList` class. It manages insertion, deletion and positioning of every `EasyText`.
+
+```dart
+  // Set every EasyText instance its own parent list
+  // to allow search of siblings
+  final LinkedList list = EasyTextList.from([
+    EasyText.fromStr('Hello 🎂✨ World 🌈'),
+  ]);
+```
 
 ### Basic Usage
 
@@ -42,7 +51,13 @@ void main() {
   print(text.str); // Output: Hello Beautiful 🎂✨ World 🌈
   
   // Apply formatting
-  text.formatRange(6, 9, EasyAttributeStyles.fromAttribute(EasyAttribute.bold));
+  text.formatRange(
+     6, 
+     9, 
+     EasyAttributeStyles.fromAttribute(
+       EasyAttribute.bold,
+     ),
+  );
 }
 ```
 
@@ -60,8 +75,21 @@ final styledText = EasyText.fromStr(
 );
 
 // Format specific ranges
-text.formatRange(0, 5, EasyAttributeStyles.fromAttribute(EasyAttribute.italic));
-text.formatRange(11, 8, EasyAttributeStyles.fromAttribute(EasyAttribute.underline));
+text
+  ..formatRange(
+    0, 
+    5, 
+    EasyAttributeStyles.fromAttribute(
+      EasyAttribute.italic,
+    ),
+  )
+  ..formatRange(
+    11, 
+    8, 
+    EasyAttributeStyles.fromAttribute(
+      EasyAttribute.underline,
+    ),
+  );
 ```
 
 ### Handling Complex Text
@@ -73,7 +101,13 @@ final complexText = EasyText.fromStr('👨‍👩‍👧‍👦 Family emoji wit
 // These operations won't corrupt the Unicode sequences
 complexText.insert(1, ' Beautiful'); // Inserts after the family emoji
 complexText.delete(0, 1); // Removes the family emoji correctly
-complexText.formatRange(0, 10, EasyAttributeStyles.fromAttribute(EasyAttribute.bold));
+complexText.formatRange(
+  0, 
+  10, 
+  EasyAttributeStyles.fromAttribute(
+    EasyAttribute.bold,
+  ),
+);
 ```
 
 ## Core Concepts
@@ -87,15 +121,15 @@ A specialized linked list that manages `EasyText` nodes with optimized text oper
 ### Attribute System
 - **Inline Attributes**: Style applied to text ranges (colors, fonts, decorations)
 - **Block Attributes**: Paragraph-level formatting (alignment, indentation, direction)
-- **Exclusive Attributes**: Mutually exclusive styles that automatically replace each other
+- **Exclusive Attributes**: Mutually exclusive styles that automatically replace each other 
 
-## Advanced Usage
+## Example Usage
 
 ### Custom Attributes
 
 ```dart
-class HighlightAttribute extends EasyAttribute<Color> {
-  const HighlightAttribute(Color value) : super(value: value);
+class HighlightAttribute extends EasyAttribute<Color?> {
+  const HighlightAttribute([Color? value]) : super(value: value);
   
   @override
   String get key => 'highlight';
@@ -110,12 +144,21 @@ class HighlightAttribute extends EasyAttribute<Color> {
   bool canMergeWith(EasyAttribute attribute) => true;
   
   @override
-  EasyAttribute clone(Color value) => HighlightAttribute(value);
+  EasyAttribute clone(Color? value) => HighlightAttribute(value);
 }
 
 // Register and use custom attribute
-EasyAttribute.addCustom({'highlight': HighlightAttribute(Colors.yellow)});
-text.formatRange(0, 5, EasyAttributeStyles.fromAttribute(HighlightAttribute(Colors.yellow)));
+EasyAttribute.addCustom({
+  'highlight': HighlightAttribute(),
+});
+
+text.formatRange(
+  0, 
+  5, 
+  EasyAttributeStyles.fromAttribute(
+    HighlightAttribute(Colors.yellow),
+  ),
+);
 ```
 
 

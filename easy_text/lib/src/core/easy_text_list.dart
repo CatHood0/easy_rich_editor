@@ -3,11 +3,6 @@ part of '../core/easy_text.dart';
 /// A specialized linked list implementation for managing [EasyText] elements
 /// with optimized text manipulation and caching capabilities.
 ///
-/// This class extends [LinkedList<EasyText>] to provide efficient text operations
-/// while maintaining the structure of individual [EasyText] nodes. It includes
-/// caching mechanisms for faster access to frequently used elements and
-/// maintains a synchronized plain text representation.
-///
 /// ## Usage Example:
 /// ```dart
 /// final textList = EasyTextList();
@@ -25,23 +20,27 @@ final class EasyTextList extends LinkedList<EasyText> {
   /// [_lastUsedText] to provide direct jump access to recently used elements.
   int? _lastIndex;
 
-  /// Cached plain text representation of all [EasyText] elements in the list.
-  /// This cache is invalidated when the list structure changes and regenerated
-  /// lazily when accessed.
-  String? _text;
+  EasyTextList();
 
-  /// Gets the complete plain text representation of all [EasyText] elements
-  /// in the list. The text is cached for performance and only regenerated
-  /// when the list structure changes.
-  ///
-  /// Returns an empty string if the list is empty.
-  String get text => _text ??= toPlainText();
+  EasyTextList.from(Iterable<EasyText> iterable) {
+    addAll(iterable);
+  }
 
-  /// Sets the cached text value. Use this to manually update the text cache
-  /// when external modifications occur. Setting to `null` will force
-  /// regeneration on next access.
-  set text(String? text) {
-    _text = text;
+  /// Create a list with a single [EasyText]
+  EasyTextList.easy(EasyText text) {
+    add(text);
+  }
+
+  /// Create a list with a single [EasyText]
+  /// containing the [text] and [styles] passed
+  EasyTextList.fromStr(
+    String text, [
+    EasyAttributeStyles? styles,
+  ]) {
+    add(EasyText.fromStr(
+      text: text,
+      styles: styles,
+    ));
   }
 
   /// Adds an [EasyText] entry to the end of the list and updates the text cache.
@@ -53,7 +52,6 @@ final class EasyTextList extends LinkedList<EasyText> {
   @override
   void add(EasyText entry) {
     if (entry.list != null) entry.unlink();
-    if (_text != null) text = '$text${entry.text}';
     super.add(entry);
   }
 
@@ -110,24 +108,5 @@ final class EasyTextList extends LinkedList<EasyText> {
     return map<String>(
       (EasyText n) => '${n.text}',
     ).join();
-  }
-
-  /// Inserts text at the specified [position] in the combined text representation.
-  ///
-  /// Does nothing if the text cache is null.
-  void insertText(String text, [int position = 0]) {
-    if (_text == null) return;
-
-    text = text.replaceRange(position, position, text);
-  }
-
-  /// Removes [len] characters starting from the specified [position] in the
-  /// combined text representation.
-  ///
-  /// Does nothing if the text cache is null or [len] is less than or equal to 0.
-  void removeText(int position, int len) {
-    if (_text == null || len <= 0) return;
-
-    text = text.replaceRange(position, position + len, text);
   }
 }

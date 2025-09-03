@@ -7,6 +7,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## 1.0.2 - 9 / 03 / 2025
+
+### Changed
+
+* Removed `text` property from `EasyTextList` since we cannot make a properly caching and update of this value.
+* Removed `insertText` and `removeText` methods from `EasyTextList`.
+* Removed `invalidateParentCache` method from `EasyText` class.
+
+* Updated README to include `EasyTextList` implementation.
+
+### Added
+
+* New constructors for `EasyTextList` class:
+    ```
+      EasyTextList list = EasyTextList.from(<EasyText>[]);
+      EasyTextList list2 = 
+        EasyTextList.easy(EasyText.fromStr(text: ''));
+      EasyTextList list3 = EasyTextList.fromStr('');
+    ```
+
 ## 1.0.1 - 8 / 27 / 2025
 
 ### Fixes

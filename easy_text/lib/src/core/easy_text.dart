@@ -157,7 +157,6 @@ final class EasyText extends LinkedListEntry<EasyText> {
     assert(
         index >= 0 && index <= length, 'Index must be between 0 and $length');
     final EasyText part = EasyText.fromStr(text: data);
-    (list as EasyTextList?)?.insertText(data, index);
     if (index < length) {
       splitAt(index)!.insertBefore(part);
     } else {
@@ -230,9 +229,6 @@ final class EasyText extends LinkedListEntry<EasyText> {
     final EasyText target = _splitExactRanges(index, local);
     final EasyText? prev = target.previous;
     final EasyText? next = target.next;
-    // Since getting offset of the current target can have too much
-    // cost, we prefer just invalidating the cached text
-    invalidateParentCache();
     target.unlink();
 
     final int remain = len - local;
@@ -311,15 +307,6 @@ final class EasyText extends LinkedListEntry<EasyText> {
   /// This represents the position immediately after the last character
   /// of this fragment in the complete text.
   int get endOffset => list == null ? -1 : offset + length;
-
-  /// Invalidates the cached text representation of the parent list.
-  ///
-  /// Should be called when this fragment's content changes to ensure
-  /// the parent list recalculates its cached text representation.
-  void invalidateParentCache() {
-    if (list == null || (list as EasyTextList)._text == null) return;
-    (list as EasyTextList).text = null;
-  }
 
   /// Inserts the given entry after this entry in the linked list.
   ///

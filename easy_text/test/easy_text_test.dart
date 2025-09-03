@@ -14,7 +14,7 @@ void main() {
   setUp(() {
     if (fragment.isLinked) fragment.unlink();
     fragment = base();
-    list = EasyTextList()..add(fragment);
+    list = EasyTextList.easy(fragment);
   });
 
   group('modifications', () {
