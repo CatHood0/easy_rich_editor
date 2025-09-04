@@ -7,6 +7,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## 1.0.3 - 9 / 04 / 2025
+
+### Changed
+
+* `id` property now is available on `constructors` and `copyWith` method.
+* `deepEquals` was deprecated since does not fit with the new custom `hashCode` method
+
+### Added
+
+* Added `charAt`, `toLowerCase`, `toUpperCase`, and `split` shortcuts to avoid calling `text` property unnecessarily on `EasyText` instances.
+* Added `strictEquals` and `strictHashCode` for cases where we need more control on the equality of two `EasyText` instances.
+
+### Fixes
+
+* README code samples show an **old** usage of the API.
+* Code samples in `delete`, `insert` and `formatRange` methods were using wrong constructors.
+
 ## 1.0.2 - 9 / 03 / 2025
 
 ### Changed

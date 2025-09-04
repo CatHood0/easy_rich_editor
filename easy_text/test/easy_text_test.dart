@@ -19,7 +19,7 @@ void main() {
 
   group('modifications', () {
     test('add text before emoji', () {
-      expect(fragment.text.characterAt(0), equals('🎂'.characters));
+      expect(fragment.charAt(0), equals('🎂'.characters));
       fragment.insert(0, 'T');
       // at this point, the current fragment was unlinked
       // since we merged directly with a new node
@@ -27,20 +27,20 @@ void main() {
       // get that new updated fragment of text
       fragment = list.first;
       expect(fragment.isLinked, isTrue);
-      expect(fragment.text.characterAt(0), equals('T'.characters));
-      expect(fragment.text.characterAt(1), equals('🎂'.characters));
+      expect(fragment.charAt(0), equals('T'.characters));
+      expect(fragment.charAt(1), equals('🎂'.characters));
     });
 
     test('add text after emoji', () {
       expect(
-          fragment.text.characterAt(1),
+          fragment.charAt(1),
           equals(
             '✨'.characters,
           ));
       fragment.insert(2, 'T');
       expect(fragment.isLinked, isTrue);
-      expect(fragment.text.characterAt(2), equals('T'.characters));
-      expect(fragment.text.characterAt(1), equals('✨'.characters));
+      expect(fragment.charAt(2), equals('T'.characters));
+      expect(fragment.charAt(1), equals('✨'.characters));
     });
 
     test('delete entire text', () {
@@ -57,9 +57,9 @@ void main() {
       // literally was splitted the selected part
       // so, this fragment was removed
       expect(fragment.isLinked, isFalse);
-      expect(fragment.text.characterAt(0), equals('🎂'.characters));
+      expect(fragment.charAt(0), equals('🎂'.characters));
       fragment = list.first;
-      expect(fragment.text.characterAt(0), equals('✨'.characters));
+      expect(fragment.charAt(0), equals('✨'.characters));
     });
   });
 

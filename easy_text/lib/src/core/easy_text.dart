@@ -35,28 +35,30 @@ final class EasyText extends LinkedListEntry<EasyText> {
 
   /// Creates an [EasyText] instance with the specified text and styles.
   EasyText({
+    String? id,
     required Characters text,
     EasyAttributeStyles? styles,
   })  : _text = text,
-        id = uuid.generate(),
+        id = id ?? uuid.generate(),
         styles = styles ?? EasyAttributeStyles.empty();
 
   /// Creates an [EasyText] instance from a regular string with specified styles.
   EasyText.fromStr({
+    String? id,
     required String text,
     EasyAttributeStyles? styles,
-  })  : id = uuid.generate(),
+  })  : id = id ?? uuid.generate(),
         _text = text.characters,
         styles = styles ?? EasyAttributeStyles.empty();
 
   /// Creates an empty [EasyText] instance with no content and empty styles.
   ///
   /// Useful as a placeholder or for initialization purposes.
-  EasyText.empty()
+  EasyText.empty({String? id})
       : styles = EasyAttributeStyles(
           attributes: <String, EasyAttribute<dynamic>>{},
         ),
-        id = uuid.generate(),
+        id = id ?? uuid.generate(),
         _text = Characters.empty;
 
   /// Returns a substring containing characters before the specified point.
@@ -74,6 +76,28 @@ final class EasyText extends LinkedListEntry<EasyText> {
     return text.getRange(point);
   }
 
+  /// Splits this sequence of characters at each occurrence of [pattern].
+  ///
+  /// Returns a lazy iterable of characters that were separated by [pattern].
+  /// The iterable has *at most* [maxParts] elements if a positive [maxParts]
+  /// is supplied.
+  Iterable<Characters> split(Characters pattern) {
+    return text.split(pattern);
+  }
+
+  /// Returns the single-character sequence of the [position]th character.
+  ///
+  /// The [position] must be non-negative and less than [length].
+  Characters charAt(int at) {
+    return text.characterAt(at);
+  }
+
+  /// The characters of the lower-case version of [string].
+  Characters toLowerCase() => text.toLowerCase();
+
+  /// The characters of the upper-case version of [string].
+  Characters toUpperCase() => text.toUpperCase();
+
   /// Returns the [String] associated to the [Characters] instance
   String str() => '$text';
 
@@ -85,6 +109,9 @@ final class EasyText extends LinkedListEntry<EasyText> {
   /// Indicates whether this text fragment contains any character content.
   bool get hasText => text.isNotEmpty;
 
+  /// Indicates whether this text fragment is fully empty.
+  bool get isBlank => text.isEmpty;
+
   /// Determines if this [EasyText] instance is currently linked to a parent list.
   bool get isLinked => list != null;
 
@@ -93,6 +120,12 @@ final class EasyText extends LinkedListEntry<EasyText> {
 
   /// Determines if this element is the last one into the list
   bool get isLast => list == null ? false : list!.last == this;
+
+  /// Overrides the last used [EasyText] instance
+  void setAsLastUsed() {
+    if (!isLinked) return;
+    (list as EasyTextList?)?._lastUsedText = this;
+  }
 
   /// try to merge this element with adjacents parts if they share
   /// the same style.
@@ -138,14 +171,11 @@ final class EasyText extends LinkedListEntry<EasyText> {
 
   /// Inserts text at the specified [index] with optional styling.
   ///
-  /// ## Throws:
-  /// - [AssertionError] if [index] is out of bounds (negative or greater than length).
-  ///
   /// ## Example:
   /// ```dart
-  /// final text = EasyText('Hello World');
+  /// final text = EasyText.fromStr(text: 'Hello World');
   /// text.insert(6, 'Beautiful '); // Result: 'Hello Beautiful World'
-  /// text.insert(6, 'Amazing ', style: EasyAttributeStyles(attributes: {'bold': BoldAttribute()}));
+  /// text.insert(6, 'Amazing ', style: EasyAttributeStyles.fromJson({'bold': BoldAttribute()}));
   /// ```
   void insert(
     int index,
@@ -173,9 +203,9 @@ final class EasyText extends LinkedListEntry<EasyText> {
   ///
   /// ## Example:
   /// ```dart
-  /// final text = EasyText('Hello World');
-  /// text.formatRange(6, 5, EasyAttributeStyles([BoldAttribute()]));
+  /// final text = EasyText.fromStr(text: 'Hello World');
   /// // Formats 'World' as bold
+  /// text.formatRange(6, 5, EasyAttributeStyles.fromAttribute(BoldAttribute()));
   /// ```
   void formatRange(
     int index,
@@ -208,12 +238,9 @@ final class EasyText extends LinkedListEntry<EasyText> {
 
   /// Deletes [len] characters starting from the specified [index].
   ///
-  /// ## Throws:
-  /// - [AssertionError] if [index] is out of bounds (>= length).
-  ///
   /// ## Example:
   /// ```dart
-  /// final text = EasyText('Hello Beautiful World');
+  /// final text = EasyText.fromStr(text: 'Hello Beautiful World');
   /// text.delete(6, 10); // Result: 'Hello World'
   /// text.delete(0, 5);  // Result: 'World'
   /// ```
@@ -328,10 +355,12 @@ final class EasyText extends LinkedListEntry<EasyText> {
 
   /// Creates a copy of this [EasyText] instance with optional modifications.
   EasyText copyWith({
+    String? id,
     Characters? text,
     EasyAttributeStyles? styles,
   }) {
     return EasyText(
+      id: id ?? this.id,
       text: text ?? this.text,
       styles: styles ?? this.styles,
     );
@@ -344,15 +373,56 @@ final class EasyText extends LinkedListEntry<EasyText> {
 
   /// Whether this element is equals than the other [EasyText]
   /// comparing its [text] and [styles]
-  bool deepEquals(EasyText other) =>
-      text == other.text && styles == other.styles || this == other;
+  @Deprecated(
+      'deepEquals will be removed in future releases. Please, use strictEquals instead')
+  bool deepEquals(Object other) =>
+      other is EasyText && text == other.text && styles == other.styles;
 
-  @override
-  int get hashCode => Object.hashAllUnordered(<Object?>[id]);
-
-  @override
-  bool operator ==(covariant EasyText other) {
+  /// Determines if an object is equals than this [EasyText] instance
+  ///
+  /// Useful for when you need to know if an [EasyText] and another
+  /// are fully different
+  ///
+  /// Example:
+  /// ```dart
+  /// // like the key in a HashMap with requires strict equality
+  /// final strictMap = HashMap<EasyText, String>(
+  ///   equals: (a, b) => a.strictEquals(b),
+  ///   hashCode: (obj) => obj.strictHashCode,
+  /// );
+  /// ```
+  bool strictEquals(Object other) {
     if (identical(this, other)) return true;
+    if (other is! EasyText) return false;
+    return text == other.text && styles == other.styles && id == other.id;
+  }
+
+  /// The strict hash code version for this [EasyText] instance
+  ///
+  /// Example:
+  /// ```dart
+  /// // like the key in a HashMap with requires strict equality
+  /// final strictMap = HashMap<EasyText, String>(
+  ///   equals: (a, b) => a.strictEquals(b),
+  ///   hashCode: (obj) => obj.strictHashCode,
+  /// );
+  /// ```
+  int get strictHashCode => Object.hash(
+        text,
+        styles,
+        id,
+      );
+
+  @override
+  int get hashCode => Object.hash(
+        id,
+        null,
+      );
+
+  @override
+  bool operator ==(Object other) {
+    if (identical(this, other)) return true;
+    if (other is! EasyText) return false;
     return id == other.id;
   }
 }

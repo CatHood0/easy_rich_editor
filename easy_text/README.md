@@ -32,9 +32,9 @@ Take in account that every `EasyText` instance must be linked/inserted into an `
 ```dart
   // Set every EasyText instance its own parent list
   // to allow search of siblings
-  final LinkedList list = EasyTextList.from([
-    EasyText.fromStr('Hello 🎂✨ World 🌈'),
-  ]);
+  final instance = EasyText.fromStr(text: 'Hello 🎂✨ World 🌈');
+  final LinkedList list = EasyTextList.easy(instance);
+  assert(instance.isLinked, 'instance must be linked to a list');
 ```
 
 ### Basic Usage
@@ -44,11 +44,11 @@ import 'package:easy_attribution_text/easy_text.dart';
 
 void main() {
   // Create a text element with complex Unicode content
-  final text = EasyText.fromStr('Hello 🎂✨ World 🌈');
+  final text = EasyText.fromStr(text: 'Hello 🎂✨ World 🌈');
   
   // Manipulate text safely
   text.insert(6, 'Beautiful ');
-  print(text.str); // Output: Hello Beautiful 🎂✨ World 🌈
+  print(text.str()); // Output: Hello Beautiful 🎂✨ World 🌈
   
   // Apply formatting
   text.formatRange(
@@ -96,7 +96,7 @@ text
 
 ```dart
 // Safe manipulation with emojis and Unicode
-final complexText = EasyText.fromStr('👨‍👩‍👧‍👦 Family emoji with text');
+final complexText = EasyText.fromStr(text: '👨‍👩‍👧‍👦 Family emoji with text');
 
 // These operations won't corrupt the Unicode sequences
 complexText.insert(1, ' Beautiful'); // Inserts after the family emoji
@@ -114,9 +114,6 @@ complexText.formatRange(
 
 ### EasyText parts 
 The fundamental building blocks that represent text segments with optional styling. Each part manages its own content and attributes while being part of a larger text structure.
-
-### EasyTextList
-A specialized linked list that manages `EasyText` nodes with optimized text operations and caching mechanisms.
 
 ### Attribute System
 - **Inline Attributes**: Style applied to text ranges (colors, fonts, decorations)
