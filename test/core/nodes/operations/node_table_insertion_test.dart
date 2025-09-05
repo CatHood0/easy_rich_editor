@@ -5,7 +5,7 @@ void main() {
   Node? root;
 
   setUp(() {
-    root = DocumentToNodesParser.json(Node.root(
+    root = ObjectToNodesParser.json(Node.root(
       children: <Node>[
         Node.block(data: 'this is my simple text at the start of the document'),
         Node.embedBlock(data: <String, String>{'image': 'image.png'}),
@@ -33,11 +33,18 @@ void main() {
     ).toJson());
   });
 
-  group('table level', () {
-    test('should insert a single char in the end column', () {
-      print(root?.dumpTreeStr());
-    });
+  group('insert', () {
+    test('should insert a single char in the end column', () {});
     test('should insert a text using paths', () {});
     test('should insert a text using document offsets', () {});
+    test('should insert a embed correctly', () {});
+    test('should insert a text correctly', () {});
+  });
+  group('delete', () {
+    test('should insert a single char in the end column', () {});
+    test('should insert a text using paths', () {});
+    test('should insert a text using document offsets', () {});
+    test('should insert a embed correctly', () {});
+    test('should insert a text correctly', () {});
   });
 }

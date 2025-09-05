@@ -6,11 +6,14 @@ import 'package:meta/meta.dart';
 import '../../easy_rich_editor.dart';
 
 @immutable
-class DocumentToNodesParser {
+class ObjectToNodesParser {
   static final espr.DocumentParser _docParser =
       espr.DocumentParser(mergerBuilder: espr.BlockMergerBuilder());
 
-  static Node json(Map<String, dynamic> json) {
+  static Node json(
+    Map<String, dynamic> json, {
+    Object? Function(Object? v)? deserializeValue,
+  }) {
     return Node.fromJson(json);
   }
 

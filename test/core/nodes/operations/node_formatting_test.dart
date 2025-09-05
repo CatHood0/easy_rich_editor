@@ -8,7 +8,7 @@ void main() {
   Node? root;
 
   setUp(() {
-    root = DocumentToNodesParser.documentParse(commonDoc);
+    root = ObjectToNodesParser.documentParse(commonDoc);
   });
 
   test('should format a single char', () {

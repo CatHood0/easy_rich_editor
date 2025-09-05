@@ -17,4 +17,11 @@ extension FragmentExtension on TextFragment {
       ),
     );
   }
+
+  Map<String, dynamic> toJson() {
+    return <String, dynamic>{
+      'data': data,
+      'attributes': attributes,
+    };
+  }
 }

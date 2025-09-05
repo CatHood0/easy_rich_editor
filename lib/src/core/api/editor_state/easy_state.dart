@@ -15,12 +15,12 @@ class EasyTreeState extends ChangeNotifier {
   factory EasyTreeState.fromDocument({
     required pr.Document doc,
   }) {
-    final Node root = DocumentToNodesParser.documentParse(doc);
+    final Node root = ObjectToNodesParser.documentParse(doc);
     return EasyTreeState(document: EasyDocument(root));
   }
 
   factory EasyTreeState.fromMarkdown({required String text}) {
-    final Node root = DocumentToNodesParser.markdownParse(text);
+    final Node root = ObjectToNodesParser.markdownParse(text);
     return EasyTreeState(document: EasyDocument(root));
   }
 
@@ -30,7 +30,7 @@ class EasyTreeState extends ChangeNotifier {
   }
 
   factory EasyTreeState.fromDelta({required Delta delta}) {
-    final Node root = DocumentToNodesParser.deltaParse(delta);
+    final Node root = ObjectToNodesParser.deltaParse(delta);
     return EasyTreeState(document: EasyDocument(root));
   }
 

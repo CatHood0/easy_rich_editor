@@ -6,6 +6,7 @@ import 'package:easy_attribution_text/easy_text.dart';
 import 'package:easy_rich_editor/src/core/api/document/path/path.dart';
 import 'package:easy_rich_editor/src/core/api/editor_state/easy_state.dart';
 import 'package:easy_rich_editor/src/core/builders/table/table_keys.dart';
+import 'package:easy_rich_editor/src/core/extensions/fragments/fragments_ext.dart';
 import 'package:easy_rich_editor/src/core/extensions/object_ext.dart';
 import 'package:easy_rich_editor/src/utils/background_isolate_runner/isolate_runner.dart';
 import 'package:easy_rich_editor/src/utils/utils.dart';
@@ -55,7 +56,6 @@ final class Node extends ChangeNotifier {
 
   static const int _notFoundPath = -1;
 
-  //FIXME: implement this
   String? _text;
   Object? _value;
 
@@ -116,23 +116,77 @@ final class Node extends ChangeNotifier {
   factory Node.fromJson(
     Map<String, dynamic> json, {
     bool jsonHasCachedData = false,
+    Object? Function(Object? v)? deserializeValue,
   }) {
     final List<Node> children = (json['children'] as List<dynamic>?)
-            ?.map((dynamic e) => Node.fromJson(e as Map<String, dynamic>))
+            ?.map((dynamic e) => Node.fromJson(
+                Map<String, dynamic>.from(e as Map<dynamic, dynamic>)))
             .toList() ??
         <Node>[];
 
+    final Map<String, dynamic> metadata = Map<String, dynamic>.from({
+      ...?json['metadata'] as Map?,
+    });
+    Object? value = json['value'];
+    String? text;
+    int path = -1;
+    int? length;
+    NodeDepthPath deepPath = <int>[];
+    if (jsonHasCachedData && metadata.isNotEmpty) {}
+    final String type = json['type'] as String;
+    
+    if (value is List<dynamic>) {
+      final bool hasSupportForEasyText =
+          json['supportEasyText'] as bool? ?? false;
+      // by default, all the Line objects will inherit the EasyTextList value type
+      final bool isLine = type == ParagraphKeys.lineKey;
+      if (value.isEmpty && (hasSupportForEasyText || isLine)) {
+        value = EasyTextList();
+      } else if (value.isNotEmpty && value is List<Map<String, dynamic>>) {
+        text = "";
+        value = EasyTextList.from(
+          value.map<EasyText>(
+            (
+              Map<String, dynamic> easyJson,
+            ) {
+              final String t = easyJson['text'] as String;
+              if (text != null) {
+                text = "$text$t";
+              }
+              return EasyText.fromStr(
+                id: easyJson['id'] as String?,
+                text: t,
+                styles: EasyAttributeStyles.fromJson(
+                  easyJson['styles'] as Map<String, dynamic>?,
+                ),
+              );
+            },
+          ),
+        );
+      }
+    } else if (value is Map && value['data'] != null) {
+      value = TextFragment(
+        data: value['data'] as Object,
+        attributes: Map<String, dynamic>.from(
+          value['attributes'] as Map<dynamic, dynamic>? ?? <dynamic, dynamic>{},
+        ),
+      );
+    } else if (deserializeValue != null){
+      value = deserializeValue(value);
+    }
+
     final Node node = Node(
       id: json['id'] as String,
-      type: json['type'] as String,
-      value: json['value'],
-      metadata: Map<String, dynamic>.from(
-        <String, dynamic>{...?(json['metadata'] as Map<String, dynamic>?)},
-      ),
+      type: type,
+      value: value,
+      metadata: metadata,
       children: children,
-    );
+    )
+      .._text = text
+      .._path = path
+      ..deepPath = deepPath
+      ..dataLength = length;
 
-    // Establecer parent a los hijos después de crearlos
     for (final Node child in children) {
       child.parent = node;
     }
@@ -238,9 +292,11 @@ final class Node extends ChangeNotifier {
     children ??= <Node>[];
     this.id = id ?? EasyTreeState.createNodeId();
     this.metadata = <String, dynamic>{
+      ...?metadata,
       'block': true,
       'pr_attributes': blockAttributes,
-      ...?metadata,
+      TableKeys.columnNumKey: columnNum,
+      TableKeys.rowNumKey: rowNum,
     };
     adoptChildren(
       children,
@@ -1068,20 +1124,46 @@ final class Node extends ChangeNotifier {
     );
   }
 
-  Map<String, dynamic> toJson({bool passCacheData = false}) {
+  /// Serialize this [Node] into a json version
+  ///
+  /// - [passCacheData]: Whether the json returned will contain some metadata with the cached values (useful to avoid reloading some data)
+  /// - [serializeValue]: Transform the value passed into the version that you expect. Useful for custom objects that need to be converted in primitive versions
+  Map<String, dynamic> toJson({
+    bool passCacheData = false,
+    Object Function(Object? value)? serializeValue,
+  }) {
+    assert(
+      !supportEasyText || supportEasyText && texts.isNotEmpty,
+      'Nodes must not be never empty',
+    );
     return <String, dynamic>{
       "id": id,
       "type": type,
-      "value": supportEasyText
-          ? texts.map((EasyText e) => e.copyWith()).toList()
-          : value,
+      if (supportEasyText) "supportEasyText": true,
+      "value": serializeValue?.call(value) ??
+          (supportEasyText
+              ? texts.map<Map<String, dynamic>>(
+                  (
+                    EasyText e,
+                  ) {
+                    return <String, Object?>{
+                      'id': e.id,
+                      'text': e.str(),
+                      'styles': e.styles.toJson(),
+                      'easy_text': true,
+                    };
+                  },
+                ).toList()
+              : value is TextFragment
+                  ? value.castToFragment().toJson()
+                  : value),
       "metadata": passCacheData
           ? <String, dynamic>{
               ...metadata,
               'path': _path,
               'deepPath': _deepPath,
-              'text': _text,
-              'offset': _offset,
+              if (isBlockNode) 'text': _text,
+              if (isBlockNode) 'offset': _offset,
               'dataLength': _dataLength,
             }
           : metadata,

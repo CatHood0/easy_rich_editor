@@ -4,7 +4,7 @@ import 'package:flutter_test/flutter_test.dart';
 import '../../../resources/doc_rs.dart';
 
 void main() {
-  final Node root = DocumentToNodesParser.documentParse(commonDoc);
+  final Node root = ObjectToNodesParser.documentParse(commonDoc);
   final Tree tree = Tree(root);
 
   group('Queries', () {

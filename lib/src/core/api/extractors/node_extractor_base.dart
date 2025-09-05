@@ -1,4 +1,5 @@
 import 'package:easy_rich_editor/easy_rich_editor.dart';
+import 'package:easy_rich_editor/src/core/api/document/path/path.dart';
 import 'package:meta/meta.dart';
 
 /// Extractor implementations are used to get one or more values into the Node.
@@ -33,6 +34,12 @@ abstract class NodeExtractor<T extends Object?> {
     Node node, {
     bool Function(Node value)? filter,
   });
+
+  Node? getBlock(Node node, NodeDepthPath path);
+  Node? getBlockAtOffset(Node node, int offset);
+  List<Node>? getLines(Node node, NodeDepthPath path);
+  List<Node>? getLinesAtOffset(Node node, int offset);
+  List<T> getValuesOfLines(Node node, {required NodeDepthPath path});
 
   /// Get the value from the Node passed
   ///

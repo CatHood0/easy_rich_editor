@@ -1,5 +1,6 @@
 import 'package:easy_attribution_text/easy_text.dart';
 import 'package:easy_rich_editor/easy_rich_editor.dart';
+import 'package:easy_rich_editor/src/core/api/document/path/path.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter/widgets.dart';
 import 'package:meta/meta.dart';
@@ -156,4 +157,30 @@ class ParagraphNodeExtractor extends NodeExtractor<EasyText> {
       )
     ];
   }
+
+  @override
+  Node? getBlock(Node node, NodeDepthPath path) {
+    throw UnimplementedError();
+  }
+
+  @override
+  Node? getBlockAtOffset(Node node, int offset) {
+    throw UnimplementedError();
+  }
+
+  @override
+  List<Node>? getLines(Node node, NodeDepthPath path) {
+    throw UnimplementedError();
+  }
+
+  @override
+  List<Node>? getLinesAtOffset(Node node, int offset) {
+    throw UnimplementedError();
+  }
+
+  @override
+  List<EasyText> getValuesOfLines(Node node, {required NodeDepthPath path}) {
+    throw UnimplementedError();
+  }
+
 }

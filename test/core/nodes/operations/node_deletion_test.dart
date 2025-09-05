@@ -10,7 +10,7 @@ void main() {
   Node? root;
 
   setUp(() {
-    root = DocumentToNodesParser.documentParse(commonDoc);
+    root = ObjectToNodesParser.documentParse(commonDoc);
   });
 
   test('Delete all the text of a node', () {
