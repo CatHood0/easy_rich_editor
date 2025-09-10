@@ -12,16 +12,15 @@ void main() {
         Node.block(data: 'this is my simple text after an embed'),
         Node.block(data: 'this is my \nsimple text before a table'),
         Node.table(
-          columnNum: 3,
           rowNum: 1,
           children: <Node>[
-            Node.tableColumn(rowNum: 1, children: <Node>[
+            Node.tableRow(columnNum: 2, children: <Node>[
               Node.block(data: 'This is my text \ninto the first column'),
             ]),
-            Node.tableColumn(rowNum: 1, children: <Node>[
-              Node.block(data: 'This is my text into the second column'),
+            Node.tableRow(columnNum: 2, children: <Node>[
+              Node.block(data: 'This is my text into the middle column'),
             ]),
-            Node.tableColumn(rowNum: 1, children: <Node>[
+            Node.tableRow(columnNum: 2, children: <Node>[
               Node.block(data: 'This is my text into the end column'),
             ]),
           ],
@@ -34,7 +33,9 @@ void main() {
   });
 
   group('insert', () {
-    test('should insert a single char in the end column', () {});
+    test('should insert a single char in the end column', () {
+      print(root?.dumpTreeStr());
+    });
     test('should insert a text using paths', () {});
     test('should insert a text using document offsets', () {});
     test('should insert a embed correctly', () {});

@@ -81,8 +81,18 @@ extension NodeOperations on Node {
     }
   }
 
-  void receiveNodeChange(int nodeIndex, bool removed) {
-    throw UnimplementedError("receiveNodeChange is not implemented yet");
+  DeltaChangeResult receiveDelta(
+    DeltaNode delta, {
+    bool removeIfEmpty = false,
+    bool transformOffsetWhenRequired = true,
+    NodeModifier modifier = NodeModifier.defaultModifier,
+  }) {
+    return modifier.receiveDelta(
+      this,
+      delta,
+      removedIfRequired: removeIfEmpty,
+      transformOffsetWhenRequired: transformOffsetWhenRequired,
+    );
   }
 
   /// Insert the object at the specified offset

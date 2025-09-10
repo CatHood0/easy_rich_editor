@@ -37,7 +37,7 @@ extension NodeTreeDumperExt on Node {
       }
     }
 
-    final Limiter? limiter = Tree.getLimiter(type);
+    final Limiter? limiter = EasyDocument.getLimiter(this);
     final List<int> nodePath = showFullDeepPaths ? deepPath : <int>[path];
     final StringBuffer buffer = StringBuffer("")
       ..write("$type(${id.substring(0, 4).trim()}"

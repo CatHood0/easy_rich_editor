@@ -288,7 +288,7 @@ extension NodeSearchExt on Node {
   Node? elementAtOrNull(int index) =>
       isEmpty || index < 0 || index >= length ? null : children[index];
 
-  /// Whether this [Node] is into the N.T.P registry 
+  /// Whether this [Node] is into the N.T.P registry
   bool contains(String id) => _fastIndexTreePart[id] != null;
 
   /// Determines if inside this node the range is valid
@@ -357,7 +357,7 @@ extension NodeSearchExt on Node {
   /// - [deep]: Determines if this will search the [Node] into its children
   Node? findById(String id, {bool deep = true}) {
     if (this.id == id) return this;
-    if (isEmpty || canAddOrRemovedChildren) return null;
+    if (isEmpty || !canAddOrRemovedChildren) return null;
 
     if (contains(id)) {
       return _fastIndexTreePart[id]!;
@@ -396,11 +396,13 @@ extension NodeSearchExt on Node {
         jumpToOptionalParent(stopAt: (Node n) => n.previous != null)?.previous;
     if (node != null && node.isBlockNode && findLines) {
       assert(
-          node.lastChild == null || node.lastChild!.isBlockNode,
+          node.lastChild == null ||
+              !node.lastChild!.isBlockNode ||
+              node.firstChild!.type == TableKeys.rowKey,
           'last node into ${node.shortInfo()} '
           'must be inline, but '
           'found: ${node.lastChild?.shortInfo()}');
-      return node.lastChild ?? node;
+      return node.lastChild;
     }
     return node;
   }
@@ -415,11 +417,13 @@ extension NodeSearchExt on Node {
 
     if (node != null && node.isBlockNode && findLines) {
       assert(
-          node.firstChild == null || node.firstChild!.isBlockNode,
+          node.firstChild == null ||
+              !node.firstChild!.isBlockNode ||
+              node.firstChild!.type == TableKeys.rowKey,
           'first node into ${node.shortInfo()} '
           'must be inline, but '
           'found: ${node.lastChild?.shortInfo()}');
-      return node.firstChild ?? node;
+      return node.firstChild;
     }
     return node;
   }

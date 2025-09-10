@@ -45,8 +45,14 @@ extension NodeExt on Node {
           value.castToFragment().data.cast<Map<String, dynamic>>().isEmpty);
 
   /// Whether this [Node] supports [EasyText] and [EasyTextList]
+  ///
+  /// Even if the [value] is null, if [Node] have the [type] as [Line]
+  /// it will return [true]
   bool get supportEasyText =>
       isLineBlock || value != null && value is EasyTextList;
+
+  /// Whether this [Node] supports [EasyText] and [EasyTextList]
+  bool get strictlySupportsEasyText => value != null && value is EasyTextList;
 
   /// Whether this [Node] support [TextFragment] content
   bool get supportEmbed =>
@@ -60,6 +66,12 @@ extension NodeExt on Node {
 
   /// Whether this [Node] is [EmbedLine]
   bool get isEmbedLine => type == EmbedKeys.childrenKey;
+
+  /// Whether this [Node] is [Table]
+  bool get isTableBlock => type == TableKeys.key;
+
+  /// Whether this [Node] is [Column]
+  bool get isTableColumnBlock => type == TableKeys.rowKey;
 
   /// Whether this [Node] is [Paragraph]
   bool get isParagraphBlock => type == ParagraphKeys.key;
@@ -145,13 +157,18 @@ extension NodeUtilities on Node {
       ..dataLength = dataLength;
   }
 
-  void forEach(void Function(Node node, int index) el) {
+  void forEach(
+      void Function(Node node, int index, VoidCallback shouldBreak) el) {
     if (isEmpty) return;
 
     int index = 0;
     for (int i = 0; i < length; i++) {
       final Node child = children[i];
-      el(child, index);
+      bool shouldEnd = false;
+      el(child, index, () => shouldEnd = true);
+      if (shouldEnd) {
+        return;
+      }
       index++;
     }
   }

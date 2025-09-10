@@ -1,4 +1,3 @@
-import 'package:dart_quill_delta/dart_quill_delta.dart';
 import 'package:easy_rich_editor/easy_rich_editor.dart';
 import 'package:easy_rich_editor/src/core/api/selection/remote/remote_selection.dart';
 import 'package:flutter/material.dart';
@@ -6,6 +5,8 @@ import 'package:flutter_quill_delta_easy_parser/flutter_quill_delta_easy_parser.
     as pr;
 import 'package:flutter_quill_delta_easy_parser/utils/nano_id_generator.dart';
 import 'package:meta/meta.dart';
+
+import '../document/history.dart';
 
 class EasyTreeState extends ChangeNotifier {
   EasyDocument document;
@@ -19,21 +20,6 @@ class EasyTreeState extends ChangeNotifier {
     return EasyTreeState(document: EasyDocument(root));
   }
 
-  factory EasyTreeState.fromMarkdown({required String text}) {
-    final Node root = ObjectToNodesParser.markdownParse(text);
-    return EasyTreeState(document: EasyDocument(root));
-  }
-
-  factory EasyTreeState.fromPlainText({required String text}) {
-    final Node root = PlainTextToNodesParser.parse(text: text);
-    return EasyTreeState(document: EasyDocument(root));
-  }
-
-  factory EasyTreeState.fromDelta({required Delta delta}) {
-    final Node root = ObjectToNodesParser.deltaParse(delta);
-    return EasyTreeState(document: EasyDocument(root));
-  }
-
   final ValueNotifier<NodeSelection?> _selectedNodesNotifier =
       ValueNotifier<NodeSelection?>(null);
 
@@ -41,7 +27,7 @@ class EasyTreeState extends ChangeNotifier {
       ValueNotifier<List<RemoteSelection>>(<RemoteSelection>[]);
 
   // ========= Getters =========== //
-  FixedListLength get changes => document.changes;
+  EasyHistory get changes => document.history;
 
   static String createNodeId() => nanoid(8);
 

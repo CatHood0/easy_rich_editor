@@ -2,6 +2,8 @@ import '../../../../../easy_rich_editor.dart';
 import '../../../exceptions/illegal_node_exception.dart';
 
 /// [NodeIterator] is used to traverse the nodes in visual order (depth-first).
+//FIXME: we need unidirectional iteration since we have the API to know if there
+// are previous possible node or next possible nodes
 class NodeIterator implements Iterator<Node> {
   /// Creates a NodeIterator.
   NodeIterator({
@@ -43,7 +45,7 @@ class NodeIterator implements Iterator<Node> {
 
     // there's no chance where we can move
     // to a next place
-    if (_currentNode == null) {
+    if (_currentNode == null || !_currentNode!.hasPossibleNextNode) {
       return false;
     }
 
@@ -56,6 +58,7 @@ class NodeIterator implements Iterator<Node> {
     }
 
     if (node.isRootOwner) {
+      _currentNode = null;
       return false;
     }
 

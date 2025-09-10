@@ -1,16 +1,15 @@
-import 'package:easy_rich_editor/internal.dart';
 import 'package:easy_rich_editor/easy_rich_editor.dart';
 import 'package:flutter_test/flutter_test.dart';
 import '../../../resources/doc_rs.dart';
 
 void main() {
   final Node root = ObjectToNodesParser.documentParse(commonDoc);
-  final Tree tree = Tree(root);
+  final EasyDocument tree = EasyDocument(root);
 
   group('Queries', () {
     test('Query Node by id', () {
       const String id = "normal pr 2";
-      final Node? node = tree.query(id, deep: false);
+      final Node? node = tree.query(id.trim(), deep: false);
       expect(node, isNotNull);
       expect(node!.id, id);
     });
@@ -51,15 +50,33 @@ void main() {
 
   group('Add nodes', () {
     test('insert node at start', () {
-      final Node node = randomNode;
-      tree.addNode(node, after: false, paths: <int>[0]);
+      final Node node = Node.block(data: "");
+      tree.insertAtStart(node);
 
       expect(node.parent, isNotNull);
       expect(node.parent, tree.root);
-      expect(tree.queryPath(<int>[0]), node);
+      expect(tree.queryPath(<int>[0]), equals(node));
     });
-    test('insert node at end', () {});
-    test('insert node at path', () {});
+    test('insert node at end', () {
+      final Node node = Node.block(data: "");
+      tree.insertAtEnd(node);
+
+      expect(node.parent, isNotNull);
+      expect(node.parent, tree.root);
+      expect(tree.queryPath(<int>[11]), equals(node));
+    });
+    test('insert node at path', () {
+      final Node node = randomNode;
+      tree.insertNode(
+        node,
+        path: <int>[3],
+        after: false,
+      );
+
+      expect(node.parent, isNotNull);
+      expect(node.parent, tree.root);
+      expect(tree.queryPath(<int>[3]), node);
+    });
   });
 
   group('Insert', () {

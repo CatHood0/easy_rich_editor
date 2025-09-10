@@ -2,69 +2,82 @@ import 'package:easy_rich_editor/easy_rich_editor.dart';
 import 'package:easy_rich_editor/src/core/api/document/path/path.dart';
 import 'package:meta/meta.dart';
 
-/// Extractor implementations are used to get one or more values into the Node.
+/// Extractor implementations are used to get one or more values,
+/// lines or blocks into the specified [Node].
 ///
-/// We don't care about if:
-///
-/// 1. the Node passed is the root.
-/// 2. the Node passed is the exact point with the value
-///
-/// We only need to know, if we need to traverse into the Tree of
-/// the Nodes, and the subclasses of this base.
-///
-/// The implementation of this class will implement the logic that
-/// they need to make correct extracting operations
+/// [NodeExtractor] is the way that we use to 
+/// know how we will traverse into the [Node] 
+/// structure of the [Node]s 
 abstract class NodeExtractor<T extends Object?> {
   bool canNodeHaveValueType(Node node, Type t);
 
   /// Get the value from the Node passed
   ///
   /// The node passed, usually is direct Node that contains the value.
-  List<T> getValueFromNode(
+  T? getValueFromNode(
     Node node, {
     bool Function(Node value)? filter,
     bool needsTraverse = true,
   });
 
-  /// Get all the lines into the Node passed
+  /// Get the values from the [Node] passed
   ///
-  /// The node passed, usually is the root node (direct parent)
-  /// of the Node.
-  List<Node> getLinesFromNode(
+  /// The node passed, usually is direct Node that contains the value.
+  List<T> getValuesFromNode(
     Node node, {
     bool Function(Node value)? filter,
+    bool needsTraverse = true,
   });
 
-  Node? getBlock(Node node, NodeDepthPath path);
-  Node? getBlockAtOffset(Node node, int offset);
-  List<Node>? getLines(Node node, NodeDepthPath path);
-  List<Node>? getLinesAtOffset(Node node, int offset);
-  List<T> getValuesOfLines(Node node, {required NodeDepthPath path});
+  /// Get the exact block at the current [Node]
+  ///
+  /// Most of the default implementations like [ParagraphNodeExtractor]
+  /// just returns the one passed. But in [TableNodeExtractor] filter
+  /// columns until get wanted one
+  ///
+  /// - [node]: The specified [Node] used to get the block
+  /// - [filter]: Determines which [Node] will be returned
+  /// - [path]: The exact path where we need to search. Tipically is empty
+  Node? getBlock(
+    Node node, {
+    required bool Function(Node value) filter,
+    NodeDepthPath path = const <int>[],
+  });
 
-  /// Get the value from the Node passed
+  /// Get the lines at the current [Node]
   ///
+  /// Most of the default implementations like [ParagraphNodeExtractor]
+  /// just returns the lines into the [Paragraph]. 
   ///
-  /// The node passed, usually is the root owner
-  /// of the Node. Althrough, you can also pass the direct
-  /// value.
+  /// [TableNodeExtractor] is different, and it works different when values 
+  /// are passed
+  ///
+  /// - If [path] is empty, get all the lines into the columns.
+  /// - If [path] is provided, get the lines at the specified column/block
+  /// 
+  /// Parameters:
+  ///
+  /// - [node]: The specified [Node] used to get the block
+  /// - [filter]: Determines which [Node] will be returned
+  /// - [path]: The exact path where we need to search. Tipically is empty
+  List<Node>? getLines(
+    Node node, {
+    NodeDepthPath path = const <int>[],
+  });
+
+  Node? getSelectedBlocks(Node node, NodeSelection selection);
+
+  List<Node>? getSelectedLines(Node node, NodeSelection selection);
+
+  /// Get the [Node] using the specified [id] 
   Node? getNodeOfKey(Node node, String id);
-
-  /// Get the current location of the Node passed
-  /// based on the owner passed. Can be the root of all
-  /// Nodes of the Tree, or just its direct owner
-  ///
-  /// The node passed, usually is the root owner
-  /// of the Node. Althrough, you can also pass the direct
-  /// value.
-  NodeLocation? getLocationOfNode(Node node, String id);
 
   /// Get all locations of the values that matches with
   /// one passed.
   ///
-  /// The node passed, usually is the root nodes that are in the Tree.
-  /// Althrough, you can also pass the direct
-  /// value.
-  List<NodeValueLocation> getLocationsOfValue(
+  /// Useful for when use "search" option in the toolbar
+  /// and need to get the exact position of every values
+  List<NodeValueLocation> queryValues(
     Node node,
     Object value,
     Limiter limiter, {

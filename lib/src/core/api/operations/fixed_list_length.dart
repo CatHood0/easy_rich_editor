@@ -1,6 +1,8 @@
 import 'package:collection/collection.dart';
+import 'package:meta/meta.dart';
 import '../../../../../easy_rich_editor.dart';
 
+@internal
 class FixedListLength {
   final QueueList<EasyOperation> _operations;
   late final int numberOfOperations;
@@ -25,7 +27,7 @@ class FixedListLength {
   /// Removes and returns the first element of this queue.
   ///
   /// The queue must not be empty when this method is called.
-  EasyOperation takeHeap() {
+  EasyOperation takeHead() {
     numberOfOperations--;
     return _operations.removeLast();
   }
@@ -38,31 +40,36 @@ class FixedListLength {
     return _operations.removeFirst();
   }
 
+  /// Returns the most recent operation added
+  EasyOperation? getRecent() {
+    return _operations.lastOrNull;
+  }
+
   /// Adds [value] at the beginning of the queue.
   void addFirst(EasyOperation value) {
-    if (_operations.length == maxLength) {
-      takeOldMember();
-    }
     numberOfOperations++;
     _operations.addFirst(value);
+    if (numberOfOperations == maxLength) {
+      takeOldMember();
+    }
   }
 
   /// Adds [value] at the end of the queue.
   void addLast(EasyOperation value) {
-    if (_operations.length == maxLength) {
-      takeOldMember();
-    }
     numberOfOperations++;
     _operations.addLast(value);
+    if (numberOfOperations == maxLength) {
+      takeOldMember();
+    }
   }
 
   /// Adds [value] at the end of the queue.
   void add(EasyOperation value) {
-    if (_operations.length == maxLength) {
-      takeOldMember();
-    }
     numberOfOperations++;
     _operations.add(value);
+    if (numberOfOperations >= maxLength) {
+      takeOldMember();
+    }
   }
 
   /// Removes a single instance of [value] from the queue.
@@ -90,4 +97,6 @@ class FixedListLength {
     numberOfOperations = 0;
     _operations.clear();
   }
+
+  List<EasyOperation> toList() => <EasyOperation>[..._operations];
 }

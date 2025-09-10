@@ -7,6 +7,7 @@ import 'package:easy_rich_editor/src/core/extensions/object_ext.dart';
 import 'package:flutter_quill_delta_easy_parser/flutter_quill_delta_easy_parser.dart';
 import 'package:meta/meta.dart';
 import '../../../../easy_rich_editor.dart';
+import '../document/changes/deltas/delta_node.dart';
 
 /// A default implementation of [NodeModifier] that provides standard
 /// operations for handling paragraph and embed nodes in a document tree.
@@ -883,7 +884,7 @@ class DefaultNodeModifier extends NodeModifier {
               'receiveDelta or any of the other methods');
     }
     assert(
-        delta.isNormalized,
+        delta.isNormalized || delta.isCollapsed,
         "the delta passed must be "
         "normalized before "
         "making any change");

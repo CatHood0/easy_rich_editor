@@ -2,10 +2,9 @@ library;
 
 // core
 export 'src/core/api/document/document.dart';
-export 'src/core/api/document/changes/delta_node.dart';
-export 'src/core/api/document/changes/fragment_change_context.dart';
+export 'src/core/api/document/changes/deltas/delta_node.dart';
+export 'src/core/api/document/changes/deltas/fragment_change_context.dart';
 export 'src/core/api/operations/easy_operation.dart';
-export 'src/core/api/operations/fixed_list_length.dart';
 export 'src/parsers/document_to_nodes.dart';
 export 'src/parsers/markdown_to_nodes_parser.dart';
 export 'src/parsers/plain_text_to_nodes_parser.dart';

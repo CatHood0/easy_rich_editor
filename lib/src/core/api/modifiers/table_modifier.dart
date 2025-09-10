@@ -17,7 +17,7 @@ class TableModifier extends DefaultNodeModifier {
   @override
   Map<String, int> get supportedTypes => <String, int>{
         TableKeys.key: 1,
-        TableKeys.columnKey: 1,
+        TableKeys.rowKey: 1,
         ...super.supportedTypes,
       };
 

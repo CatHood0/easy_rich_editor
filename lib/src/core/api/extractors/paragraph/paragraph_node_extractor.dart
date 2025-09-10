@@ -1,5 +1,6 @@
 import 'package:easy_attribution_text/easy_text.dart';
 import 'package:easy_rich_editor/easy_rich_editor.dart';
+import 'package:easy_rich_editor/src/core/api/document/nodes/node_iterator.dart';
 import 'package:easy_rich_editor/src/core/api/document/path/path.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter/widgets.dart';
@@ -12,36 +13,77 @@ class ParagraphNodeExtractor extends NodeExtractor<EasyText> {
 
   static ParagraphNodeExtractor get instance => _instance;
 
+  static bool defaultBlockPrFilter(Node n) => n.isParagraphBlock;
+
+  void _assertBlock(Node n) {
+    assert(
+      n.isParagraphBlock,
+      'expected '
+      '"${ParagraphKeys.key}" but '
+      'found ${n.shortInfo()}',
+    );
+  }
+
   @override
   bool canNodeHaveValueType(Node node, Type t) {
-    if (node.type == ParagraphKeys.lineKey && t == EasyText) {
-      return true;
+    if (node.isLineBlock) {
+      if (t == EasyText || t is String) {
+        return true;
+      }
+      return false;
     }
-    return false;
-  }
-
-  @internal
-  @override
-  List<String> formatObjectToStr(Object obj) {
-    assert(obj is EasyTextList || obj is EasyText,
-        "The value passed must be a EasyTextList or just EasyText");
-    return <String>[
-      if (obj is EasyText) _formatFragment(obj),
-      if (obj is EasyTextList)
-        ...obj.map<String>((EasyText fr) {
-          return _formatFragment(fr);
-        }),
-    ];
-  }
-
-  String _formatFragment(EasyText fragment) {
-    return fragment.styles.isEmpty
-        ? "{${fragment.text} -> ${fragment.styles.toJson()}}"
-        : '${fragment.text}';
+    return true;
   }
 
   @override
-  List<EasyText> getValueFromNode(
+  Node? getBlock(
+    Node node, {
+    bool Function(Node value) filter =
+        ParagraphNodeExtractor.defaultBlockPrFilter,
+    NodeDepthPath path = const <int>[],
+  }) {
+    return !filter(node) ? null : node;
+  }
+
+  @override
+  List<Node>? getLines(
+    Node node, {
+    NodeDepthPath path = const <int>[],
+  }) {
+    _assertBlock(node);
+    return node.children;
+  }
+
+  @override
+  Node? getSelectedBlocks(Node node, NodeSelection selection) {
+    if (!selection.isCollapsed) return null;
+    _assertBlock(node);
+    return selection.start.node.jumpToParentExceptRoot();
+  }
+
+  @override
+  List<Node>? getSelectedLines(Node node, NodeSelection selection) {
+    if (selection.isCollapsed) return <Node>[selection.start.node];
+    _assertBlock(node);
+    final NodeSelection normalized = selection.normalized;
+    return NodeIterator(
+      startNode: normalized.start.node,
+      endNode: normalized.end.node,
+    ).toList();
+  }
+
+  @override
+  EasyText? getValueFromNode(
+    Node node, {
+    bool Function(Node value)? filter,
+    bool needsTraverse = true,
+  }) {
+    // TODO: implement getValueFromNode
+    throw UnimplementedError();
+  }
+
+  @override
+  List<EasyText> getValuesFromNode(
     Node node, {
     bool Function(Node value)? filter,
     bool needsTraverse = true,
@@ -55,7 +97,7 @@ class ParagraphNodeExtractor extends NodeExtractor<EasyText> {
           continue;
         }
         fragments.addAll(
-          getValueFromNode(
+          getValuesFromNode(
             subNode,
             filter: filter,
             needsTraverse: needsTraverse,
@@ -66,11 +108,11 @@ class ParagraphNodeExtractor extends NodeExtractor<EasyText> {
     }
     if (node.isLineBlock) {
       if (node.value == null) return fragments;
-      if (node.value is! EasyTextList) {
+      if (node.strictlySupportsEasyText) {
         throw UnsupportedError(
           "Expected "
           "EasyTextList type, "
-          "founded: ${node.value.runtimeType} "
+          "founded: ${node.value?.runtimeType} "
           "in ${node.shortInfo()}",
         );
       }
@@ -80,25 +122,12 @@ class ParagraphNodeExtractor extends NodeExtractor<EasyText> {
   }
 
   @override
-  List<Node> getLinesFromNode(
-    Node node, {
-    bool Function(Node value)? filter,
-  }) {
-    throw UnimplementedError();
-  }
-
-  @override
   Node? getNodeOfKey(Node node, String key) {
     throw UnimplementedError();
   }
 
   @override
-  NodeLocation? getLocationOfNode(Node root, String key) {
-    throw UnimplementedError();
-  }
-
-  @override
-  List<NodeValueLocation> getLocationsOfValue(
+  List<NodeValueLocation> queryValues(
     Node node,
     Object value,
     Limiter limiter, {
@@ -115,7 +144,7 @@ class ParagraphNodeExtractor extends NodeExtractor<EasyText> {
 
       for (final Node child in node.children) {
         child.updatePathsIfNeeded(index, <int>[...path, index]);
-        final List<NodeValueLocation> location = getLocationsOfValue(
+        final List<NodeValueLocation> location = queryValues(
           child,
           value,
           limiter,
@@ -158,29 +187,23 @@ class ParagraphNodeExtractor extends NodeExtractor<EasyText> {
     ];
   }
 
+  @internal
   @override
-  Node? getBlock(Node node, NodeDepthPath path) {
-    throw UnimplementedError();
+  List<String> formatObjectToStr(Object obj) {
+    assert(obj is EasyTextList || obj is EasyText,
+        "The value passed must be a EasyTextList or just EasyText");
+    return <String>[
+      if (obj is EasyText) _formatFragment(obj),
+      if (obj is EasyTextList)
+        ...obj.map<String>((EasyText fr) {
+          return _formatFragment(fr);
+        }),
+    ];
   }
 
-  @override
-  Node? getBlockAtOffset(Node node, int offset) {
-    throw UnimplementedError();
+  String _formatFragment(EasyText fragment) {
+    return fragment.styles.isEmpty
+        ? "{${fragment.text} -> ${fragment.styles.toJson()}}"
+        : '${fragment.text}';
   }
-
-  @override
-  List<Node>? getLines(Node node, NodeDepthPath path) {
-    throw UnimplementedError();
-  }
-
-  @override
-  List<Node>? getLinesAtOffset(Node node, int offset) {
-    throw UnimplementedError();
-  }
-
-  @override
-  List<EasyText> getValuesOfLines(Node node, {required NodeDepthPath path}) {
-    throw UnimplementedError();
-  }
-
 }

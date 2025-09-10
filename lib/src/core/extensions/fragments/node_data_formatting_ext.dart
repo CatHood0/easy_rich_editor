@@ -12,8 +12,8 @@ extension NodeFormattingExt on Node {
     int jumpedOffset = 0,
   }) {
     if (isBlockNode || isRootOwner || !hasDefinedValue) {
-      return FragmentChangeContext.noExecuted(
-          NoExecutionReason.noSatifyConditions);
+      return FragmentChangeContext.
+        noExecuted(NoExecutionReason.noSatifyConditions);
     }
 
     if (supportEmbed) {

@@ -6,6 +6,7 @@ import 'package:easy_attribution_text/easy_text.dart';
 import 'package:easy_rich_editor/src/core/api/document/path/path.dart';
 import 'package:easy_rich_editor/src/core/api/editor_state/easy_state.dart';
 import 'package:easy_rich_editor/src/core/builders/table/table_keys.dart';
+import 'package:easy_rich_editor/src/core/exceptions/illegal_node_exception.dart';
 import 'package:easy_rich_editor/src/core/extensions/fragments/fragments_ext.dart';
 import 'package:easy_rich_editor/src/core/extensions/object_ext.dart';
 import 'package:easy_rich_editor/src/utils/background_isolate_runner/isolate_runner.dart';
@@ -46,6 +47,10 @@ final class Node extends ChangeNotifier {
   /// memory reference for any instance (so, we never must put a copy
   /// of an instance here)
   final HashMap<String, Node> _fastIndexTreePart = HashMap<String, Node>();
+
+  @internal
+  @visibleForTesting
+  Map<String, Node> get ntp => <String, Node>{..._fastIndexTreePart};
 
   // Refer to https://www.fileformat.info/info/unicode/char/fffc/index.htm
   static const String kObjectReplacementCharacter = '\uFFFC';
@@ -132,9 +137,11 @@ final class Node extends ChangeNotifier {
     int path = -1;
     int? length;
     NodeDepthPath deepPath = <int>[];
-    if (jsonHasCachedData && metadata.isNotEmpty) {}
+    if (jsonHasCachedData && metadata.isNotEmpty) {
+      text = metadata['text'] as String;
+    }
     final String type = json['type'] as String;
-    
+
     if (value is List<dynamic>) {
       final bool hasSupportForEasyText =
           json['supportEasyText'] as bool? ?? false;
@@ -171,7 +178,7 @@ final class Node extends ChangeNotifier {
           value['attributes'] as Map<dynamic, dynamic>? ?? <dynamic, dynamic>{},
         ),
       );
-    } else if (deserializeValue != null){
+    } else if (deserializeValue != null) {
       value = deserializeValue(value);
     }
 
@@ -241,6 +248,7 @@ final class Node extends ChangeNotifier {
     this.metadata = <String, dynamic>{
       'block': true,
       'pr_attributes': blockAttributes,
+      'can_modify_children_length': true,
       ...?metadata,
     };
     //FIXME: implement a better search to know if the
@@ -280,32 +288,86 @@ final class Node extends ChangeNotifier {
     adoptChildren(children);
   }
 
+  /// Builds a [Node] that represents a visual editable [Table]
   Node.table({
-    required int columnNum,
-    required int rowNum,
+    int columnNum = -1,
+    int rowNum = -1,
     String? id,
     this.parent,
     List<Node>? children,
     Map<String, dynamic>? metadata,
-    EasyAttributeStyles? blockAttributes,
   }) : type = TableKeys.key {
     children ??= <Node>[];
     this.id = id ?? EasyTreeState.createNodeId();
     this.metadata = <String, dynamic>{
       ...?metadata,
       'block': true,
-      'pr_attributes': blockAttributes,
+      'can_modify_children_length': true,
+      'pr_attributes': null,
       TableKeys.columnNumKey: columnNum,
-      TableKeys.rowNumKey: rowNum,
     };
     adoptChildren(
       children,
       check: (Node n) {
         assert(
-            n.type == TableKeys.columnKey,
-            'expected ${TableKeys.columnKey} as '
+            n.type == TableKeys.rowKey,
+            'expected ${TableKeys.rowKey} as '
             'a child, but '
             'was found: ${n.type}');
+      },
+    );
+    if (rowNum > 0) {
+      final int effectiveLen = rowNum - children.length;
+      if (effectiveLen > 0) {
+        adoptChildren(
+          List<Node>.generate(
+            effectiveLen,
+            (int index) => Node.tableRow(columnNum: columnNum),
+          ),
+        );
+      }
+      assert(
+          this.children.length == rowNum,
+          'Expected '
+          'children length: $rowNum but '
+          'found ${this.children.length}');
+    }
+  }
+
+  /// Builds a [Table-Row] that correspond to a [Table] parent
+  //NOTE: Every node into a [Table-Row] is considered as a column
+  Node.tableRow({
+    required int columnNum,
+    String? id,
+    this.parent,
+    List<Node> children = const <Node>[],
+    Map<String, dynamic>? metadata,
+    Map<String, dynamic>? rowAttributes,
+  }) : type = TableKeys.rowKey {
+    if (parent != null && !parent!.isTableBlock) {
+      throw IllegalNodeException(
+          node: parent!,
+          message: 'Detected bad parent relationship '
+              '=> \'${TableKeys.rowKey}\' '
+              'expect a \'${TableKeys.key}\' parent, '
+              'but found: \'${parent?.type}\'');
+    }
+    this.id = id ?? EasyTreeState.createNodeId();
+    this.metadata = <String, dynamic>{
+      'block': true,
+      'column': true,
+      'pr_attributes': null,
+      'row_attributes': rowAttributes,
+      ...?metadata,
+    };
+    adoptChildren(
+      children,
+      check: (Node n) {
+        assert(
+            n.isBlockNode && n.type != type,
+            'expected non ${TableKeys.rowKey} type as '
+            'a child, but '
+            'was found: ${n.shortInfo()}');
       },
     );
 
@@ -314,7 +376,7 @@ final class Node extends ChangeNotifier {
       adoptChildren(
         List<Node>.generate(
           effectiveLen,
-          (int index) => Node.tableColumn(rowNum: rowNum),
+          (int index) => Node.block(data: ""),
         ),
       );
     }
@@ -322,48 +384,6 @@ final class Node extends ChangeNotifier {
         this.children.length == columnNum,
         'Expected '
         'children length: $columnNum but '
-        'found ${this.children.length}');
-  }
-
-  Node.tableColumn({
-    required int rowNum,
-    String? id,
-    this.parent,
-    List<Node> children = const <Node>[],
-    Map<String, dynamic>? metadata,
-    EasyAttributeStyles? blockAttributes,
-  }) : type = TableKeys.columnKey {
-    this.id = id ?? EasyTreeState.createNodeId();
-    this.metadata = <String, dynamic>{
-      'block': true,
-      'column': true,
-      'pr_attributes': blockAttributes,
-      ...?metadata,
-    };
-    adoptChildren(
-      children,
-      check: (Node n) {
-        assert(
-            n.isBlockNode && n.type != type,
-            'expected non ${TableKeys.columnKey} type as '
-            'a child, but '
-            'was found: ${n.shortInfo()}');
-      },
-    );
-
-    final int effectiveLen = rowNum - children.length;
-    if (effectiveLen > 0) {
-      adoptChildren(
-        List<Node>.generate(
-          effectiveLen,
-          (int index) => Node.tableColumn(rowNum: rowNum),
-        ),
-      );
-    }
-    assert(
-        this.children.length == rowNum,
-        'Expected '
-        'children length: $rowNum but '
         'found ${this.children.length}');
   }
 
@@ -745,18 +765,21 @@ final class Node extends ChangeNotifier {
     }
   }
 
-  /// Invalidates the current cache of this [Node]
-  /// and of its direct parent
+  /// Invalidates the cache in this one and the parent.
   ///
-  /// - [willBeAfter]: indicates that the invalidation of the offset will be after this [Node], and not at this one.
-  void invalidateDataOffset({bool willBeAfter = false, bool noText = false}) {
-    _dataLength = null;
+  /// - [noText]: Indicates that cached [text] won't be cleaned.
+  /// - [noOffset]: Indicates that the cached [offset] won't be cleaned.
+  /// - [noLength]: Indicates that the cached [dataLength] won't be cleaned.
+  void invalidateDataOffset({
+    bool noOffset = false,
+    bool noText = false,
+    bool noLength = false,
+  }) {
+    if (!noLength) _dataLength = null;
     if (!noText) _text = null;
-    if (!willBeAfter) _offset = null;
+    if (!noOffset) _offset = null;
     if (parent != null) {
-      if (isBlockNode) {
-        next?.invalidateDataOffset(noText: true);
-      }
+      next?.invalidateDataOffset(noLength: true, noText: true);
       if (parent!._dataLength != null || parent!._text != null) {
         parent!.invalidateDataOffset();
       }
@@ -845,7 +868,7 @@ final class Node extends ChangeNotifier {
     if (parent!._cachedLength != null) {
       parent!._cachedLength = parent!._cachedLength! + 1;
     }
-    parent!.invalidateDataOffset(willBeAfter: true);
+    parent!.invalidateDataOffset(noOffset: true);
     parent!._fastIndexTreePart[entry.id] = entry;
     if (entry.next != null) {
       // reset the current path of the node
@@ -909,7 +932,7 @@ final class Node extends ChangeNotifier {
     if (!isBlockNode) return;
     children.clear();
     _fastIndexTreePart.clear();
-    invalidateDataOffset(willBeAfter: true);
+    invalidateDataOffset(noOffset: true);
     invalidateCache(justCache: true);
   }
 
@@ -1199,6 +1222,11 @@ final class Node extends ChangeNotifier {
 
   @override
   String toString() {
-    return 'Node(type=$type,value=$value,metadata=$metadata,children=$children)';
+    return 'Node(id=$id,'
+        'type=$type,'
+        'value=$value,'
+        'metadata=$metadata,'
+        'children=$children'
+        ')';
   }
 }

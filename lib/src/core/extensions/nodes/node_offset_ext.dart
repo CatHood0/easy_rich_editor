@@ -8,8 +8,7 @@ extension NodeOffsetExt on Node {
     if (_offset != null) return _offset!;
 
     if (parent == null || isFirst) {
-      if (isBlockNode) _offset = 0;
-      return _offset ?? 0;
+      return _offset ??= 0;
     }
 
     final List<Node> siblings = parent!.children;
@@ -18,15 +17,6 @@ extension NodeOffsetExt on Node {
       if (siblings[i] == this) break;
       offset += siblings[i].dataLength;
     }
-
-    // when a [Node] is a non block (usually, we pass this info into [metadata] property),
-    // this means that it contains a [List<TextFragment>] or direct values
-    // that are used by the editor
-    //
-    // so, we just prefer computing each time the offset of these
-    // nodes, just invalidating the block offsets
-    // (avoid double invalidation checking: block children and block siblings invalidations)
-    if (!isBlockNode) return offset;
 
     _offset = offset;
     return _offset!;

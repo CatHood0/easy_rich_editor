@@ -16,6 +16,8 @@ abstract class EasyOperation {
   EasyOperation invert();
 
   DeltaNode toDelta();
+
+  Map<String, dynamic> toJson();
 }
 
 class EasyFormatOperation extends EasyOperation {
@@ -57,6 +59,18 @@ class EasyFormatOperation extends EasyOperation {
       inlineStyles: !isSelectinEntireBlock || !node.isBlockNode,
     );
   }
+
+  @override
+  Map<String, dynamic> toJson() {
+    return <String, dynamic>{
+      'path': path,
+      'node': node,
+      'len': len,
+      'attributes': oldAttributes,
+      'oldAttributes': attributes,
+      'cursorPosition': cursorPosition,
+    };
+  }
 }
 
 class EasyInsertOperation extends EasyOperation {
@@ -91,12 +105,20 @@ class EasyInsertOperation extends EasyOperation {
       styles: EasyAttributeStyles.fromJson(attributes),
     );
   }
+
+  @override
+  Map<String, dynamic> toJson() {
+    return {
+      'path': path,
+      'node': node,
+      'len': data.length,
+      'cursorPosition': cursorPosition,
+      'attributes': attributes,
+    };
+  }
 }
 
 class EasyDeleteOperation extends EasyOperation {
-  // a copy of these nodes that we need
-  // to reinsert then when removed
-  final List<Node>? affectedNodes;
   final int cursorPosition;
   final int len;
   final Object? deletedContent;
@@ -107,7 +129,6 @@ class EasyDeleteOperation extends EasyOperation {
     required super.node,
     required this.cursorPosition,
     required this.len,
-    this.affectedNodes,
     this.forward = false,
     this.deletedContent,
   });
@@ -124,13 +145,6 @@ class EasyDeleteOperation extends EasyOperation {
 
   @override
   DeltaNode toDelta() {
-    if (affectedNodes != null && affectedNodes!.isNotEmpty) {
-      EasyEditorLogger.operations.debug('Cannot be returned a '
-          'correct DeltaNode struct when there are '
-          'registered more than one affected '
-          'node => $affectedNodes');
-      return DeltaNode.invalid();
-    }
     if (deletedContent != null) {
       return DeltaNode.replace(
         inserted: deletedContent,
@@ -142,5 +156,16 @@ class EasyDeleteOperation extends EasyOperation {
       start: cursorPosition,
       end: cursorPosition + len,
     );
+  }
+
+  @override
+  Map<String, dynamic> toJson() {
+    return {
+      'path': path,
+      'node': node,
+      'len': len,
+      'forward': forward,
+      'cursorPosition': cursorPosition,
+    };
   }
 }

@@ -36,64 +36,12 @@ class EmbedNodeExtractor extends NodeExtractor<TextFragment> {
   }
 
   @override
-  List<Node> getLinesFromNode(
-    Node node, {
-    bool Function(Node value)? filter,
-  }) {
-    throw UnimplementedError();
-  }
-
-  @override
-  List<TextFragment> getValueFromNode(
-    Node node, {
-    bool Function(Node value)? filter,
-    bool needsTraverse = true,
-  }) {
-    final List<TextFragment> fragments = <TextFragment>[];
-
-    if (needsTraverse) {
-      if (node.isEmpty) return fragments;
-      for (final Node subNode in node.children) {
-        if (filter != null && !filter(subNode)) {
-          continue;
-        }
-        fragments.addAll(
-          getValueFromNode(
-            subNode,
-            filter: filter,
-            needsTraverse: needsTraverse,
-          ),
-        );
-      }
-      return fragments;
-    }
-    if (node.isEmbedLine) {
-      if (node.value == null) return fragments;
-      if (node.value is! TextFragment) {
-        throw UnsupportedError(
-          "Expected "
-          "TextFragment type, "
-          "founded: ${node.value.runtimeType} "
-          "in ${node.shortInfo()}",
-        );
-      }
-      fragments.add(node.castToFragment());
-    }
-    return fragments;
-  }
-
-  @override
   Node? getNodeOfKey(Node node, String key) {
     throw UnimplementedError();
   }
 
   @override
-  NodeLocation? getLocationOfNode(Node root, String key) {
-    throw UnimplementedError();
-  }
-
-  @override
-  List<NodeValueLocation> getLocationsOfValue(
+  List<NodeValueLocation> queryValues(
     Node node,
     Object value,
     Limiter limiter, {
@@ -108,7 +56,7 @@ class EmbedNodeExtractor extends NodeExtractor<TextFragment> {
       while (index < node.length) {
         final Node child = node.elementAt(index)
           ..updatePathsIfNeeded(index, <int>[...path, index]);
-        final List<NodeValueLocation> location = getLocationsOfValue(
+        final List<NodeValueLocation> location = queryValues(
           child,
           value,
           limiter,
@@ -140,30 +88,95 @@ class EmbedNodeExtractor extends NodeExtractor<TextFragment> {
   }
 
   @override
-  Node? getBlock(Node node, NodeDepthPath path) {
-    throw UnimplementedError();
-  }
-
-  @override
-  Node? getBlockAtOffset(Node node, int offset) {
-    throw UnimplementedError();
-  }
-
-  @override
-  List<Node>? getLines(Node node, NodeDepthPath path) {
-    throw UnimplementedError();
-  }
-
-  @override
-  List<Node>? getLinesAtOffset(Node node, int offset) {
-    throw UnimplementedError();
-  }
-
-  @override
-  List<TextFragment> getValuesOfLines(
+  Node? getBlock(
     Node node, {
-    required NodeDepthPath path,
+    required bool Function(Node value) filter,
+    NodeDepthPath path = const <int>[],
+  }) {
+    return !node.isEmbedBlock || !filter(node) ? null : node;
+  }
+
+  @override
+  List<Node>? getLines(
+    Node node, {
+    NodeDepthPath path = const <int>[],
+  }) {
+    assert(
+      node.isEmbedBlock,
+      'expected '
+      '"${EmbedKeys.key}" but '
+      'found ${node.shortInfo()}',
+    );
+    throw UnimplementedError();
+  }
+
+  @override
+  Node? getSelectedBlocks(Node node, NodeSelection selection) {
+    assert(
+      node.isBlockNode && node.isEmbedBlock,
+      'expected '
+      '"${EmbedKeys.key}" but '
+      'found ${node.shortInfo()}',
+    );
+    throw UnimplementedError();
+  }
+
+  @override
+  List<Node>? getSelectedLines(Node node, NodeSelection selection) {
+    assert(
+      node.isBlockNode && node.isEmbedBlock,
+      'expected '
+      '"${EmbedKeys.key}" but '
+      'found ${node.shortInfo()}',
+    );
+    throw UnimplementedError();
+  }
+
+  @override
+  TextFragment? getValueFromNode(
+    Node node, {
+    bool Function(Node value)? filter,
+    bool needsTraverse = true,
   }) {
     throw UnimplementedError();
+  }
+
+  @override
+  List<TextFragment> getValuesFromNode(
+    Node node, {
+    bool Function(Node value)? filter,
+    bool needsTraverse = true,
+  }) {
+    final List<TextFragment> fragments = <TextFragment>[];
+
+    if (needsTraverse) {
+      if (node.isEmpty) return fragments;
+      for (final Node subNode in node.children) {
+        if (filter != null && !filter(subNode)) {
+          continue;
+        }
+        fragments.addAll(
+          getValuesFromNode(
+            subNode,
+            filter: filter,
+            needsTraverse: needsTraverse,
+          ),
+        );
+      }
+      return fragments;
+    }
+    if (node.isEmbedLine) {
+      if (node.value == null) return fragments;
+      if (node.value is! TextFragment) {
+        throw UnsupportedError(
+          "Expected "
+          "TextFragment type, "
+          "founded: ${node.value.runtimeType} "
+          "in ${node.shortInfo()}",
+        );
+      }
+      fragments.add(node.castToFragment());
+    }
+    return fragments;
   }
 }
