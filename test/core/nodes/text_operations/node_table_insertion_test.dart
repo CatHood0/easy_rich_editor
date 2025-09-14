@@ -1,3 +1,5 @@
+// ignore_for_file: unused_local_variable
+
 import 'package:easy_rich_editor/easy_rich_editor.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -33,9 +35,7 @@ void main() {
   });
 
   group('insert', () {
-    test('should insert a single char in the end column', () {
-      print(root?.dumpTreeStr());
-    });
+    test('should insert a single char in the end column', () {});
     test('should insert a text using paths', () {});
     test('should insert a text using document offsets', () {});
     test('should insert a embed correctly', () {});

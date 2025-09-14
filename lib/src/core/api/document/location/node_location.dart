@@ -1,5 +1,4 @@
 import 'package:easy_rich_editor/easy_rich_editor.dart';
-import 'package:easy_rich_editor/src/core/api/document/path/path.dart';
 
 /// The location of the current Node
 class NodeLocation {

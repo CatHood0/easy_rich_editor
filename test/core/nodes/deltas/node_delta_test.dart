@@ -110,6 +110,8 @@ void main() {
     expect(document.first!.equals(clone), isFalse);
   });
 
-  test('should add and remove text easily between multiple nodes', () {});
+  test('should add and remove text easily between multiple nodes', () {
+
+  });
   test('should use multiple operations to apply deltas', () {});
 }

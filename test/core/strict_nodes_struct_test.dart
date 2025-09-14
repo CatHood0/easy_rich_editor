@@ -1,6 +1,5 @@
 import 'package:easy_attribution_text/easy_text.dart';
 import 'package:easy_rich_editor/easy_rich_editor.dart';
-import 'package:easy_rich_editor/src/core/api/document/path/path.dart';
 import 'package:easy_rich_editor/src/core/extensions/object_ext.dart';
 import 'package:flutter_test/flutter_test.dart';
 

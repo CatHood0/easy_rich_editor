@@ -31,33 +31,6 @@ class DeltaNode {
   /// in the range of the [start] and [end]
   final bool replaceOffsets;
 
-  @override
-  String toString() {
-    return switch (type) {
-      DeltaType.insert => 'DeltaNode(start: $start, data: $inserted, '
-          'stylesAreInline: $styles '
-          'styles: $styles)',
-      DeltaType.replace => 'DeltaNode(start: $start, len: $len, '
-          'data: $inserted, '
-          'stylesAreInline: $styles '
-          'styles: $styles)',
-      DeltaType.delete => 'DeltaNode(start: $start, len: $len)',
-      DeltaType.format => 'DeltaNode(start: $start, '
-          'len: $len, '
-          'stylesAreInline: $styles '
-          'styles: $styles)',
-      _ => 'Delta(start: $start '
-          'len: $len '
-          'data: $inserted '
-          'type: $type '
-          'styles: $styles '
-          'stylesAreInline: $inlineStyles '
-          'replaceOffsets: $replaceOffsets '
-          'oldLength: $oldLength '
-          'newLength: $newLength)',
-    };
-  }
-
   DeltaNode({
     required this.oldLength,
     required this.newLength,
@@ -204,6 +177,33 @@ class DeltaNode {
       inlineStyles: inlineStyles,
       type: type,
     );
+  }
+
+  @override
+  String toString() {
+    return switch (type) {
+      DeltaType.insert => 'DeltaNode(start: $start, data: $inserted, '
+          'stylesAreInline: $styles '
+          'styles: $styles)',
+      DeltaType.replace => 'DeltaNode(start: $start, len: $len, '
+          'data: $inserted, '
+          'stylesAreInline: $styles '
+          'styles: $styles)',
+      DeltaType.delete => 'DeltaNode(start: $start, len: $len)',
+      DeltaType.format => 'DeltaNode(start: $start, '
+          'len: $len, '
+          'stylesAreInline: $styles '
+          'styles: $styles)',
+      _ => 'Delta(start: $start '
+          'len: $len '
+          'data: $inserted '
+          'type: $type '
+          'styles: $styles '
+          'stylesAreInline: $inlineStyles '
+          'replaceOffsets: $replaceOffsets '
+          'oldLength: $oldLength '
+          'newLength: $newLength)',
+    };
   }
 }
 
