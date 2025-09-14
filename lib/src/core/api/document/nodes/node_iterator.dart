@@ -1,5 +1,9 @@
 import '../../../../../easy_rich_editor.dart';
-import '../../../exceptions/illegal_node_exception.dart';
+
+enum IteratorDirection {
+  left,
+  right,
+}
 
 /// [NodeIterator] is used to traverse the nodes in visual order (depth-first).
 //FIXME: we need unidirectional iteration since we have the API to know if there
@@ -9,82 +13,57 @@ class NodeIterator implements Iterator<Node> {
   NodeIterator({
     required this.startNode,
     this.endNode,
-  });
+    this.direction = IteratorDirection.right,
+  })  : assert(startNode != endNode, 'cannot set the same start and end'),
+        assert(
+            direction == IteratorDirection.right ||
+                direction == IteratorDirection.left &&
+                    // selection must not be normalized
+                    (endNode == null ||
+                        startNode.globalOffset > endNode.globalOffset),
+            ''),
+        _currentNode = startNode;
 
   /// The node to start the iteration with.
   final Node startNode;
+
+  /// The direction where the iteration will traverse.
+  final IteratorDirection direction;
 
   /// The node to end the iteration with.
   final Node? endNode;
 
   Node? _currentNode;
-  bool _began = false;
 
   @override
   Node get current => _currentNode!;
 
   @override
   bool moveNext() {
-    if (!_began) {
-      _currentNode = startNode;
-      _began = true;
-      return true;
-    }
+    if (_currentNode == null) return false;
 
-    if (_currentNode == null) {
-      return false;
-    }
-    Node node = _currentNode!;
+    Node node = current;
 
     if (endNode != null && endNode == node) {
       _currentNode = null;
       return false;
     }
 
-    _currentNode = node.isNotEmpty ? node.first : node.next;
-
-    // there's no chance where we can move
-    // to a next place
-    if (_currentNode == null || !_currentNode!.hasPossibleNextNode) {
-      return false;
-    }
-
-    // this never happen
-    if (node.parent == null && !node.isRootOwner) {
-      throw IllegalNodeException(
-          node: node,
-          message: 'Illegal-Node => Only root can '
-              'contain a nullable parent reference');
-    }
-
-    if (node.isRootOwner) {
+    if (node.parent == null || !node.hasPossibleNextNode) {
       _currentNode = null;
       return false;
     }
 
-    final Node parent = node.jumpToParent(stopAt: (Node node) {
-      return node.next != null;
-    });
+    _currentNode = node.jumpToNext(findLines: true);
 
-    // if was no found any parent at this point with a next
-    // sibling, probably just will return the Root Node,
-    // so, we just prefer indicating that there's no way
-    // to be moved to next place
-    if (parent.isRootOwner) {
-      _currentNode = null;
-      return false;
-    }
-
-    _currentNode = parent.next;
     return _currentNode != null;
   }
 
-  List<Node> toList({bool addEnd = false}) {
-    final List<Node> result = <Node>[];
+  List<Node> toList() {
+    final List<Node> result = <Node>[startNode];
     while (moveNext()) {
       result.add(current);
     }
-    if (endNode != null && addEnd) result.add(endNode!);
     return result;
   }
 }
