@@ -21,6 +21,23 @@ extension PathExtensions on NodeDepthPath {
     return listEquals(this, other);
   }
 
+  NodeDepthPath consumeFrom(NodeDepthPath other) {
+    return sublist(other.length - 1);
+  }
+
+  NodeDepthPath consumeLast() {
+    return <int>[last];
+  }
+
+  NodeDepthPath consumeFirst() {
+    return <int>[first];
+  }
+
+  NodeDepthPath consumeUntil({int start = 0, int? end}) {
+    end ??= length;
+    return sublist(start, end);
+  }
+
   bool operator >=(NodeDepthPath other) {
     if (equals(other)) {
       return true;

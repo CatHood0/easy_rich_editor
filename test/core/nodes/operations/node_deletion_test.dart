@@ -15,7 +15,7 @@ void main() {
 
   test('Delete all the text of a node', () {
     expect(root, isNotNull);
-    final FragmentChangeContext context = root!.delete(
+    final OperationResult context = root!.delete(
       0,
       1,
     );
@@ -28,7 +28,7 @@ void main() {
 
   test('Delete one character in middle of text', () {
     expect(root, isNotNull);
-    final FragmentChangeContext context = root!.delete(
+    final OperationResult context = root!.delete(
       62,
       1,
     );
@@ -45,7 +45,7 @@ void main() {
   test('Delete two nodes that are being selected', () {
     // deletes almost the text into the block matched
     expect(root, isNotNull);
-    final FragmentChangeContext context = root!.delete(
+    final OperationResult context = root!.delete(
       3,
       89,
     );
@@ -77,7 +77,7 @@ void main() {
     expect(embed.isNotEmpty, isTrue);
     expect(embed.parent, isNotNull);
     expect(embed.parent, equals(root));
-    final FragmentChangeContext context = root!.delete(
+    final OperationResult context = root!.delete(
       1,
       1,
     );
@@ -97,7 +97,7 @@ void main() {
     expect(newLineBlock.isNotEmpty, isTrue);
     expect(newLineBlock.parent, isNotNull);
     expect(newLineBlock.parent, equals(root));
-    final FragmentChangeContext context = root!.delete(
+    final OperationResult context = root!.delete(
       112,
       1,
     );
@@ -125,13 +125,13 @@ void main() {
     expect(lastLineBlock.parent, isNotNull);
     expect(lastLineBlock.parent, equals(root));
     // deletes the first block in the document
-    final FragmentChangeContext context = root!.delete(
+    final OperationResult context = root!.delete(
       0,
       1,
     );
 
     // deletes the last block in the document
-    final FragmentChangeContext context2 = root!.delete(
+    final OperationResult context2 = root!.delete(
       317,
       1,
     );
@@ -164,7 +164,7 @@ void main() {
     expect(root!.contains(lastEmptyNode.id), isTrue);
     // tries to delete one character forward
     // but is ignored
-    final FragmentChangeContext context = root!.delete(
+    final OperationResult context = root!.delete(
       318,
       1,
       forward: true,
@@ -175,7 +175,7 @@ void main() {
     expect(context.changeSize, equals(-1));
     expect(context.reason, equals(NoExecutionReason.invalidEnd));
 
-    final FragmentChangeContext contextExecuted = root!.delete(
+    final OperationResult contextExecuted = root!.delete(
       318,
       1,
     );

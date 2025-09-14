@@ -71,7 +71,7 @@ extension NodeExt on Node {
   bool get isTableBlock => type == TableKeys.key;
 
   /// Whether this [Node] is [Column]
-  bool get isTableColumnBlock => type == TableKeys.rowKey;
+  bool get isTableRow => type == TableKeys.rowKey;
 
   /// Whether this [Node] is [Paragraph]
   bool get isParagraphBlock => type == ParagraphKeys.key;
@@ -80,7 +80,7 @@ extension NodeExt on Node {
   bool get isLineBlock => type == ParagraphKeys.lineKey;
 
   /// Whether this [Node] is blank
-  bool get isBlankText => supportEasyText && texts.isEmpty;
+  bool get isBlankText => supportEasyText && texts.isEmpty || value == null;
 
   /// Whether this [Node] is strictly blank (text must be single or empty)
   bool get isStrictlyBlankText =>
@@ -134,31 +134,36 @@ extension NodeUtilities on Node {
     Object? v;
     if (supportEasyText) {
       v = EasyTextList()
-        ..addAll(
-          texts.map<EasyText>(
-            (EasyText n) => n.copyWith(),
-          ),
-        );
+        ..addAll(texts.map<EasyText>(
+          (EasyText n) => n.copyWith(),
+        ));
     }
     v ??= value;
-    return Node(
-      id: id,
-      type: type,
-      value: v,
-      parent: parent?.copyWith(),
-      children: <Node>[...children.map<Node>((Node e) => e.deepCopy())],
-      metadata: <String, dynamic>{...metadata},
-      blockAttributes: blockAttributes,
-      canModifyChildrenLength: canAddOrRemovedChildren,
-    )
-      ..path = path
-      ..deepPath = deepPath
-      ..text = text
-      ..dataLength = dataLength;
+    return lock<Node>(
+      () => Node(
+        id: id,
+        type: type,
+        value: v,
+        parent: parent?.copyWith(),
+        metadata: <String, dynamic>{...metadata},
+        children: children.map<Node>((Node e) => e.deepCopy()).toList(),
+        canModifyChildrenLength: canAddOrRemovedChildren,
+      )
+        ..path = path
+        ..deepPath = <int>[...deepPath]
+        ..text = text
+        ..dataLength = dataLength
+        .._offset = _offset,
+    )!;
   }
 
   void forEach(
-      void Function(Node node, int index, VoidCallback shouldBreak) el) {
+    void Function(
+      Node node,
+      int index,
+      VoidCallback shouldBreak,
+    ) el,
+  ) {
     if (isEmpty) return;
 
     int index = 0;
@@ -166,9 +171,7 @@ extension NodeUtilities on Node {
       final Node child = children[i];
       bool shouldEnd = false;
       el(child, index, () => shouldEnd = true);
-      if (shouldEnd) {
-        return;
-      }
+      if (shouldEnd) return;
       index++;
     }
   }

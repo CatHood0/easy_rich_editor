@@ -7,7 +7,6 @@ import 'package:easy_rich_editor/src/core/extensions/object_ext.dart';
 import 'package:flutter_quill_delta_easy_parser/flutter_quill_delta_easy_parser.dart';
 import 'package:meta/meta.dart';
 import '../../../../easy_rich_editor.dart';
-import '../document/changes/deltas/delta_node.dart';
 
 /// A default implementation of [NodeModifier] that provides standard
 /// operations for handling paragraph and embed nodes in a document tree.
@@ -19,6 +18,7 @@ import '../document/changes/deltas/delta_node.dart';
 /// - Node splitting and merging operations
 class DefaultNodeModifier extends NodeModifier {
   const DefaultNodeModifier();
+  static const DefaultNodeModifier instance = DefaultNodeModifier();
 
   /// Internal mapping of supported node types to their validation functions.
   static final UnmodifiableMapView<String, VerifyTypeFn> _supportMap =
@@ -66,7 +66,7 @@ class DefaultNodeModifier extends NodeModifier {
   /// - Automatic node splitting when inserting incompatible data types
   /// - Parent cache recomputation after successful insertion
   @override
-  FragmentChangeContext insert(
+  OperationResult insert(
     Node node,
     int start,
     Object data, {
@@ -165,7 +165,7 @@ class DefaultNodeModifier extends NodeModifier {
               node.unlink();
             }
 
-            return FragmentChangeContext(
+            return OperationResult(
               executed: true,
               node: node.parent == null ? embedBlock.parent : node,
               changeSize: changeSize,
@@ -240,7 +240,7 @@ class DefaultNodeModifier extends NodeModifier {
         }
       }
 
-      final FragmentChangeContext context = location.node!.insert(
+      final OperationResult context = location.node!.insert(
         location.locationOffset,
         data,
         styles: styles,
@@ -289,7 +289,7 @@ class DefaultNodeModifier extends NodeModifier {
           );
     }
 
-    final FragmentChangeContext context = node.insertValueAt(
+    final OperationResult context = node.insertValueAt(
       data,
       start,
       styles: styles,
@@ -327,7 +327,7 @@ class DefaultNodeModifier extends NodeModifier {
   /// - Automatic node merging after deletion operations
   /// - Parent cache recomputation after successful deletion
   @override
-  FragmentChangeContext delete(
+  OperationResult delete(
     Node node,
     int start,
     int len, {
@@ -380,10 +380,10 @@ class DefaultNodeModifier extends NodeModifier {
       if (forward &&
           !location.node!.hasPossibleNextNode &&
           end >= node.dataLength) {
-        return FragmentChangeContext.noExecuted(NoExecutionReason.invalidEnd);
+        return OperationResult.noExecuted(NoExecutionReason.invalidEnd);
       }
 
-      final FragmentChangeContext context = location.node!.delete(
+      final OperationResult context = location.node!.delete(
         location.locationOffset,
         len,
         text: location.text ?? text,
@@ -425,13 +425,13 @@ class DefaultNodeModifier extends NodeModifier {
         })
         ..notify();
       block.unlink();
-      return FragmentChangeContext(
+      return OperationResult(
         executed: true,
         changeSize: len,
         node: node,
       );
     }
-    final FragmentChangeContext context = node.deleteValueAt(
+    final OperationResult context = node.deleteValueAt(
       start,
       len,
       text: text,
@@ -465,7 +465,7 @@ class DefaultNodeModifier extends NodeModifier {
     return context;
   }
 
-  FragmentChangeContext _mergeNodesAtLocations(
+  OperationResult _mergeNodesAtLocations(
     Node node,
     int start,
     int len,
@@ -496,7 +496,7 @@ class DefaultNodeModifier extends NodeModifier {
         'the remaining len '
         'for right deletion '
         'does not fit the node ranges. Len $effectiveRightLen');
-    final FragmentChangeContext startctx = location.node!.delete(
+    final OperationResult startctx = location.node!.delete(
       location.locationOffset,
       effectiveLeftLen,
       jumpNodeOffset: location.jumpNodeOffset,
@@ -510,7 +510,7 @@ class DefaultNodeModifier extends NodeModifier {
       'the first node deletion was not executed as expected',
     );
 
-    final FragmentChangeContext endctx = endLocation.node!.delete(
+    final OperationResult endctx = endLocation.node!.delete(
       0,
       // we need to get the effective len
       effectiveRightLen,
@@ -570,7 +570,7 @@ class DefaultNodeModifier extends NodeModifier {
       executed: true,
       changeSize: deletionLength,
       node: node,
-      changes: <FragmentChangeContext>[startctx],
+      changes: <OperationResult>[startctx],
     );
   }
 
@@ -702,7 +702,7 @@ class DefaultNodeModifier extends NodeModifier {
   }
 
   @override
-  FragmentChangeContext format(
+  OperationResult format(
     Node node,
     int start,
     int len, {
@@ -717,7 +717,7 @@ class DefaultNodeModifier extends NodeModifier {
       );
 
       if (location.notFoundLocation) {
-        return FragmentChangeContext.noExecuted(NoExecutionReason.invalidStart);
+        return OperationResult.noExecuted(NoExecutionReason.invalidStart);
       }
 
       assert(
@@ -732,7 +732,7 @@ class DefaultNodeModifier extends NodeModifier {
           inclusive: true,
         );
         if (endLocation.notFoundLocation) {
-          return FragmentChangeContext.noExecuted(NoExecutionReason.invalidEnd);
+          return OperationResult.noExecuted(NoExecutionReason.invalidEnd);
         }
 
         return _formatMultipleNodes(
@@ -752,8 +752,7 @@ class DefaultNodeModifier extends NodeModifier {
       );
     }
     if (formatBlock && !node.isBlockNode) {
-      return FragmentChangeContext.noExecuted(
-          NoExecutionReason.noSatifyConditions);
+      return OperationResult.noExecuted(NoExecutionReason.noSatifyConditions);
     }
     assert(
         !formatBlock || formatBlock && node.isBlockNode,
@@ -776,7 +775,7 @@ class DefaultNodeModifier extends NodeModifier {
           );
   }
 
-  FragmentChangeContext _formatMultipleNodes(
+  OperationResult _formatMultipleNodes(
     Node node,
     NodeCursorPosLocation start,
     NodeCursorPosLocation end,
@@ -795,7 +794,7 @@ class DefaultNodeModifier extends NodeModifier {
     return NodeModifier.defaultNonExecutedContext;
   }
 
-  FragmentChangeContext _formatBlock(
+  OperationResult _formatBlock(
     Node node,
     int start,
     int len,
@@ -804,7 +803,7 @@ class DefaultNodeModifier extends NodeModifier {
     return NodeModifier.defaultNonExecutedContext;
   }
 
-  FragmentChangeContext _formatCharacters(
+  OperationResult _formatCharacters(
     Node node,
     int start,
     int len,
@@ -815,7 +814,7 @@ class DefaultNodeModifier extends NodeModifier {
         'node must have '
         'defined value to be used');
 
-    final FragmentChangeContext context = node.formatValueAt(
+    final OperationResult context = node.formatValueAt(
       start,
       len,
       attributes.copy(),
@@ -824,7 +823,7 @@ class DefaultNodeModifier extends NodeModifier {
     return context;
   }
 
-  FragmentChangeContext _formatCharactersInMultipleNodes(
+  OperationResult _formatCharactersInMultipleNodes(
     Node node,
     int start,
     int end,
@@ -883,41 +882,67 @@ class DefaultNodeModifier extends NodeModifier {
               'using first isSupported method before calling '
               'receiveDelta or any of the other methods');
     }
-    assert(
-        delta.isNormalized || delta.isCollapsed,
-        "the delta passed must be "
-        "normalized before "
-        "making any change");
 
     final int lineStartOffset = node.offset;
-    int lineEndOffset = lineStartOffset + node.dataLength;
+    int lineEndOffset = node.endOffset;
     if (node.isBlockNode) {
       // for block nodes, dataLength has 1 extra pos point
       // so, to validate as the range correctly, we need to
       // decrease that value to its original one
       lineEndOffset = lineEndOffset.prev;
-      // is removing this node
       if (delta.isDeletion &&
-          delta.newLength == 0 &&
-          delta.isSelectingEntireRanges(lineStartOffset, lineEndOffset)) {
-        if (removedIfRequired) {
-          node
-            ..clearBlock()
-            ..unlinkIfNeeded()
-            ..invalidateDataOffset();
-          return DeltaChangeResult(
-            nodeId: node.id,
-            removed: true,
-            newValidCursorPosition: lineStartOffset.decr.nonNegative,
-            removedEntireNode: true,
+          delta.isSelectingEntireRanges(
+            lineStartOffset,
+            lineEndOffset,
+            // even if the range is selecting around this node
+            // we need to check it
+            strict: false,
+          )) {
+        // if we are selecting the entire block, just remove it
+        node
+          ..clearBlock()
+          ..unlinkIfNeeded()
+          ..invalidateDataOffset();
+        return DeltaChangeResult(
+          nodeId: node.id,
+          removed: true,
+          removedEntireNode: true,
+          newValidCursorPosition: lineStartOffset,
+        );
+      }
+
+      // we need to find all the nodes between selection
+      if (!delta.isCollapsed) {
+        if (delta.isDeletion || delta.isReplace) {
+          delete(
+            node,
+            delta.start,
+            delta.len,
+            removeEntireNodeWhenEmpty: !delta.isInsertion,
+            jumpNodeOffset: lineStartOffset,
+            computeParentCache: true,
           );
         }
-
-        // we need to find all the nodes between selection
-        if (!delta.isCollapsed) {}
+        if (delta.isInsertion) {
+          insert(
+            node,
+            // limit the start of the offset
+            // if required to avoid unexpected behaviors
+            // during insertion
+            delta.start.limit(node.dataLength.decr.nonNegative),
+            delta.inserted!,
+            jumpNodeOffset: lineStartOffset,
+            computeParentCache: true,
+          );
+        }
+        return DeltaChangeResult(
+          nodeId: node.id,
+          inserted: delta.isInsertion,
+          removed: node.parent == null,
+          newValidCursorPosition: lineStartOffset,
+        );
       }
-      // just search the exact line point
-      // to make the modification
+
       if (delta.isCollapsed) {
         final NodeCursorPosLocation location = node.queryPosition(delta.start);
         if (location.notFoundLocation || location.node == null) {
@@ -925,7 +950,10 @@ class DefaultNodeModifier extends NodeModifier {
         }
         return receiveDelta(
           location.node!,
-          delta,
+          delta.transformRanges(
+            location.locationOffset,
+            decrease: true,
+          ),
           removedIfRequired: true,
           transformOffsetWhenRequired: transformOffsetWhenRequired,
         );
@@ -935,14 +963,16 @@ class DefaultNodeModifier extends NodeModifier {
     }
 
     assert(
-        delta.start >= 0 && delta.end <= node.dataLength,
+        delta.start >= 0 && delta.end < node.dataLength.next,
         'DeltaNode must have a '
         'valid range to be used into '
         '${node.type}(id: ${node.id}, '
         'global: ${node.globalOffset}, '
         'path: ${node.deepPath})');
     assert(
-        node.hasDefinedValue,
+        // commonly, only nodes that cannot have children
+        // are the editable ones
+        node.hasDefinedValue && !node.canAddOrRemovedChildren,
         'Only nodes with defined values '
         'can be changed. But, '
         'found: ${node.shortInfo()}');
@@ -952,57 +982,26 @@ class DefaultNodeModifier extends NodeModifier {
     if (node.isBlankOrEmpty &&
         delta.isCollapsed &&
         delta.isDeletion &&
-        delta.isSelectingEntireRanges(lineStartOffset, lineEndOffset)) {
+        delta.isSelectingEntireRanges(
+          lineStartOffset,
+          lineEndOffset,
+        )) {
       node
           .jumpToParent()
           // saves the content that changes
           .rebuildNodes(shouldNotify: true, changes: <String, int>{
-        node.jumpToParentExceptRoot()!.id: 1,
+        node.jumpToParentExceptRoot()!.id: 0,
       });
       node
         ..unlinkIfNeeded()
         ..invalidateDataOffset()
         ..invalidateCache()
-        ..value = <TextFragment>[TextFragment(data: "")]
+        ..value = null
         ..setDataLength(null, invalidate: false);
       return DeltaChangeResult(
         nodeId: node.id,
         removed: true,
         removedEntireNode: true,
-        newValidCursorPosition: lineStartOffset.decr.nonNegative,
-        executed: true,
-      );
-    }
-
-    // determines the length of the deletion
-    final int deltaLength = delta.newLength - delta.oldLength;
-
-    // if we are selecting an entire line, and, we
-    // pass a new character, then this will be executed
-    //
-    // will delete entire content of the line, and pass
-    // if required the inserted value
-    if (delta.isSelectingEntireRanges(
-          lineStartOffset,
-          lineEndOffset,
-          strict: false,
-        ) &&
-        deltaLength > 0 &&
-        (delta.isReplace || delta.isDeletion)) {
-      //FIXME: this is invalidating incorrectly
-      // we probably can recompute the parent plain text
-      // is it's available to be used
-      node
-        ..value = <TextFragment>[
-          TextFragment(data: delta.isInsertion ? delta.inserted! : "")
-        ]
-        ..invalidateDataOffset()
-        ..setDataLength(delta.isInsertion ? delta.inserted!.length : 0)
-        ..text = "";
-      return DeltaChangeResult(
-        removed: true,
-        executed: true,
-        nodeId: node.id,
         newValidCursorPosition: lineStartOffset.decr.nonNegative,
       );
     }
@@ -1010,22 +1009,51 @@ class DefaultNodeModifier extends NodeModifier {
     // jump to the most nearest node of the [Root] one
     final Node? block = node.jumpToParentExceptRoot();
 
-    if (block == null) {
-      throw UnimplementedError(
-          "not implemented root cases or non parent cases");
-    } else if (block.path == -1) {
-      throw IllegalNodeException(node: block, message: "Invalid Parent");
+    assert(
+        block != null,
+        'expected parent '
+        'relationship in ${node.shortInfo()} '
+        'but found nothing');
+
+    if (block!.deepPath.isEmpty) {
+      throw IllegalNodeException(
+        node: block,
+        message: '${block.shortInfo()} has '
+            'no parent relationship that '
+            'allow tree modifications. Please, '
+            'ensure that you have a '
+            'root node that contains this block to '
+            'allow receiving deltas for nodes',
+      );
+    }
+
+    if (delta.isDeletion || delta.isReplace) {
+      assert(
+        delta.len > 0,
+        'A DeltaNode cannot '
+        'be marked as deletion or replace '
+        'if \'len\' property will be '
+        'equals or less than zero',
+      );
+      node.delete(delta.start, delta.len);
     }
 
     // these methods should also update the internal cache automatically
     if (delta.isInsertion) {
-      // FIXME: we need to have a way to override the stringLimitLength
-      node.insert(delta.start, delta.inserted!, stringLimitLength: 300);
+      node.insert(
+        delta.start.limit(node.dataLength.decr.nonNegative),
+        delta.inserted!,
+      );
     }
 
-    if (!delta.isCollapsed && (delta.isDeletion || (delta.isReplace))) {
-      node.delete(
-          delta.isInsertion ? delta.start.next : delta.start, delta.end);
+    if (node.isBlank) {
+      EasyEditorLogger.tree.debug(
+        'Unlinking '
+        '${node.shortInfo()} by empty rule '
+        '(when empty it '
+        'is removed automatically)',
+      );
+      node.unlink();
     }
 
     block.jumpToParent().rebuildNodes(changes: <String, int>{block.id: 1});

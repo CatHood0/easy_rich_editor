@@ -6,10 +6,15 @@ typedef VerifyTypeFn = bool Function(Object);
 
 abstract class NodeModifier {
   const NodeModifier();
-  static const NodeModifier defaultModifier = DefaultNodeModifier();
 
-  static const FragmentChangeContext defaultNonExecutedContext =
-      FragmentChangeContext.noExecuted();
+  /// the default node modifier used by methods.
+  ///
+  /// If [DefaultNodeModifier] does not satisfy our requirements
+  /// we can be overrid this property
+  static NodeModifier defaultModifier = DefaultNodeModifier();
+
+  static const OperationResult defaultNonExecutedContext =
+      OperationResult.noExecuted();
 
   Map<String, int> get supportedTypes;
 
@@ -17,7 +22,7 @@ abstract class NodeModifier {
   ///
   /// Example:
   ///
-  /// For [Paragraph] nodes, only we can insert [TextFragment] or [String]
+  /// For [Paragraph] nodes, only we can insert [EasyText] or [String]
   /// values
   Map<String, VerifyTypeFn> get supportedTypeValues;
 
@@ -30,10 +35,6 @@ abstract class NodeModifier {
   /// - [delta]: indicates the change into the Node where this is called. the selection must be normalized
   /// - [removedIfRequired]: indicates if the Node will be removed completely from its parent if the deletion wraps the whole [Node]
   /// - [transformOffsetWhenRequired]: indicates if the [offset] will be modified if requires querying ([queryPosition] method) a [Node]. Tipically, this just happen when we call this method in the Root node.
-  ///
-  /// All the changes in this [DeltaNode] must be applied just internally into this [Node]
-  /// if exceeds the [Node] length, just return [false], indicating that this operation must
-  /// be managed by the [Tree] manager
   DeltaChangeResult receiveDelta(
     Node node,
     DeltaNode delta, {
@@ -41,7 +42,7 @@ abstract class NodeModifier {
     bool transformOffsetWhenRequired = true,
   });
 
-  FragmentChangeContext insert(
+  OperationResult insert(
     Node node,
     int start,
     Object data, {
@@ -55,10 +56,7 @@ abstract class NodeModifier {
   });
 
   /// Format any character or block using the attributes styles
-  ///
-  /// - [attributes]: the attributes that will be applied
-  /// - [start]: the attributes that will be applied
-  FragmentChangeContext format(
+  OperationResult format(
     Node node,
     int start,
     int len, {
@@ -66,7 +64,7 @@ abstract class NodeModifier {
     bool formatBlock = false,
   });
 
-  FragmentChangeContext delete(
+  OperationResult delete(
     Node node,
     int start,
     int len, {

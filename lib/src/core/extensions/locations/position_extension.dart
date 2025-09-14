@@ -19,7 +19,7 @@ extension PositionExtension on NodePosition {
       return null;
     }
 
-    if (forward && position == 0) {
+    if (forward && posOffset == 0) {
       final NodePosition? previousEnd = node.previous?.selectable?.end();
       if (previousEnd != null) {
         return previousEnd;
@@ -27,7 +27,7 @@ extension PositionExtension on NodePosition {
       return null;
     } else if (!forward) {
       final NodePosition? end = node.selectable?.end();
-      if (end != null && position >= end.position) {
+      if (end != null && posOffset >= end.posOffset) {
         return node.next?.selectable?.start();
       }
     }
@@ -41,16 +41,16 @@ extension PositionExtension on NodePosition {
             //TODO: implement a way to know how implement this
             // correctly
             affinity: TextAffinity.upstream,
-            position: forward
-                ? node.text.prevRunePosition(position)
-                : node.text.nextRunePosition(position),
+            posOffset: forward
+                ? node.text.prevRunePosition(posOffset)
+                : node.text.nextRunePosition(posOffset),
           );
         }
 
         return NodePosition(
           path: path,
           node: node,
-          position: position,
+          posOffset: posOffset,
         );
       case SelectionRange.word:
         if (node.hasDefinedValue) {
@@ -59,7 +59,7 @@ extension PositionExtension on NodePosition {
                   NodePosition(
                     path: path,
                     node: node,
-                    position: node.text.prevRunePosition(position),
+                    posOffset: node.text.prevRunePosition(posOffset),
                   ),
                 )
               : node.selectable?.getWordBoundaryInPosition(this);
@@ -71,7 +71,7 @@ extension PositionExtension on NodePosition {
         return NodePosition(
           path: path,
           node: node,
-          position: position,
+          posOffset: posOffset,
         );
     }
   }

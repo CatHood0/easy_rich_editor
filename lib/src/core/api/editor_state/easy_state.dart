@@ -1,3 +1,5 @@
+// ignore_for_file: unused_field
+
 import 'package:easy_rich_editor/easy_rich_editor.dart';
 import 'package:easy_rich_editor/src/core/api/selection/remote/remote_selection.dart';
 import 'package:flutter/material.dart';
@@ -29,7 +31,7 @@ class EasyTreeState extends ChangeNotifier {
   // ========= Getters =========== //
   EasyHistory get changes => document.history;
 
-  static String createNodeId() => nanoid(8);
+  static String createNodeId() => '${nanoid(8)}-${nanoid(5)}';
 
   // ========= Internal Helpers =========== //
 

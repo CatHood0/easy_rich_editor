@@ -1,16 +1,18 @@
 import 'package:easy_attribution_text/easy_text.dart';
+import 'package:easy_rich_editor/src/core/extensions/object_ext.dart';
 
 enum DeltaType {
   insert,
   replace,
   delete,
   format,
+  manual,
 }
 
 /// Represents the granular change do it to a particular [Node]
 class DeltaNode {
   /// Represents where ends the change into the node
-  final int end;
+  final int len;
 
   /// Represents where starts the change into the node
   final int start;
@@ -29,12 +31,39 @@ class DeltaNode {
   /// in the range of the [start] and [end]
   final bool replaceOffsets;
 
+  @override
+  String toString() {
+    return switch (type) {
+      DeltaType.insert => 'DeltaNode(start: $start, data: $inserted, '
+          'stylesAreInline: $styles '
+          'styles: $styles)',
+      DeltaType.replace => 'DeltaNode(start: $start, len: $len, '
+          'data: $inserted, '
+          'stylesAreInline: $styles '
+          'styles: $styles)',
+      DeltaType.delete => 'DeltaNode(start: $start, len: $len)',
+      DeltaType.format => 'DeltaNode(start: $start, '
+          'len: $len, '
+          'stylesAreInline: $styles '
+          'styles: $styles)',
+      _ => 'Delta(start: $start '
+          'len: $len '
+          'data: $inserted '
+          'type: $type '
+          'styles: $styles '
+          'stylesAreInline: $inlineStyles '
+          'replaceOffsets: $replaceOffsets '
+          'oldLength: $oldLength '
+          'newLength: $newLength)',
+    };
+  }
+
   DeltaNode({
     required this.oldLength,
     required this.newLength,
     required this.inserted,
     required this.start,
-    required this.end,
+    required this.len,
     required this.replaceOffsets,
     required this.styles,
     required this.inlineStyles,
@@ -43,7 +72,7 @@ class DeltaNode {
 
   DeltaNode.invalid()
       : start = -1,
-        end = -1,
+        len = -1,
         newLength = -1,
         oldLength = -1,
         inserted = null,
@@ -53,12 +82,11 @@ class DeltaNode {
         inlineStyles = false;
 
   DeltaNode.format({
-    required int len,
+    required this.len,
     required this.start,
     required this.styles,
     required this.inlineStyles,
-  })  : end = start + len,
-        oldLength = 0,
+  })  : oldLength = 0,
         newLength = 0,
         replaceOffsets = false,
         type = DeltaType.format,
@@ -68,7 +96,7 @@ class DeltaNode {
     required Object insert,
     required this.start,
     required this.styles,
-  })  : end = start,
+  })  : len = insert.length,
         oldLength = 0,
         newLength = 0,
         inlineStyles = true,
@@ -79,7 +107,7 @@ class DeltaNode {
   DeltaNode.replace({
     required this.inserted,
     required this.start,
-    required this.end,
+    required this.len,
   })  : oldLength = 0,
         newLength = 0,
         inlineStyles = false,
@@ -89,10 +117,10 @@ class DeltaNode {
 
   DeltaNode.delete({
     required this.start,
-    required this.end,
-  })  : oldLength = 0,
-        newLength = 0,
-        inlineStyles = false,
+    required this.len,
+    this.oldLength = -1,
+    this.newLength = -1,
+  })  : inlineStyles = false,
         replaceOffsets = false,
         type = DeltaType.delete,
         inserted = null,
@@ -109,7 +137,10 @@ class DeltaNode {
   bool get isReplace => isInsertion && type == DeltaType.replace;
 
   /// Whether this [DeltaNode] is an insert change
-  bool get isInsertion => type == DeltaType.insert;
+  bool get isInsertion => type == DeltaType.insert || inserted != null;
+
+  /// Returns the [end] offset change in characters of this [DeltaNode]
+  int get end => start + len;
 
   /// Returns a Boolean indicating whether the selection is backward.
   bool get isBackward => start < end;
@@ -125,10 +156,10 @@ class DeltaNode {
 
   bool isSelectingEntireRanges(int start, int end, {bool strict = true}) {
     return this.start == start && this.end == end ||
-        !strict && isWrappingSelection(start, end);
+        !strict && isWrappingNodeSelection(start, end);
   }
 
-  bool isWrappingSelection(int start, int end) {
+  bool isWrappingNodeSelection(int start, int end) {
     return this.start <= start && this.end >= end;
   }
 
@@ -137,7 +168,7 @@ class DeltaNode {
       ? this
       : DeltaNode(
           start: end,
-          end: start,
+          len: len,
           inserted: inserted,
           oldLength: oldLength,
           newLength: newLength,
@@ -147,10 +178,10 @@ class DeltaNode {
           type: type,
         );
 
-  DeltaNode transformPoints(int newStart, int newEnd) {
+  DeltaNode transformPoints(int newStart, int newLen) {
     return DeltaNode(
       start: newStart,
-      end: newEnd,
+      len: newLen,
       inserted: inserted,
       oldLength: oldLength,
       newLength: newLength,
@@ -164,7 +195,7 @@ class DeltaNode {
   DeltaNode transformRanges(int point, {bool decrease = true}) {
     return DeltaNode(
       start: decrease ? start - point : start + point,
-      end: decrease ? end - point : end + point,
+      len: len,
       inserted: inserted,
       oldLength: oldLength,
       newLength: newLength,
@@ -189,10 +220,10 @@ class DeltaChangeResult {
     required this.nodeId,
     this.styles,
     this.removed = false,
-    this.executed = true,
     this.inserted = false,
     this.removedEntireNode = false,
     this.newValidCursorPosition = -1,
+    this.executed = true,
   });
 
   DeltaChangeResult.noExecution()

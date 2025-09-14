@@ -6,6 +6,7 @@ extension NodeOperations on Node {
     int? path,
     bool after = false,
   }) {
+    if (isLocked) return;
     if (!canAddOrRemovedChildren || contains(child.id)) return;
     if (child.parent != null) {
       child.unlinkIfNeeded();
@@ -49,6 +50,7 @@ extension NodeOperations on Node {
   }
 
   void removeNode(Node node) {
+    if (isLocked) return;
     if (!canAddOrRemovedChildren) return;
     assert(
       node.parent == this,
@@ -85,8 +87,10 @@ extension NodeOperations on Node {
     DeltaNode delta, {
     bool removeIfEmpty = false,
     bool transformOffsetWhenRequired = true,
-    NodeModifier modifier = NodeModifier.defaultModifier,
+    NodeModifier? modifier,
   }) {
+    if (isLocked) return DeltaChangeResult.noExecution();
+    modifier ??= NodeModifier.defaultModifier;
     return modifier.receiveDelta(
       this,
       delta,
@@ -98,7 +102,7 @@ extension NodeOperations on Node {
   /// Insert the object at the specified offset
   ///
   /// Some rules that you need
-  FragmentChangeContext insert(
+  OperationResult insert(
     int start,
     Object data, {
     EasyAttributeStyles? styles,
@@ -108,10 +112,12 @@ extension NodeOperations on Node {
     int jumpOffset = 0,
     int stringLimitLength = 300,
     bool computeParentCache = true,
-    NodeModifier modifier = NodeModifier.defaultModifier,
+    NodeModifier? modifier,
   }) {
+    if (isLocked) return OperationResult.noExecuted();
+    modifier ??= NodeModifier.defaultModifier;
     if (start < 0 || start > dataLength) {
-      return FragmentChangeContext.noExecuted(NoExecutionReason.invalidStart);
+      return OperationResult.noExecuted(NoExecutionReason.invalidStart);
     }
     return modifier.insert(
       this,
@@ -131,13 +137,15 @@ extension NodeOperations on Node {
   ///
   /// - [attributes]: the attributes that will be applied
   /// - [start]: the attributes that will be applied
-  FragmentChangeContext format(
+  OperationResult format(
     int start,
     int? len, {
     required EasyAttributeStyles attributes,
     bool formatBlock = false,
-    NodeModifier modifier = NodeModifier.defaultModifier,
+    NodeModifier? modifier,
   }) {
+    if (isLocked) return OperationResult.noExecuted();
+    modifier ??= NodeModifier.defaultModifier;
     assert(
         formatBlock || !formatBlock && len != null,
         'when you want '
@@ -153,7 +161,7 @@ extension NodeOperations on Node {
   }
 
   /// Deletes all the content into the range specified
-  FragmentChangeContext delete(
+  OperationResult delete(
     int start,
     int len, {
     EasyText? text,
@@ -164,10 +172,11 @@ extension NodeOperations on Node {
     bool removeEntireNodeWhenEmpty = true,
     bool computeParentCache = true,
     bool forward = false,
-    NodeModifier modifier = NodeModifier.defaultModifier,
+    NodeModifier? modifier,
   }) {
-    if (len <= 0) {
-      return FragmentChangeContext.noExecuted();
+    modifier ??= NodeModifier.defaultModifier;
+    if (len <= 0 || isLocked) {
+      return OperationResult.noExecuted();
     }
     return modifier.delete(
       this,

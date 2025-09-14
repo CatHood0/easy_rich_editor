@@ -3,8 +3,12 @@
 import 'package:easy_attribution_text/easy_text.dart';
 import 'package:easy_rich_editor/easy_rich_editor.dart';
 import 'package:easy_rich_editor/src/core/builders/table/table_keys.dart';
+import 'package:easy_rich_editor/src/core/extensions/object_ext.dart';
 
 class TableModifier extends DefaultNodeModifier {
+  const TableModifier();
+  static const NodeModifier instance = TableModifier();
+
   @override
   Map<String, VerifyTypeFn> get supportedTypeValues =>
       super.supportedTypeValues;
@@ -18,11 +22,10 @@ class TableModifier extends DefaultNodeModifier {
   Map<String, int> get supportedTypes => <String, int>{
         TableKeys.key: 1,
         TableKeys.rowKey: 1,
-        ...super.supportedTypes,
       };
 
   @override
-  FragmentChangeContext delete(
+  OperationResult delete(
     Node node,
     int start,
     int len, {
@@ -35,26 +38,50 @@ class TableModifier extends DefaultNodeModifier {
     bool computeParentCache = true,
     bool removeEntireNodeWhenEmpty = true,
   }) {
+    assert(
+      node.isTableBlock,
+      'Only \'${TableKeys.key}\' block can '
+      'call to this method',
+    );
+    final int end = len + start;
     //TODO: implement multiple columns selection (clean the between columns)
+    final NodeCursorPosLocation startQuery = node.queryPosition(start);
+    if (startQuery.notFoundLocation) {
+      return OperationResult.noExecuted(
+        NoExecutionReason.invalidStart,
+      );
+    }
+
+    assert(
+      startQuery.node != null,
+      'node '
+      'at \'NodeCursorPosLocation\' '
+      'must not be null '
+      'at this point. '
+      'Found => $startQuery',
+    );
+    final bool isMultipleColumnSelection = end >= startQuery.node!.dataLength;
+    if (isMultipleColumnSelection) {}
+
+    //TODO: implement multiple columns selection where start in table and ends in another node outside the table
     //TODO: implement full table selection deletion (just clean the columns)
     //TODO: implement block deletion (removes the table if fit 0 to table.dataLength)
     return super.delete(
-      node,
-      start,
+      startQuery.node!,
+      startQuery.locationOffset,
       len,
       text: text,
       forward: forward,
-      jumpNodeOffset: jumpNodeOffset,
-      fragmentPosition: fragmentPosition,
-      fragmentEndPosition: fragmentEndPosition,
-      jumpOffset: jumpOffset,
+      jumpNodeOffset: startQuery.jumpNodeOffset.nonNegative,
+      fragmentPosition: startQuery.textIndex.nonNegative,
+      jumpOffset: startQuery.jumpOffset.nonNegative,
       computeParentCache: computeParentCache,
       removeEntireNodeWhenEmpty: removeEntireNodeWhenEmpty,
     );
   }
 
   @override
-  FragmentChangeContext insert(
+  OperationResult insert(
     Node node,
     int start,
     Object data, {
@@ -84,7 +111,7 @@ class TableModifier extends DefaultNodeModifier {
   }
 
   @override
-  FragmentChangeContext format(
+  OperationResult format(
     Node node,
     int start,
     int len, {

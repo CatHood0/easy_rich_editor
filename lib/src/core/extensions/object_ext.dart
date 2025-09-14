@@ -69,7 +69,7 @@ extension LineParse on Line {
 }
 
 extension NonNegativeInt on int {
-  int get nonNegative => this < 0 ? 0 : this;
+  int get nonNegative => or(() => 0);
 }
 
 extension IntList on int {
@@ -87,6 +87,8 @@ extension IntList on int {
     }
     return nums;
   }
+
+  List<int> toList() => <int>[this];
 
   int limit(int max) {
     return this > max ? max : this;

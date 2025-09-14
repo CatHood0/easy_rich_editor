@@ -3,7 +3,7 @@ part of '../../api/document/nodes/node.dart';
 @internal
 extension NodeInsertionExt on Node {
   @internal
-  FragmentChangeContext insertValueAt(
+  OperationResult insertValueAt(
     Object obj,
     int start, {
     EasyText? text,
@@ -13,7 +13,7 @@ extension NodeInsertionExt on Node {
     int jumpedOffset = 0,
   }) {
     if (isBlockNode || isRootOwner || !hasDefinedValue) {
-      return FragmentChangeContext.noExecuted(
+      return OperationResult.noExecuted(
           NoExecutionReason.noSatifyConditions);
     }
 
@@ -30,7 +30,7 @@ extension NodeInsertionExt on Node {
       );
       value = frag;
       dataLength = 1;
-      return FragmentChangeContext(
+      return OperationResult(
         node: this,
         executed: true,
         changeSize: obj.length,
@@ -47,7 +47,7 @@ extension NodeInsertionExt on Node {
 
     final EasyText? frag = text ?? queryObjectAtOffset(start).cast<EasyText?>();
     if (frag == null) {
-      return FragmentChangeContext.noExecuted(
+      return OperationResult.noExecuted(
         isBlankText
             ? NoExecutionReason.noElement
             : NoExecutionReason.invalidStart,
@@ -59,7 +59,7 @@ extension NodeInsertionExt on Node {
       obj.castString(),
       styles,
     );
-    return FragmentChangeContext(
+    return OperationResult(
       node: this,
       executed: true,
       changeSize: obj.length,

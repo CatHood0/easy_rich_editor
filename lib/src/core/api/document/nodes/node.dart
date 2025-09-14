@@ -91,6 +91,7 @@ final class Node extends ChangeNotifier {
         _value = null {
     metadata ??= <String, dynamic>{};
     this.metadata = <String, dynamic>{
+      'lock': false,
       ...metadata,
       'root': true,
       'block': false,
@@ -110,11 +111,16 @@ final class Node extends ChangeNotifier {
   }) {
     this.value = value;
     this.id = id ?? EasyTreeState.createNodeId();
-    this.metadata = <String, dynamic>{...?metadata};
-    this.metadata['can_modify_children_length'] = canModifyChildrenLength;
-    this.metadata['block'] = value == null;
-    if (canModifyChildrenLength) this.metadata['block'] = true;
-    adoptChildren(children);
+    this.metadata = <String, dynamic>{
+      'can_modify_children_length': canModifyChildrenLength,
+      'block': canModifyChildrenLength || value == null,
+      'lock': false,
+      ...?metadata
+    };
+    for (final Node child in children) {
+      child.parent = this;
+    }
+    this.children.addAll(children);
     this.metadata['pr_attributes'] = blockAttributes;
   }
 
@@ -129,7 +135,8 @@ final class Node extends ChangeNotifier {
             .toList() ??
         <Node>[];
 
-    final Map<String, dynamic> metadata = Map<String, dynamic>.from({
+    final Map<String, dynamic> metadata =
+        Map<String, dynamic>.from(<dynamic, dynamic>{
       ...?json['metadata'] as Map?,
     });
     Object? value = json['value'];
@@ -215,6 +222,7 @@ final class Node extends ChangeNotifier {
       'block': true,
       'pr_attributes': blockAttributes,
       'can_modify_children_length': true,
+      'lock': false,
       ...?metadata,
     };
     final Node child = Node(
@@ -227,6 +235,7 @@ final class Node extends ChangeNotifier {
     insertNode(child);
   }
 
+  //TODO: document default constructors
   Node.block({
     String? id,
     this.parent,
@@ -248,6 +257,7 @@ final class Node extends ChangeNotifier {
     this.metadata = <String, dynamic>{
       'block': true,
       'pr_attributes': blockAttributes,
+      'lock': false,
       'can_modify_children_length': true,
       ...?metadata,
     };
@@ -260,7 +270,7 @@ final class Node extends ChangeNotifier {
           final String line = lines[i];
           final Node lineNode = Node(
             type: childType,
-            value: EasyTextList()..add(EasyText.fromStr(text: line)),
+            value: EasyTextList.easy(EasyText.fromStr(text: line)),
             children: <Node>[],
             parent: this,
             canModifyChildrenLength: false,
@@ -274,10 +284,9 @@ final class Node extends ChangeNotifier {
 
       final Node lineNode = Node(
         type: childType,
-        value: EasyTextList()
-          ..add(EasyText.fromStr(
-            text: data.castString(),
-          )),
+        value: EasyTextList.easy(EasyText.fromStr(
+          text: data.castString(),
+        )),
         children: <Node>[],
         parent: this,
         canModifyChildrenLength: false,
@@ -286,6 +295,25 @@ final class Node extends ChangeNotifier {
       insertNode(lineNode);
     }
     adoptChildren(children);
+  }
+
+  Node.lineBlock({
+    String? id,
+    this.parent,
+    this.type = ParagraphKeys.lineKey,
+    Map<String, dynamic>? metadata,
+    required EasyTextList data,
+  }) {
+    assert(type.trim().isNotEmpty, 'type cannot be empty');
+    _value = data;
+    this.id = id ?? EasyTreeState.createNodeId();
+    this.metadata = <String, dynamic>{
+      'pr_attributes': blockAttributes,
+      'block': false,
+      'lock': false,
+      'can_modify_children_length': false,
+      ...?metadata,
+    };
   }
 
   /// Builds a [Node] that represents a visual editable [Table]
@@ -304,8 +332,16 @@ final class Node extends ChangeNotifier {
       'block': true,
       'can_modify_children_length': true,
       'pr_attributes': null,
+      'lock': false,
       TableKeys.columnNumKey: columnNum,
     };
+    assert(
+      rowNum < 0 || rowNum == children.length,
+      '\'$rowNum\' '
+      'isn\'t matching '
+      'with the children provided of '
+      'length: ${children.length}',
+    );
     adoptChildren(
       children,
       check: (Node n) {
@@ -356,6 +392,7 @@ final class Node extends ChangeNotifier {
     this.metadata = <String, dynamic>{
       'block': true,
       'column': true,
+      'columns': columnNum,
       'pr_attributes': null,
       'row_attributes': rowAttributes,
       ...?metadata,
@@ -457,10 +494,13 @@ final class Node extends ChangeNotifier {
         type: ParagraphKeys.lineKey,
         // we will never accept new lines
         // as fragments
-        value: EasyTextList()
-          ..addAll(
-            line.isNewLine ? <EasyText>[EasyText.empty()] : line.toEasyText,
-          ),
+        value: EasyTextList.from(
+          line.isNewLine
+              ? <EasyText>[
+                  EasyText.fromStr(text: ''),
+                ]
+              : line.toEasyText,
+        ),
         children: <Node>[],
         parent: this,
         id: line.id,
@@ -724,41 +764,46 @@ final class Node extends ChangeNotifier {
   Map<String, dynamic>? get blockAttributes =>
       metadata['pr_attributes'] as Map<String, dynamic>?;
 
-  bool get isReadOnly => metadata['read-only'] as bool? ?? false;
-
-  void setReadonly() => metadata['read-only'] = true;
-
-  void unSetReadonly() => metadata['read-only'] = false;
-
-  bool swapNodes(Node node, int to) {
-    if (contains(node.id)) {
-      final Node? toSwapNode = elementAtOrNull(to);
-      if (toSwapNode == null) {
-        return false;
-      }
-      // if them are at the same place,
-      // we consider it as they are already
-      // swapped
-      if (toSwapNode == node) {
-        return true;
-      }
-      bool isLast = toSwapNode.next == null;
-      toSwapNode.unlink();
-      node
-        ..insertBefore(toSwapNode)
-        ..unlink();
-      isLast
-          ? insertNode(node, after: true)
-          : elementAt(to).insertAfter(
-              node,
-            );
-      return true;
+  /// Lock this [Node] to allow making impossible doing certain
+  /// modifications
+  ///
+  /// Tipically is used when we want to avoid stopping loops
+  /// by concurrent iterable modifications exceptions
+  ///
+  /// - [callback]: let us execute some code, and, when it ends, just return the result and unlock the state
+  T? lock<T>([T? Function()? callback]) {
+    if (isLocked) return null;
+    EasyEditorLogger.tree.debug(
+      'Locking $id to '
+      'avoid allowing concurrent '
+      'modifications to this Node',
+    );
+    metadata['locked'] = true;
+    if (callback != null) {
+      final T? c = callback();
+      unlock();
+      return c;
     }
-    return false;
+    return null;
   }
 
-  void adoptChildren(List<Node> nodes,
-      {bool noInvalidation = false, void Function(Node)? check}) {
+  /// Unlock this [Node] to allow modifications
+  void unlock() {
+    EasyEditorLogger.tree.debug(
+      'Unlocking $id',
+    );
+    metadata['locked'] = false;
+  }
+
+  /// Whether this [Node] is locked and cannot be modified
+  bool get isLocked => metadata['locked'] == true;
+
+  void adoptChildren(
+    List<Node> nodes, {
+    bool noInvalidation = false,
+    void Function(Node)? check,
+  }) {
+    if (isLocked) return;
     for (Node node in nodes) {
       check?.call(node);
       insertNode(node, after: true);
@@ -775,6 +820,7 @@ final class Node extends ChangeNotifier {
     bool noText = false,
     bool noLength = false,
   }) {
+    if (isLocked) return;
     if (!noLength) _dataLength = null;
     if (!noText) _text = null;
     if (!noOffset) _offset = null;
@@ -795,6 +841,7 @@ final class Node extends ChangeNotifier {
   /// into the list of its owner, then in some cases
   /// we don't need recompute the path really
   void invalidateCache({bool justCache = false}) {
+    if (isLocked) return;
     _cachedLength = null;
     if (!justCache) {
       invalidatePaths();
@@ -802,6 +849,7 @@ final class Node extends ChangeNotifier {
   }
 
   void invalidatePaths() {
+    if (isLocked) return;
     path = -1;
     deepPath = <int>[];
   }
@@ -921,15 +969,27 @@ final class Node extends ChangeNotifier {
   }
 
   void unlinkIfNeeded() {
-    if (isRootOwner) return;
-    if (parent == null) return;
+    if (isRootOwner || parent == null) return;
     if (parent!.contains(id)) {
       unlink();
     }
   }
 
+  /// Clear all the children in the [Node]
+  ///
+  /// If [isBlockNode] does not return [true]
+  /// don't do anything
   void clearBlock() {
-    if (!isBlockNode) return;
+    if (!isBlockNode || isLocked) return;
+    // invalidating relationship of children
+    // with this node before removing
+    for (final Node child in children) {
+      child
+        ..parent = null
+        ..path = -1
+        ..deepPath = <int>[]
+        .._offset = null;
+    }
     children.clear();
     _fastIndexTreePart.clear();
     invalidateDataOffset(noOffset: true);
@@ -937,12 +997,20 @@ final class Node extends ChangeNotifier {
   }
 
   void unlink() {
+    if (isLocked) return;
+    // ensure that we invalidates specific cached values
+    // at this [Node] and the next siblings
+    invalidateDataOffset(
+      noLength: true,
+      noText: true,
+      noOffset: false,
+    );
+    // after invalidation, remove this
     if (parent != null) {
       parent!.removeNode(this);
       parent = null;
     }
     invalidateCache();
-    invalidateDataOffset();
   }
 
   void updatePathsIfNeeded(int path, List<int> fullPath) {
@@ -1060,31 +1128,8 @@ final class Node extends ChangeNotifier {
   }
 
   @internal
-  Node updateValues(Map<String, dynamic> values, bool isText) {
-    if (values["text_change"] != null) {
-      final String text = values["text_change"] as String;
-      assert(
-        !isText,
-        "Tree is trying to "
-        "apply changes into for valid text types "
-        "into a $type type",
-      );
-      value = text;
-    }
-    if (values["value"] != null) {
-      value = values["value"];
-    }
-    if (values["attributes_change"] != null) {
-      final Map<String, dynamic> newAttributes =
-          values["attributes_change"] as Map<String, dynamic>;
-      metadata = <String, dynamic>{...metadata, ...newAttributes};
-    }
-    // here we need to take a look to verify some things
-    return this;
-  }
-
-  @internal
   void removeCached(Node node) {
+    if (isLocked) return;
     _fastIndexTreePart.remove(node.id);
   }
 
@@ -1095,6 +1140,7 @@ final class Node extends ChangeNotifier {
     required Node node,
     int curPath = -1,
   }) {
+    if (isLocked) return;
     assert(parent != null || isRootOwner,
         "Must have a parent to invalidate cache of siblings");
 
@@ -1143,7 +1189,9 @@ final class Node extends ChangeNotifier {
       value: value ?? this.value,
       id: id ?? this.id,
       parent: parent ?? this.parent,
-      children: children ?? <Node>[...this.children],
+      metadata: metadata ?? this.metadata,
+      children: children ?? this.children,
+      canModifyChildrenLength: canAddOrRemovedChildren,
     );
   }
 
@@ -1204,6 +1252,20 @@ final class Node extends ChangeNotifier {
       type == Node.rootId ||
       metadata['root'] != null && metadata['root'] as bool;
 
+  @visibleForTesting
+  bool equals(Object other) {
+    if (identical(this, other)) return true;
+    if (other is! Node) return false;
+    return id == other.id &&
+        type == other.type &&
+        metadata == other.metadata &&
+        value == other.value &&
+        _listEquality.equals(
+          children,
+          other.children,
+        );
+  }
+
   // =================== NOTE ===================
   // We dont implement a custom equals and hashcode
   // that uses all the class attributes, because them
@@ -1230,3 +1292,5 @@ final class Node extends ChangeNotifier {
         ')';
   }
 }
+
+ListEquality<Node> _listEquality = ListEquality<Node>();

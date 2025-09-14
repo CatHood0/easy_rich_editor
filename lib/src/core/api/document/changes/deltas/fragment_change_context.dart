@@ -9,31 +9,31 @@ enum NoExecutionReason {
   noElement,
 }
 
-class FragmentChangeContext {
+class OperationResult {
   final bool executed;
   final int changeSize;
   final Node? node;
   final NoExecutionReason? reason;
 
-  const FragmentChangeContext({
+  const OperationResult({
     required this.executed,
     required this.node,
     this.changeSize = -1,
     this.reason,
   });
 
-  const FragmentChangeContext.noExecuted([NoExecutionReason? reason])
+  const OperationResult.noExecuted([NoExecutionReason? reason])
       : executed = false,
         changeSize = -1,
         node = null,
         reason = reason ?? NoExecutionReason.noSatifyConditions;
 
-  FragmentChangeContext copyWith({
+  OperationResult copyWith({
     bool? executed,
     int? changeSize,
     Node? node,
   }) {
-    return FragmentChangeContext(
+    return OperationResult(
       executed: executed ?? this.executed,
       node: node ?? this.node,
       changeSize: changeSize ?? this.changeSize,
@@ -49,8 +49,8 @@ class FragmentChangeContext {
   }
 }
 
-class MultipleFragmentChangeContext extends FragmentChangeContext {
-  final List<FragmentChangeContext> changes;
+class MultipleFragmentChangeContext extends OperationResult {
+  final List<OperationResult> changes;
   MultipleFragmentChangeContext({
     required super.executed,
     required this.changes,
@@ -62,7 +62,7 @@ class MultipleFragmentChangeContext extends FragmentChangeContext {
   MultipleFragmentChangeContext copyWith({
     TextRange? remainingRanges,
     bool? executed,
-    List<FragmentChangeContext>? changes,
+    List<OperationResult>? changes,
     int? changeSize,
     Node? node,
   }) {

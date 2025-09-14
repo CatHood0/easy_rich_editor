@@ -14,7 +14,7 @@ void main() {
   group('block level', () {
     test('insert embed at the left of paragraph block node', () {
       expect(root, isNotNull);
-      final FragmentChangeContext context = root!.insert(
+      final OperationResult context = root!.insert(
         0,
         <String, dynamic>{'image': 'path/to/image'},
       );
@@ -32,7 +32,7 @@ void main() {
 
     test('insert embed at the right of paragraph block node', () {
       expect(root, isNotNull);
-      final FragmentChangeContext context = root!.insert(
+      final OperationResult context = root!.insert(
         2,
         <String, dynamic>{'image': 'path/to/image'},
       );
@@ -47,7 +47,7 @@ void main() {
 
     test('insert text at start of an embed', () {
       expect(root, isNotNull);
-      final FragmentChangeContext context = root!.insert(
+      final OperationResult context = root!.insert(
         1,
         '|',
       );
@@ -80,7 +80,7 @@ void main() {
       final Map<String, dynamic> obj = <String, dynamic>{
         'image': 'path/to/image'
       };
-      final FragmentChangeContext context = line.insert(
+      final OperationResult context = line.insert(
         4,
         obj,
       );
@@ -117,7 +117,7 @@ void main() {
 
     test('insert text at start of a node', () {
       expect(root, isNotNull);
-      final FragmentChangeContext context = root!.insert(
+      final OperationResult context = root!.insert(
         122,
         '|',
       );
@@ -130,7 +130,7 @@ void main() {
 
     test('insert text at the end of a node', () {
       expect(root, isNotNull);
-      final FragmentChangeContext context = root!.insert(
+      final OperationResult context = root!.insert(
         203,
         '|',
       );
@@ -147,7 +147,7 @@ void main() {
       final Node? block = root!.queryPath(<int>[6]);
       expect(block, isNotNull);
       expect(block!.children, isNotEmpty);
-      final FragmentChangeContext context = block.insert(
+      final OperationResult context = block.insert(
         6,
         'Test ',
       );
@@ -164,7 +164,7 @@ void main() {
       expect(embedBlock, isNotNull);
       expect(embedBlock!.children, isNotEmpty);
       expect(embedBlock.text, equals(Node.kObjectReplacementCharacter));
-      final FragmentChangeContext context = root!.insert(
+      final OperationResult context = root!.insert(
         1,
         'Test ',
       );
@@ -181,7 +181,7 @@ void main() {
 
     test('insert text at end of document', () {
       expect(root, isNotNull);
-      final FragmentChangeContext context = root!.insert(
+      final OperationResult context = root!.insert(
         318,
         'Test ',
       );

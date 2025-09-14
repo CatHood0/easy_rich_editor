@@ -2,6 +2,9 @@ part of 'package:easy_rich_editor/src/core/api/document/nodes/node.dart';
 
 extension NodeTreeDumperExt on Node {
   String shortInfo() {
+    if (isRootOwner) {
+      return '$type(id: $id, children: $length)';
+    }
     return '$type(id: $id, ${shortOffsetInfo(global: true)}, path: $deepPath)';
   }
 

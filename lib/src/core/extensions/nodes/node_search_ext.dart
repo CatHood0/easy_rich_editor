@@ -340,7 +340,7 @@ extension NodeSearchExt on Node {
   /// in the document.
   bool containsSelection(NodeSelection selection) {
     final int nodeEnd = dataLength;
-    return selection.start.position >= 0 && selection.end.position <= nodeEnd;
+    return selection.start.posOffset >= 0 && selection.end.posOffset <= nodeEnd;
   }
 
   /// Whether this [Node] is into the [selection] range
@@ -377,18 +377,18 @@ extension NodeSearchExt on Node {
   /// Whether this [Node] has a [next] node into its
   /// parent or the siblings of its parent
   bool get hasPossibleNextNode {
-    return jumpToNext(findLines: true) != null;
+    return jumpToNext() != null;
   }
 
   /// Whether this [Node] has a [previous] node into its
   /// parent or the siblings of its parent
   bool get hasPossiblePrevNode {
-    return jumpToPrevious(findLines: true) != null;
+    return jumpToPrevious() != null;
   }
 
   /// Jump to the most nearest previous [Node]
   ///
-  /// - [findLines]: Determines if will be retorned [Line] or [EmbedLine] nodes instead block in jump cases
+  /// - [findLines]: Determines if will be returned [Line] or [EmbedLine] nodes instead block in jump cases
   Node? jumpToPrevious({bool findLines = false}) {
     if (previous != null) return previous;
 
@@ -409,7 +409,7 @@ extension NodeSearchExt on Node {
 
   /// Jump to the most nearest next [Node]
   ///
-  /// - [findLines]: Determines if will be retorned [Line] or [EmbedLine] nodes instead block in jump cases
+  /// - [findLines]: Determines if will be returned [Line] or [EmbedLine] nodes instead block in jump cases
   Node? jumpToNext({bool findLines = false}) {
     if (next != null) return next;
     final Node? node =
@@ -451,6 +451,13 @@ extension NodeSearchExt on Node {
     }
 
     return parent!.jumpToOptionalParent(stopAt: stopAt);
+  }
+
+  /// Jump to the parent that is a direct child of root [Node]
+  Node? jumpToBlock([bool ignoreCur = false]) {
+    if (isRootOwner || parent == null) return null;
+    if (parent!.isRootOwner || (isBlockNode && !ignoreCur)) return this;
+    return jumpToParent(stopAt: (Node n) => n.isBlockNode);
   }
 
   /// Jump to the parent that is a direct child of root [Node]

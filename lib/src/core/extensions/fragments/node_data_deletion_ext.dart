@@ -3,7 +3,7 @@ part of '../../api/document/nodes/node.dart';
 @internal
 extension NodeDeletionExt on Node {
   @internal
-  FragmentChangeContext deleteValueAt(
+  OperationResult deleteValueAt(
     int start,
     int len, {
     EasyText? text,
@@ -11,7 +11,7 @@ extension NodeDeletionExt on Node {
     int jumpedOffset = 0,
   }) {
     if (isBlockNode || isRootOwner || !hasDefinedValue) {
-      return FragmentChangeContext.noExecuted(
+      return OperationResult.noExecuted(
           NoExecutionReason.noSatifyConditions);
     }
 
@@ -19,12 +19,12 @@ extension NodeDeletionExt on Node {
 
     if (supportEmbed) {
       if (hasNoEmbed) {
-        return FragmentChangeContext.noExecuted(
+        return OperationResult.noExecuted(
           NoExecutionReason.noElement,
         );
       }
       value = null;
-      return FragmentChangeContext(
+      return OperationResult(
         node: this,
         executed: true,
         changeSize: len,
@@ -33,13 +33,13 @@ extension NodeDeletionExt on Node {
 
     final EasyText? frag = text ?? queryObjectAtOffset(start).cast<EasyText?>();
     if (frag == null) {
-      return FragmentChangeContext.noExecuted(isBlankText
+      return OperationResult.noExecuted(isBlankText
           ? NoExecutionReason.noElement
           : NoExecutionReason.invalidStart);
     }
 
     frag.delete(start, len);
-    return FragmentChangeContext(
+    return OperationResult(
       node: this,
       executed: true,
       changeSize: len,
