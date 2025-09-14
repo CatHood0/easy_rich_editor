@@ -15,13 +15,21 @@ class ParagraphNodeExtractor extends NodeExtractor<EasyText> {
 
   static bool defaultBlockPrFilter(Node n) => n.isParagraphBlock;
 
-  void _assertBlock(Node n) {
+  void _assertBlock(Node n, [NodeSelection? selection]) {
     assert(
       n.isParagraphBlock,
       'expected '
       '"${ParagraphKeys.key}" but '
       'found ${n.shortInfo()}',
     );
+    if (selection != null) {
+      assert(
+          selection.start.path == n.deepPath,
+          'selection '
+          'must match with '
+          'the node specified to get '
+          'selected blocks correctly');
+    }
   }
 
   @override
@@ -55,20 +63,42 @@ class ParagraphNodeExtractor extends NodeExtractor<EasyText> {
   }
 
   @override
-  Node? getSelectedBlocks(Node node, NodeSelection selection) {
-    if (!selection.isCollapsed) return null;
-    _assertBlock(node);
-    return selection.start.node.jumpToParentExceptRoot();
+  List<Node> getSelectedBlocks(Node node, NodeSelection selection) {
+    if (!selection.isCollapsed) {
+      return <Node>[];
+    }
+    _assertBlock(node, selection);
+    if (selection.start.node == null) {
+      final Node? block = node
+          // commonly, should jump to root
+          .jumpToParent()
+          // make the query at the root to get the exact node
+          .queryPath(selection.start.path)
+          ?.jumpToBlock(true);
+      return <Node>[
+        if (block != null) block,
+      ];
+    }
+    return <Node>[
+      selection.start.node!.jumpToBlock()!,
+    ];
   }
 
   @override
-  List<Node>? getSelectedLines(Node node, NodeSelection selection) {
-    if (selection.isCollapsed) return <Node>[selection.start.node];
-    _assertBlock(node);
+  List<Node> getSelectedLines(Node node, NodeSelection selection) {
+    if (selection.isCollapsed) {
+      return <Node>[
+        selection.start.node ??
+            node.jumpToParent().queryPath(
+                  selection.start.path,
+                )!,
+      ];
+    }
+    _assertBlock(node, selection);
     final NodeSelection normalized = selection.normalized;
     return NodeIterator(
-      startNode: normalized.start.node,
-      endNode: normalized.end.node,
+      startNode: normalized.start.node!,
+      endNode: normalized.end.node!,
     ).toList();
   }
 

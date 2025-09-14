@@ -2,6 +2,11 @@ import 'package:easy_rich_editor/easy_rich_editor.dart';
 import 'package:easy_rich_editor/src/core/api/document/path/path.dart';
 
 class TableNodeExtractor extends NodeExtractor<Object> {
+  TableNodeExtractor._();
+
+  static final TableNodeExtractor _instance = TableNodeExtractor._();
+  static TableNodeExtractor get instance => _instance;
+
   @override
   bool canNodeHaveValueType(Node node, Type t) {
     // TODO: implement canNodeHaveValueType
@@ -35,13 +40,13 @@ class TableNodeExtractor extends NodeExtractor<Object> {
   }
 
   @override
-  Node? getSelectedBlocks(Node node, NodeSelection selection) {
+  List<Node> getSelectedBlocks(Node node, NodeSelection selection) {
     // TODO: implement getSelectedBlocks
     throw UnimplementedError();
   }
 
   @override
-  List<Node>? getSelectedLines(Node node, NodeSelection selection) {
+  List<Node> getSelectedLines(Node node, NodeSelection selection) {
     // TODO: implement getSelectedLines
     throw UnimplementedError();
   }

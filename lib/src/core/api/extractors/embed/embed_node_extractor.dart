@@ -111,7 +111,7 @@ class EmbedNodeExtractor extends NodeExtractor<TextFragment> {
   }
 
   @override
-  Node? getSelectedBlocks(Node node, NodeSelection selection) {
+  List<Node> getSelectedBlocks(Node node, NodeSelection selection) {
     assert(
       node.isBlockNode && node.isEmbedBlock,
       'expected '
@@ -122,7 +122,7 @@ class EmbedNodeExtractor extends NodeExtractor<TextFragment> {
   }
 
   @override
-  List<Node>? getSelectedLines(Node node, NodeSelection selection) {
+  List<Node> getSelectedLines(Node node, NodeSelection selection) {
     assert(
       node.isBlockNode && node.isEmbedBlock,
       'expected '

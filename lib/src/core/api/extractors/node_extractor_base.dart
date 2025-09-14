@@ -65,9 +65,9 @@ abstract class NodeExtractor<T extends Object?> {
     NodeDepthPath path = const <int>[],
   });
 
-  Node? getSelectedBlocks(Node node, NodeSelection selection);
+  List<Node> getSelectedBlocks(Node node, NodeSelection selection);
 
-  List<Node>? getSelectedLines(Node node, NodeSelection selection);
+  List<Node> getSelectedLines(Node node, NodeSelection selection);
 
   /// Get the [Node] using the specified [id] 
   Node? getNodeOfKey(Node node, String id);
