@@ -1,12 +1,9 @@
-import 'package:easy_rich_editor/src/core/api/document/history.dart';
-import 'package:easy_rich_editor/src/core/api/document/path/path.dart';
 import 'package:easy_rich_editor/src/core/api/modifiers/table_modifier.dart';
-import 'package:easy_rich_editor/src/core/builders/table/table_keys.dart';
 import 'package:flutter/material.dart';
 import 'package:meta/meta.dart';
+
 import '../../../../easy_rich_editor.dart';
 import '../limiters/table_limiter.dart';
-import 'nodes/node_iterator.dart';
 
 class EasyDocument {
   EasyDocument(
@@ -98,9 +95,16 @@ class EasyDocument {
     TableKeys.key: TableModifier.instance,
   };
 
+  /// Returns the first child in the document tree
   Node? get first => root.firstChild;
+
+  /// Returns the last child in the document tree
   Node? get last => root.lastChild;
+
+  /// Returns the amount of children in the document
   int get length => root.length;
+
+  /// Returns the document text length
   int get textLength => root.toPlainText().length;
 
   void undo() {
@@ -148,7 +152,7 @@ class EasyDocument {
     return _limiters[key];
   }
 
-  static NodeExtractor? getExtractor(Node node) {
+  static NodeExtractor<dynamic>? getExtractor(Node node) {
     final String key = (node.jumpToParentExceptRoot() ?? node).type;
     return _extractors[key];
   }
@@ -252,28 +256,6 @@ class EasyDocument {
     return nodes;
   }
 
-  /// Queries the child [Node] at [offset] in this [Node].
-  (List<Node>, bool) collectNodesUntilOffset(Node node, int cursorPos) {
-    if (cursorPos < 0 || cursorPos > node.dataLength) {
-      return (<Node>[], true);
-    }
-
-    final List<Node> nodes = <Node>[];
-
-    for (final Node child in node.children) {
-      final int len = child.dataLength;
-      if (cursorPos < len) {
-        nodes.add(child);
-        cursorPos -= len - (len - cursorPos);
-        break;
-      }
-      nodes.add(child);
-      cursorPos -= len;
-    }
-
-    return (<Node>[], cursorPos > 0);
-  }
-
   /// Find the Node at the full path passed
   ///
   /// path must be always normalized
@@ -309,7 +291,7 @@ class EasyDocument {
       //
       // Never should happen this, but, it's for safety
       rootNode.updatePathsIfNeeded(rootIndex, <int>[rootIndex]);
-      final NodeExtractor? extractor = _extractors[rootNode.type];
+      final NodeExtractor<dynamic>? extractor = _extractors[rootNode.type];
       if (extractor == null) throwUnsupportedType(rootNode.type);
       final List<NodeValueLocation> location = extractor!.queryValues(
         rootNode,

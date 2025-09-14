@@ -2,9 +2,16 @@ library;
 
 // core
 export 'src/core/api/document/document.dart';
+export 'src/core/api/document/history.dart';
+export 'src/core/api/document/nodes/node_iterator.dart';
+export 'src/core/api/document/path/path.dart';
+export 'src/core/api/editor_state/easy_state.dart';
+// core -> Deltas/Results
 export 'src/core/api/document/changes/deltas/delta_node.dart';
-export 'src/core/api/document/changes/deltas/fragment_change_context.dart';
+export 'src/core/api/document/changes/deltas/operation_result.dart';
+// core -> Operations
 export 'src/core/api/operations/easy_operation.dart';
+// core -> Parsers
 export 'src/parsers/document_to_nodes.dart';
 export 'src/parsers/markdown_to_nodes_parser.dart';
 export 'src/parsers/plain_text_to_nodes_parser.dart';
@@ -31,6 +38,7 @@ export 'src/core/builders/paragraph/pr/paragraph_builder.dart';
 // core -> keys
 export 'src/core/builders/paragraph/paragraph_keys.dart';
 export 'src/core/builders/embed/embed_keys.dart';
+export 'src/core/builders/table/table_keys.dart';
 // core -> limiters
 export 'src/core/api/limiters/limiter_base.dart';
 export 'src/core/api/limiters/paragraph_limiter.dart';

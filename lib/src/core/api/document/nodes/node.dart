@@ -3,33 +3,23 @@ import 'dart:convert';
 
 import 'package:collection/collection.dart';
 import 'package:easy_attribution_text/easy_text.dart';
-import 'package:easy_rich_editor/src/core/api/document/path/path.dart';
-import 'package:easy_rich_editor/src/core/api/editor_state/easy_state.dart';
-import 'package:easy_rich_editor/src/core/builders/table/table_keys.dart';
-import 'package:easy_rich_editor/src/core/exceptions/illegal_node_exception.dart';
-import 'package:easy_rich_editor/src/core/extensions/fragments/fragments_ext.dart';
-import 'package:easy_rich_editor/src/core/extensions/object_ext.dart';
-import 'package:easy_rich_editor/src/utils/background_isolate_runner/isolate_runner.dart';
-import 'package:easy_rich_editor/src/utils/utils.dart';
+import 'package:easy_rich_editor/easy_rich_editor.dart';
+import 'package:easy_rich_editor/internal.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_quill_delta_easy_parser/flutter_quill_delta_easy_parser.dart';
-import 'package:easy_rich_editor/internal.dart';
-import 'package:easy_rich_editor/easy_rich_editor.dart';
 import 'package:meta/meta.dart';
 
-import '../../../../editor/common/selectable_mixin.dart';
-
-part 'package:easy_rich_editor/src/core/extensions/fragments/node_data_formatting_ext.dart';
-part 'package:easy_rich_editor/src/core/extensions/fragments/node_splitter_ext.dart';
 part 'package:easy_rich_editor/src/core/extensions/fragments/node_data_deletion_ext.dart';
+part 'package:easy_rich_editor/src/core/extensions/fragments/node_data_formatting_ext.dart';
 part 'package:easy_rich_editor/src/core/extensions/fragments/node_data_insertion_ext.dart';
+part 'package:easy_rich_editor/src/core/extensions/fragments/node_splitter_ext.dart';
 part 'package:easy_rich_editor/src/core/extensions/nodes/node_ext.dart';
 part 'package:easy_rich_editor/src/core/extensions/nodes/node_offset_ext.dart';
-part 'package:easy_rich_editor/src/core/extensions/nodes/node_search_ext.dart';
-part 'package:easy_rich_editor/src/core/extensions/nodes/node_printer_ext.dart';
 part 'package:easy_rich_editor/src/core/extensions/nodes/node_operations_ext.dart';
+part 'package:easy_rich_editor/src/core/extensions/nodes/node_printer_ext.dart';
+part 'package:easy_rich_editor/src/core/extensions/nodes/node_search_ext.dart';
 
 final class Node extends ChangeNotifier {
   String type;
