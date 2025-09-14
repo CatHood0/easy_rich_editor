@@ -5,13 +5,26 @@ import 'package:easy_rich_editor/src/core/extensions/object_ext.dart';
 import '../../../../easy_rich_editor.dart';
 
 abstract class EasyOperation {
+  /// The selection to be applied after usage of this operation
+  final NodeSelection? nextSelection;
+
+  /// The selection to be applied if the operation
+  /// is inverted usage of this operation
+  final NodeSelection? previousSelection;
   final NodeDepthPath path;
+
+  /// A copy of the node
   final Node node;
 
   EasyOperation({
     required this.path,
     required this.node,
+    this.nextSelection,
+    this.previousSelection,
   });
+
+  /// The id that represents the operation
+  String get id;
 
   EasyOperation invert();
 
@@ -33,7 +46,12 @@ class EasyFormatOperation extends EasyOperation {
     required this.len,
     required this.attributes,
     required this.oldAttributes,
+    super.nextSelection,
+    super.previousSelection,
   });
+
+  @override
+  String get id => 'format';
 
   @override
   EasyFormatOperation invert() {
@@ -44,25 +62,29 @@ class EasyFormatOperation extends EasyOperation {
       attributes: oldAttributes,
       oldAttributes: attributes,
       cursorPosition: cursorPosition,
+      nextSelection: nextSelection,
+      previousSelection: previousSelection,
     );
   }
 
   @override
   DeltaNode toDelta() {
     assert(!node.isRootOwner, 'root node must not be stored as a node change');
-    final bool isSelectinEntireBlock =
-        cursorPosition == 0 && cursorPosition + len == node.dataLength;
+    final EasyAttributeStyles styles = EasyAttributeStyles.fromJson(attributes);
     return DeltaNode.format(
+      styles: styles,
       len: len,
       start: cursorPosition,
-      styles: EasyAttributeStyles.fromJson(attributes),
-      inlineStyles: !isSelectinEntireBlock || !node.isBlockNode,
+      inlineStyles: styles.values.every(
+        (EasyAttribute<Object?> e) => e.isInline,
+      ),
     );
   }
 
   @override
   Map<String, dynamic> toJson() {
     return <String, dynamic>{
+      'id': id,
       'path': path,
       'node': node,
       'len': len,
@@ -84,7 +106,12 @@ class EasyInsertOperation extends EasyOperation {
     required this.data,
     required this.cursorPosition,
     this.attributes,
+    super.nextSelection,
+    super.previousSelection,
   });
+
+  @override
+  String get id => 'insertion';
 
   @override
   EasyDeleteOperation invert() {
@@ -94,21 +121,24 @@ class EasyInsertOperation extends EasyOperation {
       len: data.length,
       forward: false,
       cursorPosition: cursorPosition,
+      nextSelection: nextSelection,
+      previousSelection: previousSelection,
     );
   }
 
   @override
   DeltaNode toDelta() {
     return DeltaNode.insert(
-      insert: data,
       start: cursorPosition,
+      insert: data,
       styles: EasyAttributeStyles.fromJson(attributes),
     );
   }
 
   @override
   Map<String, dynamic> toJson() {
-    return {
+    return <String, dynamic>{
+      'id': id,
       'path': path,
       'node': node,
       'len': data.length,
@@ -131,15 +161,22 @@ class EasyDeleteOperation extends EasyOperation {
     required this.len,
     this.forward = false,
     this.deletedContent,
+    super.nextSelection,
+    super.previousSelection,
   });
+
+  @override
+  String get id => 'deletion';
 
   @override
   EasyInsertOperation invert() {
     return EasyInsertOperation(
       path: path,
       node: node,
-      data: deletedContent ?? '',
+      data: deletedContent!,
       cursorPosition: cursorPosition,
+      nextSelection: nextSelection,
+      previousSelection: previousSelection,
     );
   }
 
@@ -149,22 +186,24 @@ class EasyDeleteOperation extends EasyOperation {
       return DeltaNode.replace(
         inserted: deletedContent,
         start: cursorPosition,
-        end: cursorPosition + len,
+        len: len,
       );
     }
     return DeltaNode.delete(
       start: cursorPosition,
-      end: cursorPosition + len,
+      len: len,
     );
   }
 
   @override
   Map<String, dynamic> toJson() {
-    return {
+    return <String, dynamic>{
+      'id': id,
       'path': path,
       'node': node,
       'len': len,
       'forward': forward,
+      'removed': deletedContent,
       'cursorPosition': cursorPosition,
     };
   }

@@ -3,11 +3,12 @@ import 'dart:ui';
 import 'package:easy_rich_editor/easy_rich_editor.dart';
 import 'package:easy_rich_editor/src/core/api/document/path/path.dart';
 
+///
 class NodePosition {
   /// The node depth path of the node at the cursor position
   final NodeDepthPath path;
 
-  /// Relative [position] into the path
+  /// Relative [posOffset] into the path
   ///
   /// You can get the correct [offset] position
   /// (into the [EasyDocument]) making a [query].
@@ -22,53 +23,55 @@ class NodePosition {
   ///    final int effectiveOffset = offset + pos.position;
   ///  }
   /// ```
-  final int position;
+  final int posOffset;
 
   final TextAffinity? affinity;
 
   /// The position where [node] is
-  final Node node;
+  ///
+  /// Tipically is null only during testing phase
+  final Node? node;
 
   NodePosition({
     required this.path,
-    required this.node,
-    required this.position,
+    required this.posOffset,
+    this.node,
     this.affinity,
   });
 
   NodePosition copyWith({
     NodeDepthPath? path,
     TextAffinity? affinity,
-    int? position,
+    int? posOffset,
     Node? node,
   }) {
     return NodePosition(
       path: path ?? this.path,
       node: node ?? this.node,
       affinity: affinity ?? this.affinity,
-      position: position ?? this.position,
+      posOffset: posOffset ?? this.posOffset,
     );
   }
 
   bool operator >(NodePosition other) {
-    return position > other.position;
+    return posOffset > other.posOffset;
   }
 
   bool operator >=(NodePosition other) {
-    return position >= other.position;
+    return posOffset >= other.posOffset;
   }
 
   bool operator <(NodePosition other) {
-    return position < other.position;
+    return posOffset < other.posOffset;
   }
 
   bool operator <=(NodePosition other) {
-    return position <= other.position;
+    return posOffset <= other.posOffset;
   }
 
   bool equals(covariant NodePosition other, {bool checkPositions = false}) {
     if (checkPositions) {
-      return position == other.position &&
+      return posOffset == other.posOffset &&
           path == other.path &&
           affinity == other.affinity;
     }
@@ -77,7 +80,7 @@ class NodePosition {
 
   @override
   bool operator ==(covariant NodePosition other) {
-    return position == other.position &&
+    return posOffset == other.posOffset &&
         path == other.path &&
         node == other.node &&
         affinity == other.affinity;
@@ -86,7 +89,7 @@ class NodePosition {
   @override
   int get hashCode => Object.hashAllUnordered([
         path,
-        position,
+        posOffset,
         affinity,
       ]);
 }

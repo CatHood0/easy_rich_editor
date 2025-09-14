@@ -33,19 +33,25 @@ class EasyHistory {
   late final FixedListLength undoStack;
   late final FixedListLength redoStack;
 
-  void push(EasyOperation op, {bool undo = true}) =>
+  bool get hasUndo => undoStack.isNotEmpty;
+  bool get hasRedo => redoStack.isNotEmpty;
+
+  void push(
+    EasyOperation op, {
+    bool undo = true,
+  }) =>
       undo ? undoStack.add(op) : redoStack.add(op);
 
-  EasyOperation undo({bool autoManageStacks = false}) {
+  EasyOperation undo() {
     final EasyOperation head = undoStack.takeHead();
-    redoStack.add(head.invert());
-    return head;
+    redoStack.add(head);
+    return head.invert();
   }
 
   EasyOperation redo() {
     final EasyOperation head = redoStack.takeHead();
-    undoStack.add(head.invert());
-    return head;
+    undoStack.add(head);
+    return head.invert();
   }
 
   EasyOperation? mostRecentChange({bool undo = true}) {

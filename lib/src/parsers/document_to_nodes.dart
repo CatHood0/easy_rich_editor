@@ -34,14 +34,19 @@ class ObjectToNodesParser {
     espr.Document doc, {
     String Function(espr.Paragraph espr)? onDetectCustom,
   }) {
-    final Node root = Node.root();
-    for (espr.Paragraph pr in doc.paragraphs) {
-      root.insertNode(
-        pr.isEmbed
-            ? Node.fromParagraphEmbed(paragraph: pr)
-            : Node.fromParagraph(paragraph: pr),
-      );
-    }
+    final Node root = Node.root(
+      children: doc.paragraphs.map<Node>(
+        (espr.Paragraph pr) {
+          return pr.isEmbed
+              ? Node.fromParagraphEmbed(
+                  paragraph: pr,
+                )
+              : Node.fromParagraph(
+                  paragraph: pr,
+                );
+        },
+      ).toList(),
+    );
 
     return root;
   }

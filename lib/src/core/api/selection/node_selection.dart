@@ -6,8 +6,8 @@ import 'package:flutter/widgets.dart';
 class NodeSelection {
   final NodePosition start;
   final NodePosition end;
-  final List<Node>? selectedNodes;
 
+  final List<Node>? selectedNodes;
   NodeSelection({
     required this.start,
     required this.end,
@@ -21,13 +21,13 @@ class NodeSelection {
   })  : start = NodePosition(
           path: path,
           node: node,
-          position: offset,
+          posOffset: offset,
         ),
         selectedNodes = <Node>[node],
         end = NodePosition(
           path: path,
           node: node,
-          position: offset,
+          posOffset: offset,
         );
 
   NodeSelection.sameNode({
@@ -43,13 +43,13 @@ class NodeSelection {
           path: path,
           node: node,
           affinity: startAffinity,
-          position: startOffset,
+          posOffset: startOffset,
         ),
         end = NodePosition(
           path: path,
           node: node,
           affinity: endAffinity,
-          position: endOffset,
+          posOffset: endOffset,
         );
 
   /// Returns a Boolean indicating whether the selection's start and end points
@@ -76,10 +76,10 @@ class NodeSelection {
   NodeSelection get reversed => copyWith(start: end, end: start);
 
   /// Returns the offset in the starting position under the normalized selection.
-  int get startIndex => normalized.start.position;
+  int get startIndex => normalized.start.posOffset;
 
   /// Returns the offset in the ending position under the normalized selection.
-  int get endIndex => normalized.end.position;
+  int get endIndex => normalized.end.posOffset;
 
   int get length => endIndex - startIndex;
 
@@ -124,7 +124,7 @@ class NodeSelection {
     }
 
     if (selectedNodes != null && !selectedNodes!.contains(nodePosition.node)) {
-      selectedNodes!.add(nodePosition.node);
+      selectedNodes!.add(nodePosition.node!);
     }
 
     if (nodePosition <= start) {
@@ -154,7 +154,7 @@ class NodeSelection {
   }
 
   NodeSelection extendTo(int nextPosition, {Node? nextNode}) {
-    if (end.position == nextPosition) {
+    if (end.posOffset == nextPosition) {
       return this;
     }
 
@@ -162,11 +162,11 @@ class NodeSelection {
     /// is the next sibling of the current, and we need to add this
     /// to the selection
     if (nextNode != null) {
-      final int effectiveNodeOffset = end.node.offset + end.node.dataLength;
+      final int effectiveNodeOffset = end.node!.endOffset;
       if (effectiveNodeOffset < nextPosition) {
         return copyWith(
           end: end.copyWith(
-            position: nextPosition,
+            posOffset: nextPosition,
             node: nextNode,
           ),
           selectedNodes: <Node>[...?selectedNodes, nextNode],
@@ -174,7 +174,7 @@ class NodeSelection {
       }
     }
 
-    return copyWith(end: end.copyWith(position: nextPosition));
+    return copyWith(end: end.copyWith(posOffset: nextPosition));
   }
 
   @override

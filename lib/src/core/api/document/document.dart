@@ -1,8 +1,11 @@
 import 'package:easy_rich_editor/src/core/api/document/history.dart';
 import 'package:easy_rich_editor/src/core/api/document/path/path.dart';
+import 'package:easy_rich_editor/src/core/api/modifiers/table_modifier.dart';
+import 'package:easy_rich_editor/src/core/builders/table/table_keys.dart';
 import 'package:flutter/material.dart';
 import 'package:meta/meta.dart';
 import '../../../../easy_rich_editor.dart';
+import '../limiters/table_limiter.dart';
 import 'nodes/node_iterator.dart';
 
 class EasyDocument {
@@ -11,13 +14,19 @@ class EasyDocument {
     EasyHistory? records,
     int maxRecordLimit = EasyHistory.maxRecordOperations,
   }) {
+    assert(
+      root.isRootOwner,
+      'expected '
+      'root node type. '
+      'Found => ${root.shortInfo()}',
+    );
     _initializeHistory(
       records: records,
       maxRecordLimit: maxRecordLimit,
     );
   }
 
-  EasyDocument.json(
+  EasyDocument.fromJson(
     Map<String, dynamic> json, {
     bool jsonHasCachedData = false,
     Object? Function(Object? v)? deserializeValue,
@@ -34,11 +43,17 @@ class EasyDocument {
     );
   }
 
-  EasyDocument.root({
+  EasyDocument.fromNodes({
     required List<Node> nodes,
     EasyHistory? records,
     int maxRecordLimit = EasyHistory.maxRecordOperations,
   }) : root = Node.root(children: nodes) {
+    assert(
+      nodes.every((Node e) => e.isBlockNode),
+      'all the '
+      'nodes into the iterable '
+      'passed must be blocks',
+    );
     _initializeHistory(
       records: records,
       maxRecordLimit: maxRecordLimit,
@@ -63,27 +78,70 @@ class EasyDocument {
 
   /// A simple register with all the limiters.
   static final Map<String, Limiter> _limiters = <String, Limiter>{
-    EmbedKeys.key: EmbedLimiter.instance(),
     ParagraphKeys.key: ParagraphLimiter.instance(),
+    EmbedKeys.key: EmbedLimiter.instance(),
+    TableKeys.key: TableLimiter.instance(),
   };
 
   /// A simple register with all the extractors.
-  static final Map<String, NodeExtractor> _extractors = <String, NodeExtractor>{
+  static final Map<String, NodeExtractor<dynamic>> _extractors =
+      <String, NodeExtractor<dynamic>>{
     ParagraphKeys.key: ParagraphNodeExtractor.instance,
     EmbedKeys.key: EmbedNodeExtractor.instance,
+    TableKeys.key: TableNodeExtractor.instance,
   };
 
-  bool canNodeAcceptTypeValue(Node rootOwner, Node node, Type t) {
-    final NodeExtractor? extractor = _extractors[rootOwner.type];
-    if (extractor == null) {
-      throwUnsupportedType(rootOwner.type);
-    }
+  /// A simple register with all the modifiers.
+  static final Map<String, NodeModifier> _modifiers = <String, NodeModifier>{
+    ParagraphKeys.key: DefaultNodeModifier.instance,
+    EmbedKeys.key: DefaultNodeModifier.instance,
+    TableKeys.key: TableModifier.instance,
+  };
 
-    return extractor!.canNodeHaveValueType(node, t);
+  Node? get first => root.firstChild;
+  Node? get last => root.lastChild;
+  int get length => root.length;
+  int get textLength => root.toPlainText().length;
+
+  void undo() {
+    if (!history.hasUndo) return;
+    final EasyOperation undoOp = history.undo();
+    applyOperation(undoOp);
   }
 
-  void registerLimiters(List<Map<String, Limiter>> customLimiters) {}
-  void registerExtractors(List<Map<String, NodeExtractor>> customExtractors) {}
+  void redo() {
+    if (!history.hasRedo) return;
+    final EasyOperation redoOp = history.redo();
+    applyOperation(redoOp);
+  }
+
+  bool applyOperation(
+    EasyOperation op, {
+    bool recordUndo = false,
+    bool recordRedo = false,
+  }) {
+    if (recordUndo || recordRedo) {
+      history.push(op, undo: recordUndo);
+    }
+    final Node? node = queryPath(op.path);
+    assert(node != null, 'expected defined node, but found null at ${op.path}');
+    return node!.receiveDelta(op.toDelta()).executed;
+  }
+
+  DeltaChangeResult applyDelta(DeltaNode delta) {
+    final NodeCursorPosLocation loc = queryOffset(
+      delta.start,
+      strict: false,
+    );
+    if (loc.found || loc.node != null) {
+      return loc.node!.receiveDelta(
+        loc.node!.isFirst ? delta : delta.transformRanges(loc.locationOffset),
+        modifier: _modifiers[loc.node!.jumpToParentExceptRoot()!.type] ??
+            NodeModifier.defaultModifier,
+      );
+    }
+    return DeltaChangeResult.noExecution();
+  }
 
   static Limiter? getLimiter(Node node) {
     final String key = (node.jumpToParentExceptRoot() ?? node).type;
@@ -142,11 +200,9 @@ class EasyDocument {
       if (childLocation.foundButNotFragment) {
         final NodeCursorPosLocation effectiveLocation = childLocation
             .location!.node
-            .queryOffset(childLocation.locationOffset);
+            .queryPosition(childLocation.locationOffset);
 
-        if (effectiveLocation.found) {
-          return effectiveLocation;
-        }
+        if (effectiveLocation.found) return effectiveLocation;
       }
 
       return childLocation;
@@ -155,27 +211,42 @@ class EasyDocument {
     return root.queryPosition(cursorPos);
   }
 
-  List<Node> querySelectedNodes(NodeSelection selection) {
+  List<Node> getSelectedNodes(NodeSelection selection) {
     if (selection.selectedNodes != null) {
       return selection.selectedNodes!;
     }
 
+    final NodeSelection normalizedSelection = selection.normalized;
+    final Node? start = normalizedSelection.start.node ??
+        queryPath(normalizedSelection.start.path);
+    assert(
+        start != null,
+        'expected start node, but found '
+        'a bad path reference '
+        'in selection: $normalizedSelection');
+
     if (selection.isCollapsed) {
-      return <Node>[selection.start.node];
+      return <Node>[start!];
     }
 
-    final NodeSelection normalizedSelection = selection.normalized;
+    final Node? end =
+        normalizedSelection.end.node ?? queryPath(normalizedSelection.end.path);
+    assert(
+        end != null,
+        'expected start node, but found '
+        'a bad path reference '
+        'in selection: $normalizedSelection');
 
     final List<Node> nodes = NodeIterator(
-      startNode: normalizedSelection.start.node,
-      endNode: normalizedSelection.end.node,
+      startNode: start!,
+      endNode: end!,
     ).toList();
 
     assert(
       nodes.isNotEmpty,
       "Failed to found Nodes between "
-      "[${normalizedSelection.start.node.id}] and "
-      "[${normalizedSelection.end.node.id}]",
+      "[${start.id}] and "
+      "[${end.id}]",
     );
 
     return nodes;

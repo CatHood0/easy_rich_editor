@@ -5,7 +5,7 @@ import '../../../../../easy_rich_editor.dart';
 @internal
 class FixedListLength {
   final QueueList<EasyOperation> _operations;
-  late final int numberOfOperations;
+  late final int opsLength;
   final int maxLength;
   static const int defaultMaxLength = 300;
 
@@ -17,18 +17,24 @@ class FixedListLength {
             'length of the operations must be '
             'less or equals that the maxLength passed'),
         _operations = QueueList<EasyOperation>.from(operations) {
-    numberOfOperations = _operations.length;
+    opsLength = _operations.length;
   }
 
   FixedListLength.empty({
     this.maxLength = defaultMaxLength,
   }) : _operations = QueueList<EasyOperation>();
 
+  /// Whether this stack is empty
+  bool get isEmpty => opsLength <= 0;
+
+  /// Whether this stack is not empty
+  bool get isNotEmpty => !isEmpty;
+
   /// Removes and returns the first element of this queue.
   ///
   /// The queue must not be empty when this method is called.
   EasyOperation takeHead() {
-    numberOfOperations--;
+    opsLength--;
     return _operations.removeLast();
   }
 
@@ -36,7 +42,7 @@ class FixedListLength {
   ///
   /// The queue must not be empty when this method is called.
   EasyOperation takeOldMember() {
-    numberOfOperations--;
+    opsLength--;
     return _operations.removeFirst();
   }
 
@@ -47,27 +53,27 @@ class FixedListLength {
 
   /// Adds [value] at the beginning of the queue.
   void addFirst(EasyOperation value) {
-    numberOfOperations++;
+    opsLength++;
     _operations.addFirst(value);
-    if (numberOfOperations == maxLength) {
+    if (opsLength == maxLength) {
       takeOldMember();
     }
   }
 
   /// Adds [value] at the end of the queue.
   void addLast(EasyOperation value) {
-    numberOfOperations++;
+    opsLength++;
     _operations.addLast(value);
-    if (numberOfOperations == maxLength) {
+    if (opsLength == maxLength) {
       takeOldMember();
     }
   }
 
   /// Adds [value] at the end of the queue.
   void add(EasyOperation value) {
-    numberOfOperations++;
+    opsLength++;
     _operations.add(value);
-    if (numberOfOperations >= maxLength) {
+    if (opsLength >= maxLength) {
       takeOldMember();
     }
   }
@@ -77,7 +83,7 @@ class FixedListLength {
   /// Returns `true` if a value was removed, or `false` if the queue
   /// contained no element equal to [value].
   bool remove(EasyOperation? value) {
-    numberOfOperations--;
+    opsLength--;
     return _operations.remove(value);
   }
 
@@ -94,7 +100,7 @@ class FixedListLength {
 
   /// Removes all elements in the queue. The size of the queue becomes zero.
   void clear() {
-    numberOfOperations = 0;
+    opsLength = 0;
     _operations.clear();
   }
 
