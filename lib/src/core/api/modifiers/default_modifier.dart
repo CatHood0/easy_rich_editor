@@ -165,7 +165,7 @@ class DefaultNodeModifier extends NodeModifier {
 
             return OperationResult(
               executed: true,
-              node: node.parent == null ? embedBlock.parent : node,
+              node: !node.isLinked ? embedBlock.parent : node,
               changeSize: changeSize,
             );
           }

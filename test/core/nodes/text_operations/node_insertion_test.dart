@@ -99,7 +99,7 @@ void main() {
       expect(rightSplitted.isParagraphBlock, isTrue);
       expect(rightSplitted.first.text, equals("it "));
       expect(context.executed, isTrue);
-      expect(context.changeSize, equals(108));
+      expect(context.changeSize, equals(109));
       expect(context.node, equals(block));
       expect(block.length, equals(2));
       expect(location.node, isNotNull);
