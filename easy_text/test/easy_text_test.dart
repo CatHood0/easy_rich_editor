@@ -61,6 +61,16 @@ void main() {
       fragment = list.first;
       expect(fragment.charAt(0), equals('✨'.characters));
     });
+
+    test('delete easily', () {
+      fragment.delete(0, 25);
+      // at this point this was unlinked
+      expect(fragment.isLinked, isFalse);
+      // now we have just one element with the rest
+      // of the text
+      expect(list.length, equals(1));
+      expect(list.single.str(), equals('day! 🌈🌻'));
+    });
   });
 
   group('format with correct attributions', () {
@@ -323,9 +333,9 @@ void main() {
 
   group('take', () {
     test('take first character correctly', () {
-      final Characters? taked = fragment.before(1);
+      final Characters taked = fragment.before(1);
       expect(taked, isNotNull);
-      expect(taked!.length, equals(1));
+      expect(taked.length, equals(1));
       expect(taked.toString(), equals('🎂'));
     });
 
@@ -339,9 +349,9 @@ void main() {
     });
 
     test('take text the correct range before the emoji', () {
-      final Characters? taked = fragment.between(25, 31);
+      final Characters taked = fragment.between(25, 31);
       expect(taked, isNotNull);
-      expect(taked!.length, equals(6));
+      expect(taked.length, equals(6));
       expect(taked.toString(), equals('day! 🌈'));
 
       final Characters lastChar = taked.characterAt(5);
@@ -361,9 +371,9 @@ void main() {
     });
 
     test('take text the correct range after the emoji', () {
-      final Characters? taked = fragment.before(9);
+      final Characters taked = fragment.before(9);
       expect(taked, isNotNull);
-      expect(taked!.length, equals(9));
+      expect(taked.length, equals(9));
       expect(taked.toString(), equals('🎂✨ ¡Today'));
 
       final Characters firstChar = taked.characterAt(0);

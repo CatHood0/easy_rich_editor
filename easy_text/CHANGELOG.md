@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## 1.0.4 - 09 / 10 / 2025
+
+### Changed
+
+* Removed nullability in `before`, `between`, `after` methods.
+* Renamed `_splitExactRanges` method to `extractAt`.
+
 ## 1.0.3 - 9 / 04 / 2025
 
 ### Changed

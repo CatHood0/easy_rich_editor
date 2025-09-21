@@ -62,17 +62,17 @@ final class EasyText extends LinkedListEntry<EasyText> {
         _text = Characters.empty;
 
   /// Returns a substring containing characters before the specified point.
-  Characters? before(int point) {
+  Characters before(int point) {
     return text.getRange(0, point);
   }
 
   /// Returns a substring between the specified start and end positions.
-  Characters? between(int start, int end) {
+  Characters between(int start, int end) {
     return text.getRange(start, end);
   }
 
   /// Returns a substring containing characters after the specified point.
-  Characters? after(int point) {
+  Characters after(int point) {
     return text.getRange(point);
   }
 
@@ -124,7 +124,7 @@ final class EasyText extends LinkedListEntry<EasyText> {
   /// Overrides the last used [EasyText] instance
   void setAsLastUsed() {
     if (!isLinked) return;
-    (list as EasyTextList?)?._lastUsedText = this;
+    (list as EasyTextList?)?.lastUsed = this;
   }
 
   /// try to merge this element with adjacents parts if they share
@@ -132,7 +132,7 @@ final class EasyText extends LinkedListEntry<EasyText> {
   void tryMerge() {
     // This is a text node and it can only be merged with other text nodes.
     EasyText textPart = this;
-    final bool isThisLastUsed = (list as EasyTextList?)?._lastUsedText == this;
+    final bool isThisLastUsed = (list as EasyTextList?)?.lastUsed == this;
 
     // Merging it with previous textPart if style is the same.
     final EasyText? prev = textPart.previous;
@@ -148,7 +148,7 @@ final class EasyText extends LinkedListEntry<EasyText> {
       // want to move to the wanted fragment without
       // searching it first manually
       if (isThisLastUsed) {
-        (list as EasyTextList?)?._lastUsedText = prev;
+        (list as EasyTextList?)?.lastUsed = prev;
       }
       textPart.unlink();
       textPart = prev;
@@ -217,10 +217,7 @@ final class EasyText extends LinkedListEntry<EasyText> {
 
     final int local = math.min<int>(length - index, len);
     final int remain = len - local;
-    final EasyText part = _splitExactRanges(index, local);
-    (list as EasyTextList?)
-      ?.._lastUsedText = part
-      .._lastIndex = null;
+    final EasyText part = extractAt(index, local);
 
     if (remain > 0 && part.next != null) {
       part.next?.formatRange(
@@ -252,11 +249,12 @@ final class EasyText extends LinkedListEntry<EasyText> {
     final int length = this.length;
     assert(index < length, 'offset must be less than the length passed');
 
-    final int local = math.min(length - index, len);
-    final EasyText target = _splitExactRanges(index, local);
-    final EasyText? prev = target.previous;
-    final EasyText? next = target.next;
-    target.unlink();
+    final int local = math.min<int>(length - index, len);
+    final EasyText extracted = extractAt(index, local);
+    final EasyText? prev = extracted.previous;
+    final EasyText? next = extracted.next;
+    // removes the selected part
+    extracted.unlink();
 
     final int remain = len - local;
     if (remain > 0 && next != null) {
@@ -266,15 +264,31 @@ final class EasyText extends LinkedListEntry<EasyText> {
     if (prev != null && !ignoreMerge) prev.tryMerge();
   }
 
-  /// Split efficiently starting at [index] with specified [length].
-  EasyText _splitExactRanges(int index, int length) {
+  /// Extract efficiently starting at [index] with specified [length].
+  EasyText extractAt(int index, int length) {
     assert(
       index >= 0 && index < this.length && (index + length <= this.length),
       'the index($index) or '
       'length($length) are not into the '
       'defined range of: 0 to ${this.length}',
     );
-    final EasyText target = splitAt(index)!..splitAt(length);
+    // Extracts a substring starting from the specified index with the given length
+    final EasyText left = splitAt(index)!
+      // Example:
+      //   Input: index = 5, length = 13
+      //   Text: "This is an example text where we shows how works this"
+      //
+      //   Visual representation:
+      //   "This |is an example| text where we shows how works this"
+      //          ↑____________↑
+      //          index 5, length 13
+      //
+      //   Returns: "is an example"
+      //
+      // The remaining parts of the original text are processed separately
+      // in a new instance or data structure
+      ..splitAt(length);
+    final EasyText target = left;
     return target;
   }
 
@@ -305,10 +319,10 @@ final class EasyText extends LinkedListEntry<EasyText> {
     if (index == length) return isLast ? null : next;
 
     final EasyText split = EasyText(
-      text: after(index)!,
+      text: after(index),
       styles: styles.copy(),
     );
-    text = before(index)!;
+    text = before(index);
     insertAfter(split);
     return split;
   }

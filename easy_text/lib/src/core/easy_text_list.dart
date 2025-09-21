@@ -11,14 +11,17 @@ part of '../core/easy_text.dart';
 /// print(textList.text); // Output: 'Hello World'
 /// ```
 final class EasyTextList extends LinkedList<EasyText> {
-  /// Cached reference to the last accessed [EasyText] element for optimized
-  /// subsequent access. This reduces iteration overhead when accessing the
-  /// same element multiple times.
-  EasyText? _lastUsedText;
+  /// Gets the last accessed [EasyText] element, if any.
+  ///
+  /// This can be useful for debugging or for operations that need to continue
+  /// from the last accessed position.
+  EasyText? lastUsed;
 
-  /// The index position of the last accessed element. Used in conjunction with
-  /// [_lastUsedText] to provide direct jump access to recently used elements.
-  int? _lastIndex;
+  /// Gets the index of the last accessed element, if any.
+  ///
+  /// Returns `null` if no element has been accessed yet or if the cache
+  /// has been invalidated.
+  int? lastIndex;
 
   EasyTextList();
 
@@ -71,30 +74,18 @@ final class EasyTextList extends LinkedList<EasyText> {
   @override
   EasyText elementAt(int index) {
     // Make a direct jump to the text to avoid iterating
-    if (index == _lastIndex) {
-      if (_lastUsedText != null &&
-          _lastUsedText!.list != null &&
-          _lastUsedText!.list == this) {
-        return _lastUsedText!;
+    if (index == lastIndex) {
+      if (lastUsed != null &&
+          lastUsed!.list != null &&
+          lastUsed!.list == this) {
+        return lastUsed!;
       }
     }
     final EasyText text = super.elementAt(index);
-    _lastUsedText = text;
-    _lastIndex = index;
+    lastUsed = text;
+    lastIndex = index;
     return text;
   }
-
-  /// Gets the last accessed [EasyText] element, if any.
-  ///
-  /// This can be useful for debugging or for operations that need to continue
-  /// from the last accessed position.
-  EasyText? get lastUsed => _lastUsedText;
-
-  /// Gets the index of the last accessed element, if any.
-  ///
-  /// Returns `null` if no element has been accessed yet or if the cache
-  /// has been invalidated.
-  int? get lastIndex => _lastIndex;
 
   /// Generates a plain text string by concatenating the text of all [EasyText]
   /// elements in the list.
