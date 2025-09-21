@@ -264,12 +264,10 @@ class EasyDocument {
     Node? node = root;
     assert(path.isNotEmpty, 'path cannot be empty');
     for (int p in path) {
-      if (node == null) {
-        return null;
-      }
-      // traverse always getting the child at the path
-      // and setting the child as the new node result
-      node = node.elementAtOrNull(p);
+      if (node == null) return null;
+      node = node.elementAtOrNull(
+        p,
+      );
     }
 
     return node;

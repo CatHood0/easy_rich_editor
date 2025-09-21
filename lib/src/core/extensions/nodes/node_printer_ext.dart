@@ -1,9 +1,15 @@
 part of 'package:easy_rich_editor/src/core/api/document/nodes/node.dart';
 
 extension NodeTreeDumperExt on Node {
-  String shortInfo() {
+  String shortInfo({bool parent = false}) {
     if (isRootOwner) {
       return '$type(id: $id, children: $length)';
+    }
+    if (parent && this.parent != null) {
+      return '${this.parent!.shortInfo()}'
+          '\n'
+          '${' ' * 2}'
+          '$type(id: $id, ${shortOffsetInfo(global: true)}, path: $deepPath)';
     }
     return '$type(id: $id, ${shortOffsetInfo(global: true)}, path: $deepPath)';
   }
@@ -41,7 +47,11 @@ extension NodeTreeDumperExt on Node {
     }
 
     final Limiter? limiter = EasyDocument.getLimiter(this);
-    final List<int> nodePath = showFullDeepPaths ? deepPath : <int>[path];
+    final List<int> nodePath = showFullDeepPaths
+        ? deepPath
+        : parent == null
+            ? (-1).toList()
+            : <int>[path];
     final StringBuffer buffer = StringBuffer("")
       ..write("$type(${id.substring(0, 4).trim()}"
           "-"

@@ -78,15 +78,17 @@ class DeltaNode {
         inserted = insert;
 
   DeltaNode.replace({
-    required this.inserted,
+    required Object data,
     required this.start,
     required this.len,
-  })  : oldLength = 0,
+    EasyAttributeStyles? styles,
+    this.inlineStyles = true,
+  })  : inserted = data,
+        oldLength = 0,
         newLength = 0,
-        inlineStyles = false,
         replaceOffsets = false,
         type = DeltaType.replace,
-        styles = EasyAttributeStyles.empty();
+        styles = styles ?? EasyAttributeStyles.empty();
 
   DeltaNode.delete({
     required this.start,

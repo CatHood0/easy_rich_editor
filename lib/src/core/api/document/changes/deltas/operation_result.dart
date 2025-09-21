@@ -42,16 +42,16 @@ class OperationResult {
 
   @override
   String toString() {
-    return 'FragmentChangeContext(executed: $executed, '
+    return 'OperationResult(executed: $executed, '
         'size: $changeSize, '
-        'node: $node, '
+        'node: ${node?.shortInfo()}, '
         'reason: $reason)';
   }
 }
 
-class MultipleFragmentChangeContext extends OperationResult {
+class MultipleOpResults extends OperationResult {
   final List<OperationResult> changes;
-  MultipleFragmentChangeContext({
+  MultipleOpResults({
     required super.executed,
     required this.changes,
     super.node,
@@ -59,18 +59,27 @@ class MultipleFragmentChangeContext extends OperationResult {
   });
 
   @override
-  MultipleFragmentChangeContext copyWith({
+  MultipleOpResults copyWith({
     TextRange? remainingRanges,
     bool? executed,
     List<OperationResult>? changes,
     int? changeSize,
     Node? node,
   }) {
-    return MultipleFragmentChangeContext(
+    return MultipleOpResults(
       executed: executed ?? this.executed,
       changes: changes ?? this.changes,
       node: node ?? this.node,
       changeSize: changeSize ?? this.changeSize,
     );
+  }
+
+  @override
+  String toString() {
+    return 'OperationResult(executed: $executed, '
+        'size: $changeSize, '
+        'node: ${node?.shortInfo()}, '
+        'reason: $reason, '
+        'changes: $changes)';
   }
 }

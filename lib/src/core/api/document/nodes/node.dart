@@ -81,7 +81,7 @@ final class Node extends ChangeNotifier {
         _value = null {
     metadata ??= <String, dynamic>{};
     this.metadata = <String, dynamic>{
-      'lock': false,
+      'locked': false,
       ...metadata,
       'root': true,
       'block': false,
@@ -104,12 +104,10 @@ final class Node extends ChangeNotifier {
     this.metadata = <String, dynamic>{
       'can_modify_children_length': canModifyChildrenLength,
       'block': canModifyChildrenLength || value == null,
-      'lock': false,
+      'locked': false,
       ...?metadata
     };
-    for (final Node child in children) {
-      child.parent = this;
-    }
+    adoptChildren(children);
     this.children.addAll(children);
     this.metadata['pr_attributes'] = blockAttributes;
   }
@@ -212,7 +210,7 @@ final class Node extends ChangeNotifier {
       'block': true,
       'pr_attributes': blockAttributes,
       'can_modify_children_length': true,
-      'lock': false,
+      'locked': false,
       ...?metadata,
     };
     final Node child = Node(
@@ -247,7 +245,7 @@ final class Node extends ChangeNotifier {
     this.metadata = <String, dynamic>{
       'block': true,
       'pr_attributes': blockAttributes,
-      'lock': false,
+      'locked': false,
       'can_modify_children_length': true,
       ...?metadata,
     };
@@ -284,6 +282,7 @@ final class Node extends ChangeNotifier {
       text = data.castString();
       insertNode(lineNode);
     }
+
     adoptChildren(children);
   }
 
@@ -300,7 +299,7 @@ final class Node extends ChangeNotifier {
     this.metadata = <String, dynamic>{
       'pr_attributes': blockAttributes,
       'block': false,
-      'lock': false,
+      'locked': false,
       'can_modify_children_length': false,
       ...?metadata,
     };
@@ -322,7 +321,7 @@ final class Node extends ChangeNotifier {
       'block': true,
       'can_modify_children_length': true,
       'pr_attributes': null,
-      'lock': false,
+      'locked': false,
       TableKeys.columnNumKey: columnNum,
     };
     assert(
@@ -442,7 +441,8 @@ final class Node extends ChangeNotifier {
     value = null;
     metadata
       ..['block'] = true
-      ..['pr_attributes'] = paragraph.blockAttributes;
+      ..['pr_attributes'] = paragraph.blockAttributes
+      ..['can_modify_children_length'] = true;
     this.id = id ?? paragraph.id;
     final List<Line> lines = paragraph.unsafeLines();
     for (int i = 0; i < lines.length; i++) {
@@ -754,7 +754,7 @@ final class Node extends ChangeNotifier {
   Map<String, dynamic>? get blockAttributes =>
       metadata['pr_attributes'] as Map<String, dynamic>?;
 
-  /// Lock this [Node] to allow making impossible doing certain
+  /// lock this [Node] to allow making impossible doing certain
   /// modifications
   ///
   /// Tipically is used when we want to avoid stopping loops
@@ -779,14 +779,12 @@ final class Node extends ChangeNotifier {
 
   /// Unlock this [Node] to allow modifications
   void unlock() {
-    EasyEditorLogger.tree.debug(
-      'Unlocking $id',
-    );
+    EasyEditorLogger.tree.debug('Unlocking $id');
     metadata['locked'] = false;
   }
 
   /// Whether this [Node] is locked and cannot be modified
-  bool get isLocked => metadata['locked'] == true;
+  bool get isLocked => metadata['locked'] as bool? ?? false;
 
   void adoptChildren(
     List<Node> nodes, {
@@ -987,7 +985,7 @@ final class Node extends ChangeNotifier {
   }
 
   void unlink() {
-    if (isLocked) return;
+    if (parent?.isLocked ?? false) return;
     // ensure that we invalidates specific cached values
     // at this [Node] and the next siblings
     invalidateDataOffset(
@@ -998,6 +996,12 @@ final class Node extends ChangeNotifier {
     // after invalidation, remove this
     if (parent != null) {
       parent!.removeNode(this);
+      assert(
+        !parent!.contains(id),
+        'parent '
+        'shouldn\'t contain '
+        'this node at point',
+      );
       parent = null;
     }
     invalidateCache();
@@ -1086,9 +1090,9 @@ final class Node extends ChangeNotifier {
     needsComputePath = path < 0;
   }
 
-  set deepPath(NodeDepthPath path) {
-    _deepPath = <int>[...path];
-    needsComputeFullPath = path.isEmpty;
+  set deepPath(NodeDepthPath newPath) {
+    _deepPath = <int>[...newPath];
+    needsComputeFullPath = newPath.isEmpty;
   }
 
   /// Get a normalized list of paths where this Node is
@@ -1109,9 +1113,7 @@ final class Node extends ChangeNotifier {
         'correct full deep path of $type(id: $id, offset: $globalStart). '
         'Extra => Most nearest node to the Root: ${jumpToParentExceptRoot()}',
       );
-      throw Exception(
-        'By some reason, we cannot get the full deep path of $this',
-      );
+      return _deepPath;
     }
 
     return _deepPath;
@@ -1135,7 +1137,7 @@ final class Node extends ChangeNotifier {
         "Must have a parent to invalidate cache of siblings");
 
     final NodePathCachePayload payload = NodePathCachePayload(
-      root: parent ?? this,
+      root: contains(node.id) ? this : parent ?? this,
       node: node,
       path: curPath,
       after: after,
@@ -1169,10 +1171,10 @@ final class Node extends ChangeNotifier {
   Node copyWith({
     String? type,
     String? id,
-    Map<String, dynamic>? metadata,
     List<Node>? children,
     Node? parent,
     Object? value,
+    Map<String, dynamic>? metadata,
   }) {
     return Node(
       type: type ?? this.type,
@@ -1193,10 +1195,6 @@ final class Node extends ChangeNotifier {
     bool passCacheData = false,
     Object Function(Object? value)? serializeValue,
   }) {
-    assert(
-      !supportEasyText || supportEasyText && texts.isNotEmpty,
-      'Nodes must not be never empty',
-    );
     return <String, dynamic>{
       "id": id,
       "type": type,
@@ -1211,7 +1209,6 @@ final class Node extends ChangeNotifier {
                       'id': e.id,
                       'text': e.str(),
                       'styles': e.styles.toJson(),
-                      'easy_text': true,
                     };
                   },
                 ).toList()

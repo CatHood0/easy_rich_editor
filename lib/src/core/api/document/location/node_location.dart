@@ -2,7 +2,7 @@ import 'package:easy_rich_editor/easy_rich_editor.dart';
 
 /// The location of the current Node
 class NodeLocation {
-  final List<int> path;
+  final NodeDepthPath path;
 
   final Node node;
 
@@ -18,7 +18,7 @@ class NodeLocation {
 
   NodeLocation.from(this.node)
       : path = node.deepPath,
-        rootOwner = node.jumpToParentExceptRoot() ?? node.jumpToParent();
+        rootOwner = node.jumpToParentExceptRoot();
 
   @override
   bool operator ==(Object other) {

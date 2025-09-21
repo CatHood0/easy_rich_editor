@@ -84,7 +84,9 @@ class IsolateNodeCacheInvalidator {
       for (int i = curPath;
           payload.after ? i < payload.root.length : i > 0;
           payload.after ? i++ : i--) {
-        payload.root.children[i].path = curPath;
+        payload.root.children[i]
+          ..path = curPath
+          ..deepPath = <int>[...payload.root.deepPath, curPath];
         if (payload.endPath != -1 && payload.endPath == curPath) break;
         payload.after ? curPath++ : curPath--;
       }
@@ -98,9 +100,15 @@ class IsolateNodeCacheInvalidator {
       'Starting invalidation of paths '
       'from 0 until ${payload.root.length} path',
     );
-    for (final Node node in payload.root.children) {
-      node.invalidateCache();
-    }
+    payload.root.forEach(
+      (
+        Node n,
+        int index,
+        void Function() shouldBreak,
+      ) {
+        n.invalidateCache();
+      },
+    );
     EasyEditorLogger.treeBackgroundRunners.debug(
       'Completed invalidation of paths '
       'sucessfully in ${payload.root.type}(${payload.root.id})',

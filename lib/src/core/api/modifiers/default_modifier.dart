@@ -1,9 +1,7 @@
 import 'package:collection/collection.dart';
 import 'package:easy_attribution_text/easy_text.dart';
+import 'package:easy_rich_editor/internal.dart';
 import 'package:easy_rich_editor/src/core/api/document/nodes/node.dart';
-import 'package:easy_rich_editor/src/core/api/document/path/path.dart';
-import 'package:easy_rich_editor/src/core/exceptions/illegal_node_exception.dart';
-import 'package:easy_rich_editor/src/core/extensions/object_ext.dart';
 import 'package:flutter_quill_delta_easy_parser/flutter_quill_delta_easy_parser.dart';
 import 'package:meta/meta.dart';
 import '../../../../easy_rich_editor.dart';
@@ -342,27 +340,52 @@ class DefaultNodeModifier extends NodeModifier {
   }) {
     final int end = start + len;
     if (node.isBlockNode || node.isRootOwner) {
+      // deletes the entire block if the
+      // [len] and [start] properties
+      // are wrapping it
+      //
+      // You can see a visual example like:
+      //
+      // |----------Paragraph---------|
+      // | | > Start Cursor pos       |
+      // | "This is a simple text"    |
+      // | "with different line paths"|
+      // | "that we can understand"   |
+      // |                        | < End Cursor pos (or if the
+      // |                            cursor is after node range)
+      // |----------------------------|
+      if (node.isBlockNode && node.isSelectingNode(start, len)) {
+        node
+          ..clearBlock()
+          ..unlink();
+        return OperationResult(
+          executed: true,
+          node: node,
+          changeSize: len,
+        );
+      }
       final NodeCursorPosLocation location =
           node.queryPosition(start, inclusive: true);
-      final NodeCursorPosLocation endLocation =
-          node.queryPosition(end, inclusive: true);
 
-      if (location.notFoundLocation || endLocation.notFoundLocation) {
+      if (location.notFoundLocation) {
         return NodeModifier.defaultNonExecutedContext;
       }
 
-      // deletes locally
-      if (node.isBlockNode) {
+      final NodeCursorPosLocation endLocation = end > location.node!.endOffset
+          ? node.queryPosition(end, inclusive: true)
+          : location;
+
+      if (node.isBlockNode && location.node != endLocation.node!) {
         // both are different
-        if (location.node != endLocation.node) {
-          return _mergeNodesAtLocations(
-            node,
-            start,
-            len,
-            location,
-            endLocation,
-          );
-        }
+        return location.node!.parent == endLocation.node!.parent
+            ? _mergeNodesAtLocations(
+                node,
+                start,
+                len,
+                location,
+                endLocation,
+              )
+            : OperationResult.noExecuted();
       }
 
       // this should just pass when we are at the end of a document
@@ -389,7 +412,7 @@ class DefaultNodeModifier extends NodeModifier {
         text: location.text ?? text,
         forward: forward,
         fragmentPosition: location.textIndex.or(() => fragmentPosition),
-        fragmentEndPosition: endLocation.textIndex,
+        jumpNodeOffset: location.jumpNodeOffset.nonNegative,
         jumpOffset: location.jumpOffset.nonNegative,
       );
 
@@ -397,7 +420,11 @@ class DefaultNodeModifier extends NodeModifier {
           node.isRootOwner &&
           node.changes?[location.node!.id] == null) {
         node
-          ..rebuildNodes(changes: <String, int>{location.node!.id: 1})
+          ..rebuildNodes(changes: <String, int>{
+            // if still linked, it was not removed
+            // and just was updated internally
+            location.node!.id: location.node!.isLinked ? 1 : 0,
+          })
           ..notify();
       }
       return context;
@@ -424,7 +451,9 @@ class DefaultNodeModifier extends NodeModifier {
           block.id: 0,
         })
         ..notify();
-      block.unlink();
+      block
+        ..clearBlock()
+        ..unlink();
       return OperationResult(
         executed: true,
         changeSize: len,
@@ -439,14 +468,6 @@ class DefaultNodeModifier extends NodeModifier {
       jumpedOffset: jumpOffset.nonNegative,
     );
     if (!context.executed) return context;
-    // commonly, we removes entire embeds when are empty
-    if (node.isEmbedLine && node.hasNoEmbed) {
-      node.jumpToParent().overrideChild(
-            node.jumpToParentExceptRoot()!.path,
-            Node.block(data: ""),
-          );
-      return context;
-    }
 
     EasyEditorLogger.tree.debug('Removing text '
         'between $start and $end ended '
@@ -462,6 +483,17 @@ class DefaultNodeModifier extends NodeModifier {
       computeParentCache: computeParentCache,
     );
 
+    if (node.isBlank) {
+      final Node block = node.jumpToParentExceptRoot()!;
+      // we need access to the direct node
+      block.jumpToParent()
+        ..rebuildNodes(changes: <String, int>{
+          block.id: 0,
+        })
+        ..notify();
+      node.unlink();
+    }
+
     return context;
   }
 
@@ -474,51 +506,67 @@ class DefaultNodeModifier extends NodeModifier {
   ) {
     final int startPath = location.node!.path;
     final int endPath = endLocation.node!.path;
-    final List<Node> between = node.subChildren(
-      startPath.next.limit(node.length),
-      // include the last node selected too
-      endPath,
-    );
 
     // adjust the len to be more usable for deletion functions
-    //
-    // commonly, when a len is major than just one node
-    // we need to limit it to the exact node length to avoid removing
-    // more than the necessary content
-    final int effectiveLeftLen = len.limit(location.node!.dataLength);
-    final int effectiveRightLen = ((len - effectiveLeftLen))
-        .limit(endLocation.node!.dataLength)
-        .nonNegative;
+    final int remainingLength =
+        (location.node!.dataLength - location.locationOffset).nonNegative;
+    final int effectiveRightLen = len - remainingLength;
+    final int effectiveLeftLen = len - effectiveRightLen;
+
     assert(effectiveLeftLen > 0,
         'the len passed does not fit the node ranges. Len $effectiveLeftLen');
     assert(
         effectiveRightLen > 0,
         'the remaining len '
         'for right deletion '
-        'does not fit the node ranges. Len $effectiveRightLen');
-    final OperationResult startctx = location.node!.delete(
-      location.locationOffset,
-      effectiveLeftLen,
-      jumpNodeOffset: location.jumpNodeOffset,
-      jumpOffset: location.jumpOffset.nonNegative,
-      fragmentPosition: location.textIndex.nonNegative,
-      computeParentCache: false,
+        'does not fit the node ranges. '
+        'Len $effectiveRightLen');
+
+    // if wrap all the node, just
+    // remove it automatically
+    final bool isWrappingEntireStartLocation = location.locationOffset == 0 &&
+        effectiveLeftLen == location.node!.dataLength;
+    final bool isWrappingEntireEndLocation = endLocation.locationOffset == 0 &&
+        effectiveRightLen == endLocation.node!.dataLength;
+
+    final List<Node> betweenNodes = node.subChildren(
+      startPath.incr,
+      endPath,
     );
+    final OperationResult startctx = isWrappingEntireStartLocation
+        ? OperationResult(
+            executed: true,
+            node: location.node,
+            changeSize: effectiveLeftLen,
+          )
+        : location.node!.delete(
+            location.locationOffset,
+            effectiveLeftLen,
+            jumpNodeOffset: location.jumpNodeOffset,
+            jumpOffset: location.jumpOffset.nonNegative,
+            fragmentPosition: location.textIndex.nonNegative,
+            computeParentCache: false,
+          );
 
     assert(
       startctx.executed,
       'the first node deletion was not executed as expected',
     );
-
-    final OperationResult endctx = endLocation.node!.delete(
-      0,
-      // we need to get the effective len
-      effectiveRightLen,
-      jumpNodeOffset: endLocation.jumpNodeOffset,
-      jumpOffset: endLocation.jumpOffset.nonNegative,
-      fragmentPosition: endLocation.textIndex.nonNegative,
-      computeParentCache: false,
-    );
+    final OperationResult endctx = isWrappingEntireEndLocation
+        ? OperationResult(
+            executed: true,
+            node: endLocation.node,
+            changeSize: effectiveRightLen,
+          )
+        : endLocation.node!.delete(
+            0,
+            effectiveRightLen,
+            text: endLocation.text,
+            jumpNodeOffset: endLocation.jumpNodeOffset.nonNegative,
+            jumpOffset: endLocation.jumpOffset.nonNegative,
+            fragmentPosition: endLocation.textIndex.nonNegative,
+            computeParentCache: false,
+          );
 
     assert(
       endctx.executed,
@@ -545,6 +593,8 @@ class DefaultNodeModifier extends NodeModifier {
         '',
       );
     }
+    if (isWrappingEntireStartLocation) location.node!.unlink();
+    if (isWrappingEntireEndLocation) endLocation.node!.unlink();
 
     // we need to merge both location nodes
     // since, when we are selecting two nodes
@@ -562,15 +612,28 @@ class DefaultNodeModifier extends NodeModifier {
     // After the deletion this should be the result
     //
     // "This can understand"
-    merge(location.node!, endLocation.node!);
-    for (Node n in between) {
+    //
+    // Check if node at the [start]
+    // is linked, since it can be removed,
+    // so we don't need to make a merge at that case
+    if (location.node!.isLinked && endLocation.node!.isLinked) {
+      merge(location.node!, endLocation.node!);
+    }
+
+    // here is the issue with the bad deepPath update
+    for (Node n in betweenNodes) {
       n.unlink();
     }
-    return MultipleFragmentChangeContext(
+
+    if (node.isBlank) {
+      node.unlink();
+    }
+
+    return MultipleOpResults(
       executed: true,
       changeSize: deletionLength,
       node: node,
-      changes: <OperationResult>[startctx],
+      changes: <OperationResult>[startctx, endctx],
     );
   }
 
@@ -623,15 +686,18 @@ class DefaultNodeModifier extends NodeModifier {
       return;
     }
     assert(
-      node.type == other.type && node.type == ParagraphKeys.lineKey,
-      'To merge nodes the '
-      'type must be equals in both',
-    );
+        node.type == other.type && node.isLineBlock,
+        'To merge nodes the '
+        'type must be equals in both');
     node
-      ..value.castToEasyText().addAll(<EasyText>[...other.texts])
+      ..texts.addAll(<EasyText>[...other.texts])
       ..text = '${node.nsText.orEmpty}${other.nsText.orEmpty}'.orNull()
       ..dataLength = node.dataLength + other.dataLength;
+    assert(node.parent != null, 'node must have a relationship');
     other.unlink();
+    if (node.isBlank) {
+      node.unlink();
+    }
   }
 
   /// Recomputes cache values for a node and its parent after content changes.

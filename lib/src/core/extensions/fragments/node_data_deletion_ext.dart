@@ -11,8 +11,7 @@ extension NodeDeletionExt on Node {
     int jumpedOffset = 0,
   }) {
     if (isBlockNode || isRootOwner || !hasDefinedValue) {
-      return OperationResult.noExecuted(
-          NoExecutionReason.noSatifyConditions);
+      return OperationResult.noExecuted(NoExecutionReason.noSatifyConditions);
     }
 
     assert(len > 0, 'len cannot be less than 1');
@@ -33,9 +32,9 @@ extension NodeDeletionExt on Node {
 
     final EasyText? frag = text ?? queryObjectAtOffset(start).cast<EasyText?>();
     if (frag == null) {
-      return OperationResult.noExecuted(isBlankText
-          ? NoExecutionReason.noElement
-          : NoExecutionReason.invalidStart);
+      return OperationResult.noExecuted(
+        isBlank ? NoExecutionReason.noElement : NoExecutionReason.invalidStart,
+      );
     }
 
     frag.delete(start, len);

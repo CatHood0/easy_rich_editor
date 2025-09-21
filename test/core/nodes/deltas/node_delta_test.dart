@@ -111,7 +111,17 @@ void main() {
   });
 
   test('should add and remove text easily between multiple nodes', () {
-
+    final Node clone = document.first!.first.deepCopy();
+    const String text = '-aaaaaa- ';
+    final DeltaChangeResult result = document.applyDelta(
+      DeltaNode.replace(
+        data: text,
+        start: 22,
+        len: 10,
+      ),
+    );
+    expect(result.executed, isTrue);
+    print(document.first?.dumpTreeStr());
   });
   test('should use multiple operations to apply deltas', () {});
 }

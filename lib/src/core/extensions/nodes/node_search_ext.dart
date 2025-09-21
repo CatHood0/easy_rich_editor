@@ -291,6 +291,13 @@ extension NodeSearchExt on Node {
   /// Whether this [Node] is into the N.T.P registry
   bool contains(String id) => _fastIndexTreePart[id] != null;
 
+  /// Whether [start] and [length] is selecting this entire node
+  bool isSelectingNode(int start, int len, {bool strict = false}) {
+    final int nodeLength =
+        isBlockNode ? dataLength.decr.nonNegative : dataLength;
+    return start == 0 && (strict ? len == nodeLength : len >= nodeLength);
+  }
+
   /// Determines if inside this node the range is valid
   bool isLocalInRange(int start, int end) {
     final bool startInRange = start >= 0 && start < dataLength;

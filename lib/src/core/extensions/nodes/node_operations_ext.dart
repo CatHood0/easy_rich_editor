@@ -8,7 +8,7 @@ extension NodeOperations on Node {
   }) {
     if (isLocked) return;
     if (!canAddOrRemovedChildren || contains(child.id)) return;
-    if (child.parent != null) {
+    if (child.parent != null && child.parent != this) {
       child.unlinkIfNeeded();
     }
 
@@ -58,9 +58,13 @@ extension NodeOperations on Node {
     );
     if (!contains(node.id)) return;
     final int path = node.path;
-    final List<int> deepPath = parent?.deepPath ?? <int>[];
-    final Node? find = elementAtOrNull(path);
-    if (find == null || find.id != node.id) return;
+    final Node find = elementAt(path);
+    assert(
+        find.id == node.id,
+        'the node at path($path) '
+        'should share same id. '
+        'Founded: ${find.shortInfo()}, '
+        'expected: ${node.shortInfo()}');
     Node? sibling = node.next;
 
     children.removeAt(path);
@@ -75,6 +79,8 @@ extension NodeOperations on Node {
       sibling
         ..path = path
         ..deepPath = <int>[...deepPath, path];
+      // automtically fixes the paths cached
+      // in its siblings
       invalidateCacheOfSiblings(
         node: sibling,
         after: true,

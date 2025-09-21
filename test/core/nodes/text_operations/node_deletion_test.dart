@@ -21,7 +21,7 @@ void main() {
     );
     expect(context.executed, isTrue);
     expect(context.changeSize, equals(1));
-    expect(() => context.node!.deepPath, throwsA(isA<Exception>()));
+    expect(context.node!.deepPath, equals(<int>[]));
     expect(context.node!.jumpToParent().isRootOwner, isFalse);
     expect(root!.contains(context.node!.id), isFalse);
   });
@@ -49,19 +49,17 @@ void main() {
       3,
       89,
     );
-
     expect(context.executed, isTrue);
-    expect(context, isA<MultipleFragmentChangeContext>());
+    expect(context, isA<MultipleOpResults>());
     expect(context.changeSize, equals(89));
     expect(context.node!.deepPath, equals(<int>[2]));
+    // first was removed since we are selecting entire line
+    expect(context.cast<MultipleOpResults>().changes.first.node!.deepPath,
+        equals(<int>[]));
     expect(
-        context
-            .cast<MultipleFragmentChangeContext>()
-            .changes
-            .first
-            .node!
-            .deepPath,
-        equals(<int>[2, 0]));
+      context.cast<MultipleOpResults>().changes.last.node!.deepPath,
+      equals(<int>[2, 0]),
+    );
     expect(
       context.node!.text,
       equals('alizer (1). '),

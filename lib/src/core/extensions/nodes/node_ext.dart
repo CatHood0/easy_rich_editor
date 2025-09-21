@@ -20,6 +20,9 @@ extension NodeExt on Node {
   /// Whether this [Node]  has defined it's value
   bool get hasDefinedValue => value != null;
 
+  /// Whether this [Node] has a parent relationship
+  bool get isLinked => parent != null && parent!.contains(id);
+
   /// Whether this [Node] is a block (a container of children lines)
   bool get isBlockNode => metadata['block'] as bool? ?? !hasDefinedValue;
 
@@ -85,7 +88,7 @@ extension NodeExt on Node {
   /// Whether this [Node] is strictly blank (text must be single or empty)
   bool get isStrictlyBlankText =>
       supportEasyText &&
-      (texts.isEmpty || texts.length == 1 && !texts.first.hasText);
+      (texts.isEmpty || texts.length < 2 && texts.first.isBlank);
 
   /// Whether this [Node] is not blank
   bool get isNotBlankText => !isBlankText;
@@ -93,7 +96,11 @@ extension NodeExt on Node {
   EasyTextList get texts => value.castToEasyText();
 
   /// Whether this [Node] has no value into itself
-  bool get isBlank => isEmbedLine ? hasNoEmbed : isBlankText;
+  bool get isBlank => isBlockNode
+      ? isEmpty
+      : isEmbedLine
+          ? hasNoEmbed
+          : isBlankText;
 
   /// Whether this [Node] has value into it
   bool get isNotBlank => isEmbedLine ? hasEmbed : isNotBlankText;
@@ -139,22 +146,20 @@ extension NodeUtilities on Node {
         ));
     }
     v ??= value;
-    return lock<Node>(
-      () => Node(
-        id: id,
-        type: type,
-        value: v,
-        parent: parent?.copyWith(),
-        metadata: <String, dynamic>{...metadata},
-        children: children.map<Node>((Node e) => e.deepCopy()).toList(),
-        canModifyChildrenLength: canAddOrRemovedChildren,
-      )
-        ..path = path
-        ..deepPath = <int>[...deepPath]
-        ..text = text
-        ..dataLength = dataLength
-        .._offset = _offset,
-    )!;
+    return Node(
+      id: id,
+      type: type,
+      value: v,
+      parent: parent?.copyWith(),
+      metadata: <String, dynamic>{...metadata},
+      children: children.map((Node e) => e.deepCopy()).toList(),
+      canModifyChildrenLength: canAddOrRemovedChildren,
+    )
+      ..path = path
+      ..deepPath = <int>[...deepPath]
+      ..text = text
+      ..dataLength = dataLength
+      .._offset = _offset;
   }
 
   void forEach(

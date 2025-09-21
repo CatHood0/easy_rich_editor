@@ -184,7 +184,7 @@ class EasyDeleteOperation extends EasyOperation {
   DeltaNode toDelta() {
     if (deletedContent != null) {
       return DeltaNode.replace(
-        inserted: deletedContent,
+        data: deletedContent!,
         start: cursorPosition,
         len: len,
       );
