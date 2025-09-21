@@ -311,10 +311,10 @@ final class Node extends ChangeNotifier {
     int rowNum = -1,
     String? id,
     this.parent,
-    List<Node>? children,
+    List<Node>? rows,
     Map<String, dynamic>? metadata,
   }) : type = TableKeys.key {
-    children ??= <Node>[];
+    rows ??= <Node>[];
     this.id = id ?? EasyTreeState.createNodeId();
     this.metadata = <String, dynamic>{
       ...?metadata,
@@ -332,7 +332,7 @@ final class Node extends ChangeNotifier {
       'length: ${children.length}',
     );
     adoptChildren(
-      children,
+      rows,
       check: (Node n) {
         assert(
             n.type == TableKeys.rowKey,
@@ -342,7 +342,7 @@ final class Node extends ChangeNotifier {
       },
     );
     if (rowNum > 0) {
-      final int effectiveLen = rowNum - children.length;
+      final int effectiveLen = rowNum - rows.length;
       if (effectiveLen > 0) {
         adoptChildren(
           List<Node>.generate(
@@ -352,10 +352,10 @@ final class Node extends ChangeNotifier {
         );
       }
       assert(
-          this.children.length == rowNum,
+          children.length == rowNum,
           'Expected '
           'children length: $rowNum but '
-          'found ${this.children.length}');
+          'found ${children.length}');
     }
   }
 

@@ -14,8 +14,11 @@ void main() {
         Node.block(data: 'this is my simple text after an embed'),
         Node.block(data: 'this is my \nsimple text before a table'),
         Node.table(
-          rowNum: 1,
-          children: <Node>[
+          // just pass the num of rows
+          // when you know that you are
+          // passing to [rows] the exact
+          // list length
+          rows: <Node>[
             Node.tableRow(columnNum: 2, children: <Node>[
               Node.block(data: 'This is my text \ninto the first column'),
             ]),
