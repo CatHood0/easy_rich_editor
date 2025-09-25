@@ -18,17 +18,29 @@ void main() {
   });
 
   group('modifications', () {
-    test('add text before emoji', () {
+    test('add text before and after emoji', () {
+      final bold = EasyAttributeStyles.fromAttribute(BoldAttribute());
       expect(fragment.charAt(0), equals('🎂'.characters));
       fragment.insert(0, 'T');
-      // at this point, the current fragment was unlinked
-      // since we merged directly with a new node
-      expect(fragment.isLinked, isFalse);
-      // get that new updated fragment of text
-      fragment = list.first;
       expect(fragment.isLinked, isTrue);
       expect(fragment.charAt(0), equals('T'.characters));
       expect(fragment.charAt(1), equals('🎂'.characters));
+      fragment.insert(
+        2,
+        'Bold',
+        bold,
+      );
+      // since the insertion contains a different style
+      // from the main style in the fragment
+      // it will be splitted in three parts
+      //
+      // so, at this point this instance was unlinked
+      expect(fragment.isLinked, isTrue);
+      expect(fragment.str(), equals('T🎂'));
+      expect(fragment.styles, isNot(equals(bold)));
+      fragment = list.elementAt(1);
+      expect(fragment.str(), equals('Bold'));
+      expect(fragment.styles, equals(bold));
     });
 
     test('add text after emoji', () {

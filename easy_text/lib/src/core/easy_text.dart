@@ -1,5 +1,6 @@
 import 'dart:collection';
 import 'dart:math' as math;
+import 'dart:math';
 
 import 'package:characters/characters.dart';
 import 'package:uuid/v4.dart';
@@ -186,7 +187,30 @@ final class EasyText extends LinkedListEntry<EasyText> {
     final int length = this.length;
     assert(
         index >= 0 && index <= length, 'Index must be between 0 and $length');
+    style ??= EasyAttributeStyles.empty();
+    // if both share the same attributes, just
+    // insert the data at the position
+    // without splitting
+    //
+    // this should avoid unlinking instances
+    // when not required
+    if (this.styles == style && index <= length) {
+      final Characters chars = data.characters;
+      if (_length != null) _length = length + chars.length;
+      _text = before(min(
+            index,
+            length,
+          )) +
+          chars +
+          after(min(
+            index,
+            length,
+          ));
+      return;
+    }
+
     final EasyText part = EasyText.fromStr(text: data);
+
     if (index < length) {
       splitAt(index)!.insertBefore(part);
     } else {

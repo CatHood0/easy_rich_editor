@@ -106,6 +106,7 @@ abstract class EasyAttribute<T extends Object?> {
       'code-block': codeblock,
       'width': DimensionsAttribute.width(),
       'height': DimensionsAttribute.height(),
+      'style': DimensionsAttribute.both(),
       'indent': indentation,
       'unchecked': ListAttribute.todo(),
       'checked': ListAttribute.todo(true),
@@ -272,7 +273,7 @@ abstract class EasyAttribute<T extends Object?> {
   /// Hyperlink attribute for making text clickable.
   static const LinkAttribute link = LinkAttribute();
 
-  /// Inline code formatting attribute (monospace with background).
+  /// Inline code formatting attribute.
   static const InlineCodeAttribute code = InlineCodeAttribute();
 
   /// Background color attribute for text.

@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## 1.0.5 - 09 / 24 / 2025
+
+### Fixes
+
+* Inserting text into instances that contains same `styles` property than the passed in `insert` method should be merged without unlink it.
+
 ## 1.0.4 - 09 / 10 / 2025
 
 ### Changed
