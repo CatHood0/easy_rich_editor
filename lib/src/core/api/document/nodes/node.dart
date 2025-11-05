@@ -9,7 +9,6 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_quill_delta_easy_parser/flutter_quill_delta_easy_parser.dart';
-import 'package:meta/meta.dart';
 
 part 'package:easy_rich_editor/src/core/extensions/fragments/node_data_deletion_ext.dart';
 part 'package:easy_rich_editor/src/core/extensions/fragments/node_data_formatting_ext.dart';
@@ -865,10 +864,12 @@ final class Node extends ChangeNotifier {
 
   int get depthLevel => _deepPath.length - 1;
 
-  Node? queryPath(NodeDepthPath path) {
+  Node? queryPath(NodeDepthPath path, {bool consume = false}) {
     Node? node = this;
     assert(path.isNotEmpty, 'path cannot be empty');
-    for (int p in path) {
+    final NodeDepthPath paths =
+        consume ? path.consumeFrom(deepPath) : <int>[...path];
+    for (int p in paths) {
       if (node == null) {
         return null;
       }
@@ -878,82 +879,6 @@ final class Node extends ChangeNotifier {
     }
 
     return node;
-  }
-
-  void insertAfter(Node entry) {
-    if (parent == null) {
-      throw Exception('Cannot '
-          'insert any child after '
-          'this since has '
-          'no parent relationship');
-    }
-    // since we insert an element after this
-    // the path changes, and we need a new reallocation
-    int lastPathKnowed = path;
-    isLast
-        ? parent!.children.add(entry)
-        : parent!.children.insert(lastPathKnowed.next, entry);
-    lastPathKnowed++;
-    entry
-      ..parent = parent
-      // to avoid recomputing of a knowed path
-      // just set it
-      ..path = lastPathKnowed
-      ..deepPath = <int>[...parent!.deepPath, lastPathKnowed];
-    parent!.invalidateCache(justCache: true);
-    if (parent!._cachedLength != null) {
-      parent!._cachedLength = parent!._cachedLength! + 1;
-    }
-    parent!.invalidateDataOffset(noOffset: true);
-    parent!._fastIndexTreePart[entry.id] = entry;
-    if (entry.next != null) {
-      // reset the current path of the node
-      invalidateCacheOfSiblings(
-        node: entry,
-        after: true,
-        curPath: entry.path,
-      );
-    }
-  }
-
-  void insertBefore(Node entry) {
-    if (parent == null) {
-      throw Exception('Cannot '
-          'insert any child after '
-          'this since has '
-          'no parent relationship');
-    }
-    // since we insert an element before this
-    // the path changes, and we need a new reallocation
-    int lastPathKnowed = path;
-    assert(path > -1, 'path founded has no valid value: $lastPathKnowed');
-    parent!.children.insert(lastPathKnowed, entry);
-    entry
-      ..parent = parent
-      // to avoid recomputing of a knowed path
-      // just set it
-      ..path = lastPathKnowed
-      ..deepPath = <int>[...parent!.deepPath, lastPathKnowed];
-    parent!._fastIndexTreePart[entry.id] = entry;
-    final int? cachedLength = parent!._cachedLength;
-    parent!.invalidateCache(justCache: true);
-    if (cachedLength != null) {
-      parent!._cachedLength = cachedLength + 1;
-    }
-    parent!.invalidateDataOffset();
-    lastPathKnowed++;
-    path = lastPathKnowed;
-    deepPath = <int>[
-      ...parent!.deepPath,
-      lastPathKnowed,
-    ];
-    if (next != null) {
-      invalidateCacheOfSiblings(
-        node: this,
-        after: true,
-        curPath: lastPathKnowed,
-      );
-    }
   }
 
   void unlinkIfNeeded() {

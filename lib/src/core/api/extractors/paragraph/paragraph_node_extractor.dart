@@ -68,19 +68,14 @@ class ParagraphNodeExtractor extends NodeExtractor<EasyText> {
       return <Node>[];
     }
     _assertBlock(node, selection);
-    if (selection.start.node == null) {
-      final Node? block = node
-          // commonly, should jump to root
-          .jumpToParent()
-          // make the query at the root to get the exact node
-          .queryPath(selection.start.path)
-          ?.jumpToBlock(true);
-      return <Node>[
-        if (block != null) block,
-      ];
-    }
+    final Node? block = node
+        // commonly, should jump to root
+        .jumpToParent()
+        // make the query at the root to get the exact node
+        .queryPath(selection.startPath)
+        ?.jumpToBlock(true);
     return <Node>[
-      selection.start.node!.jumpToBlock()!,
+      if (block != null) block,
     ];
   }
 
@@ -88,17 +83,19 @@ class ParagraphNodeExtractor extends NodeExtractor<EasyText> {
   List<Node> getSelectedLines(Node node, NodeSelection selection) {
     if (selection.isCollapsed) {
       return <Node>[
-        selection.start.node ??
-            node.jumpToParent().queryPath(
-                  selection.start.path,
-                )!,
+        node.queryPath(
+          selection.startPath,
+          consume: true,
+        )!,
       ];
     }
     _assertBlock(node, selection);
     final NodeSelection normalized = selection.normalized;
+    final Node start = node.queryPath(normalized.startPath, consume: true)!;
+    final Node end = node.queryPath(normalized.endPath, consume: true)!;
     return NodeIterator(
-      startNode: normalized.start.node!,
-      endNode: normalized.end.node!,
+      startNode: start,
+      endNode: end,
     ).toList();
   }
 

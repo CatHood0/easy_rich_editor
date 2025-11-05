@@ -1,53 +1,60 @@
-import 'package:easy_rich_editor/easy_rich_editor.dart';
-import 'package:easy_rich_editor/src/core/api/document/path/path.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/widgets.dart';
+import 'package:easy_rich_editor/easy_rich_editor.dart';
 
 class NodeSelection {
   final NodePosition start;
   final NodePosition end;
 
   final List<Node>? selectedNodes;
+
   NodeSelection({
     required this.start,
     required this.end,
     this.selectedNodes,
   });
 
+  NodeSelection.invalid()
+      : start = NodePosition.invalid(),
+        selectedNodes = null,
+        end = NodePosition.invalid();
+
   NodeSelection.collapsed({
-    required List<int> path,
+    required NodeDepthPath path,
     required int offset,
-    required Node node,
+    required String id,
+    Node? node,
   })  : start = NodePosition(
           path: path,
-          node: node,
+          id: id,
           posOffset: offset,
         ),
-        selectedNodes = <Node>[node],
+        selectedNodes = <Node>[if (node != null) node],
         end = NodePosition(
           path: path,
-          node: node,
+          id: id,
           posOffset: offset,
         );
 
   NodeSelection.sameNode({
-    required List<int> path,
+    required NodeDepthPath path,
     required int startOffset,
     required int endOffset,
-    required Node node,
+    required String id,
     TextAffinity? startAffinity,
     TextAffinity? endAffinity,
+    Node? node,
     List<Node>? selectedNodes,
-  })  : selectedNodes = selectedNodes ?? <Node>[node],
+  })  : selectedNodes = selectedNodes ?? <Node>[if (node != null) node],
         start = NodePosition(
           path: path,
-          node: node,
+          id: id,
           affinity: startAffinity,
           posOffset: startOffset,
         ),
         end = NodePosition(
           path: path,
-          node: node,
+          id: id,
           affinity: endAffinity,
           posOffset: endOffset,
         );
@@ -78,8 +85,16 @@ class NodeSelection {
   /// Returns the offset in the starting position under the normalized selection.
   int get startIndex => normalized.start.posOffset;
 
+  bool get shareParent => start.path.isAncestorOf(end.path);
+
+  /// Returns the deep path of the start position.
+  NodeDepthPath get startPath => start.path;
+
+  /// Returns the deep path of the end position.
+  NodeDepthPath get endPath => end.path;
+
   /// Returns the offset in the ending position under the normalized selection.
-  int get endIndex => normalized.end.posOffset;
+  int get endIndex => end.posOffset;
 
   int get length => endIndex - startIndex;
 
@@ -123,10 +138,6 @@ class NodeSelection {
       return this;
     }
 
-    if (selectedNodes != null && !selectedNodes!.contains(nodePosition.node)) {
-      selectedNodes!.add(nodePosition.node!);
-    }
-
     if (nodePosition <= start) {
       // Here the position is somewhere before the selection: ..|..[...]....
       if (extentAtIndex) {
@@ -151,30 +162,6 @@ class NodeSelection {
       start: isNormalized ? start : nodePosition,
       end: isNormalized ? nodePosition : end,
     );
-  }
-
-  NodeSelection extendTo(int nextPosition, {Node? nextNode}) {
-    if (end.posOffset == nextPosition) {
-      return this;
-    }
-
-    /// If nextNode is passed, probably, we are selecting a node that
-    /// is the next sibling of the current, and we need to add this
-    /// to the selection
-    if (nextNode != null) {
-      final int effectiveNodeOffset = end.node!.endOffset;
-      if (effectiveNodeOffset < nextPosition) {
-        return copyWith(
-          end: end.copyWith(
-            posOffset: nextPosition,
-            node: nextNode,
-          ),
-          selectedNodes: <Node>[...?selectedNodes, nextNode],
-        );
-      }
-    }
-
-    return copyWith(end: end.copyWith(posOffset: nextPosition));
   }
 
   @override

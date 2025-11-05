@@ -37,7 +37,6 @@ extension PositionExtension on NodePosition {
         if (node.hasDefinedValue) {
           return NodePosition(
             path: path,
-            node: node,
             //TODO: implement a way to know how implement this
             // correctly
             affinity: TextAffinity.upstream,
@@ -49,7 +48,6 @@ extension PositionExtension on NodePosition {
 
         return NodePosition(
           path: path,
-          node: node,
           posOffset: posOffset,
         );
       case SelectionRange.word:
@@ -58,7 +56,6 @@ extension PositionExtension on NodePosition {
               ? node.selectable?.getWordBoundaryInPosition(
                   NodePosition(
                     path: path,
-                    node: node,
                     posOffset: node.text.prevRunePosition(posOffset),
                   ),
                 )
@@ -70,7 +67,6 @@ extension PositionExtension on NodePosition {
 
         return NodePosition(
           path: path,
-          node: node,
           posOffset: posOffset,
         );
     }

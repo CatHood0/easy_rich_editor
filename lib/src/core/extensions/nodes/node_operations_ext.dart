@@ -42,11 +42,6 @@ extension NodeOperations on Node {
       _cachedLength = _cachedLength! + 1;
     }
     parent?.invalidateDataOffset();
-    invalidateCacheOfSiblings(
-      node: after ? entry : child,
-      after: true,
-      curPath: path + 1,
-    );
   }
 
   void removeNode(Node node) {
@@ -111,14 +106,14 @@ extension NodeOperations on Node {
   OperationResult insert(
     int start,
     Object data, {
-    EasyAttributeStyles? styles,
     EasyText? frag,
-    int fragmentPosition = 0,
-    int jumpNodeOffset = 0,
     int jumpOffset = 0,
-    int stringLimitLength = 300,
-    bool computeParentCache = true,
+    int jumpNodeOffset = 0,
     NodeModifier? modifier,
+    int fragmentPosition = 0,
+    int stringLimitLength = 300,
+    EasyAttributeStyles? styles,
+    bool computeParentCache = true,
   }) {
     if (isLocked) return OperationResult.noExecuted();
     modifier ??= NodeModifier.defaultModifier;
@@ -198,4 +193,81 @@ extension NodeOperations on Node {
       removeEntireNodeWhenEmpty: removeEntireNodeWhenEmpty,
     );
   }
+
+  void insertAfter(Node entry) {
+    if (parent == null) {
+      throw Exception('Cannot '
+          'insert any child after '
+          'this since has '
+          'no parent relationship');
+    }
+    // since we insert an element after this
+    // the path changes, and we need a new reallocation
+    int lastPathKnowed = path;
+    isLast
+        ? parent!.children.add(entry)
+        : parent!.children.insert(lastPathKnowed.next, entry);
+    lastPathKnowed++;
+    entry
+      ..parent = parent
+      // to avoid recomputing of a knowed path
+      // just set it
+      ..path = lastPathKnowed
+      ..deepPath = <int>[...parent!.deepPath, lastPathKnowed];
+    parent!.invalidateCache(justCache: true);
+    if (parent!._cachedLength != null) {
+      parent!._cachedLength = parent!._cachedLength! + 1;
+    }
+    parent!.invalidateDataOffset(noOffset: true);
+    parent!._fastIndexTreePart[entry.id] = entry;
+    if (entry.next != null) {
+      // reset the current path of the node
+      invalidateCacheOfSiblings(
+        node: entry,
+        after: true,
+        curPath: entry.path,
+      );
+    }
+  }
+
+  void insertBefore(Node entry) {
+    if (parent == null) {
+      throw Exception('Cannot '
+          'insert any child after '
+          'this since has '
+          'no parent relationship');
+    }
+    // since we insert an element before this
+    // the path changes, and we need a new reallocation
+    int lastPathKnowed = path;
+    assert(path > -1, 'path founded has no valid value: $lastPathKnowed');
+    parent!.children.insert(lastPathKnowed, entry);
+    entry
+      ..parent = parent
+      // to avoid recomputing of a knowed path
+      // just set it
+      ..path = lastPathKnowed
+      ..deepPath = <int>[...parent!.deepPath, lastPathKnowed];
+    parent!._fastIndexTreePart[entry.id] = entry;
+    final int? cachedLength = parent!._cachedLength;
+    parent!.invalidateCache(justCache: true);
+    if (cachedLength != null) {
+      parent!._cachedLength = cachedLength + 1;
+    }
+    parent!.invalidateDataOffset();
+    lastPathKnowed++;
+    path = lastPathKnowed;
+    deepPath = <int>[
+      ...parent!.deepPath,
+      lastPathKnowed,
+    ];
+    if (next != null) {
+      invalidateCacheOfSiblings(
+        node: this,
+        after: true,
+        curPath: lastPathKnowed,
+      );
+    }
+  }
+
 }

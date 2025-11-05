@@ -65,10 +65,12 @@ void main() {
           start: NodePosition(
             path: <int>[0, 0],
             posOffset: 1,
+            id: document.queryPath(<int>[0, 0])!.id,
           ),
           end: NodePosition(
             path: <int>[0, 1],
             posOffset: 6,
+            id: document.queryPath(<int>[0, 1])!.id,
           ),
         ),
       );

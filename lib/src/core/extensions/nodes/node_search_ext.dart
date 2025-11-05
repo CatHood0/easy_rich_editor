@@ -292,10 +292,10 @@ extension NodeSearchExt on Node {
   bool contains(String id) => _fastIndexTreePart[id] != null;
 
   /// Whether [start] and [length] is selecting this entire node
-  bool isSelectingNode(int start, int len, {bool strict = false}) {
+  bool isSelectingNode(int start, int end, {bool strict = false}) {
     final int nodeLength =
         isBlockNode ? dataLength.decr.nonNegative : dataLength;
-    return start == 0 && (strict ? len == nodeLength : len >= nodeLength);
+    return start == 0 && (strict ? end == nodeLength : end >= nodeLength);
   }
 
   /// Determines if inside this node the range is valid

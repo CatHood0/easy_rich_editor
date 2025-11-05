@@ -1,4 +1,6 @@
+import 'dart:collection';
 import 'package:easy_rich_editor/src/core/api/modifiers/table_modifier.dart';
+import 'package:easy_rich_editor/src/core/api/operations/transactions.dart';
 import 'package:flutter/material.dart';
 import 'package:meta/meta.dart';
 
@@ -110,37 +112,60 @@ class EasyDocument {
   void undo() {
     if (!history.hasUndo) return;
     final EasyOperation undoOp = history.undo();
-    applyOperation(undoOp);
+    apply(
+      Transactions(
+        operations: Queue<EasyOperation>.from(
+          <EasyOperation>[undoOp],
+        ),
+      ),
+    );
   }
 
   void redo() {
     if (!history.hasRedo) return;
     final EasyOperation redoOp = history.redo();
-    applyOperation(redoOp);
+    apply(
+      Transactions(
+        operations: Queue<EasyOperation>.from(
+          <EasyOperation>[redoOp],
+        ),
+      ),
+    );
   }
 
-  bool applyOperation(
-    EasyOperation op, {
-    bool recordUndo = false,
+  // If the operation comes from remote
+  // we just apply the change
+  bool apply(
+    Transactions transaction, {
+    bool recordUndo = true,
     bool recordRedo = false,
   }) {
-    if (recordUndo || recordRedo) {
-      history.push(op, undo: recordUndo);
+    bool executed = false;
+    for (EasyOperation v in transaction.operations) {
+      if (recordUndo || recordRedo) {
+        if (v.isRemote) continue;
+        history.push(
+          v,
+          undo: recordUndo,
+        );
+      }
+      final Node? node = queryPath(v.selection.startPath);
+      assert(
+        node != null,
+        'expected defined node, but found null at ${v.selection}',
+      );
+      executed = node!.receiveDelta(v.toDelta()).executed;
     }
-    final Node? node = queryPath(op.path);
-    assert(node != null, 'expected defined node, but found null at ${op.path}');
-    return node!.receiveDelta(op.toDelta()).executed;
+    return executed;
   }
 
   DeltaChangeResult applyDelta(DeltaNode delta) {
-    final NodeCursorPosLocation loc = queryOffset(
-      delta.start,
-      strict: false,
-    );
-    if (loc.found || loc.node != null) {
-      return loc.node!.receiveDelta(
-        loc.node!.isFirst ? delta : delta.transformRanges(loc.locationOffset),
-        modifier: _modifiers[loc.node!.jumpToParentExceptRoot()!.type] ??
+    final Node? loc = queryPath(delta.selection.startPath);
+    if (loc != null) {
+      if (!delta.selection.isCollapsed) {}
+      return loc.receiveDelta(
+        delta,
+        modifier: _modifiers[loc.jumpToParentExceptRoot()!.type] ??
             NodeModifier.defaultModifier,
       );
     }
@@ -221,8 +246,7 @@ class EasyDocument {
     }
 
     final NodeSelection normalizedSelection = selection.normalized;
-    final Node? start = normalizedSelection.start.node ??
-        queryPath(normalizedSelection.start.path);
+    final Node? start = queryPath(normalizedSelection.startPath);
     assert(
         start != null,
         'expected start node, but found '
@@ -233,8 +257,7 @@ class EasyDocument {
       return <Node>[start!];
     }
 
-    final Node? end =
-        normalizedSelection.end.node ?? queryPath(normalizedSelection.end.path);
+    final Node? end = queryPath(normalizedSelection.endPath);
     assert(
         end != null,
         'expected start node, but found '

@@ -1,26 +1,17 @@
 import 'package:easy_attribution_text/easy_text.dart';
-import 'package:easy_rich_editor/src/core/api/document/path/path.dart';
 import 'package:easy_rich_editor/src/core/extensions/object_ext.dart';
-
 import '../../../../easy_rich_editor.dart';
 
 abstract class EasyOperation {
-  /// The selection to be applied after usage of this operation
-  final NodeSelection? nextSelection;
-
-  /// The selection to be applied if the operation
-  /// is inverted usage of this operation
-  final NodeSelection? previousSelection;
-  final NodeDepthPath path;
-
-  /// A copy of the node
-  final Node node;
+  /// Whether this operation comes from remote editor
+  final bool isRemote;
+  final NodeSelection selection;
+  final OperationMetadata metadata;
 
   EasyOperation({
-    required this.path,
-    required this.node,
-    this.nextSelection,
-    this.previousSelection,
+    required this.selection,
+    required this.metadata,
+    this.isRemote = false,
   });
 
   /// The id that represents the operation
@@ -36,18 +27,12 @@ abstract class EasyOperation {
 class EasyFormatOperation extends EasyOperation {
   final Map<String, dynamic>? attributes;
   final Map<String, dynamic>? oldAttributes;
-  final int cursorPosition;
-  final int len;
 
   EasyFormatOperation({
-    required super.path,
-    required super.node,
-    required this.cursorPosition,
-    required this.len,
     required this.attributes,
     required this.oldAttributes,
-    super.nextSelection,
-    super.previousSelection,
+    required super.selection,
+    required super.metadata,
   });
 
   @override
@@ -56,25 +41,18 @@ class EasyFormatOperation extends EasyOperation {
   @override
   EasyFormatOperation invert() {
     return EasyFormatOperation(
-      path: path,
-      node: node,
-      len: len,
-      attributes: oldAttributes,
-      oldAttributes: attributes,
-      cursorPosition: cursorPosition,
-      nextSelection: nextSelection,
-      previousSelection: previousSelection,
-    );
+        attributes: oldAttributes,
+        oldAttributes: attributes,
+        selection: selection,
+        metadata: metadata);
   }
 
   @override
   DeltaNode toDelta() {
-    assert(!node.isRootOwner, 'root node must not be stored as a node change');
     final EasyAttributeStyles styles = EasyAttributeStyles.fromJson(attributes);
     return DeltaNode.format(
       styles: styles,
-      len: len,
-      start: cursorPosition,
+      selection: selection,
       inlineStyles: styles.values.every(
         (EasyAttribute<Object?> e) => e.isInline,
       ),
@@ -85,29 +63,22 @@ class EasyFormatOperation extends EasyOperation {
   Map<String, dynamic> toJson() {
     return <String, dynamic>{
       'id': id,
-      'path': path,
-      'node': node,
-      'len': len,
+      'selection': selection,
       'attributes': oldAttributes,
       'oldAttributes': attributes,
-      'cursorPosition': cursorPosition,
     };
   }
 }
 
 class EasyInsertOperation extends EasyOperation {
   final Object data;
-  final Map<String, dynamic>? attributes;
-  final int cursorPosition;
+  final EasyAttributeStyles? attributes;
 
   EasyInsertOperation({
-    required super.path,
-    required super.node,
+    required super.selection,
+    required super.metadata,
     required this.data,
-    required this.cursorPosition,
     this.attributes,
-    super.nextSelection,
-    super.previousSelection,
   });
 
   @override
@@ -116,22 +87,20 @@ class EasyInsertOperation extends EasyOperation {
   @override
   EasyDeleteOperation invert() {
     return EasyDeleteOperation(
-      path: path,
-      node: node,
-      len: data.length,
+      metadata: metadata,
+      deletedContent: data,
+      contentAttrs: attributes?.toJson() ?? <String, dynamic>{},
       forward: false,
-      cursorPosition: cursorPosition,
-      nextSelection: nextSelection,
-      previousSelection: previousSelection,
+      selection: selection,
     );
   }
 
   @override
   DeltaNode toDelta() {
     return DeltaNode.insert(
-      start: cursorPosition,
       insert: data,
-      styles: EasyAttributeStyles.fromJson(attributes),
+      selection: selection,
+      styles: attributes ?? EasyAttributeStyles.empty(),
     );
   }
 
@@ -139,30 +108,23 @@ class EasyInsertOperation extends EasyOperation {
   Map<String, dynamic> toJson() {
     return <String, dynamic>{
       'id': id,
-      'path': path,
-      'node': node,
       'len': data.length,
-      'cursorPosition': cursorPosition,
       'attributes': attributes,
     };
   }
 }
 
 class EasyDeleteOperation extends EasyOperation {
-  final int cursorPosition;
-  final int len;
   final Object? deletedContent;
+  final Map<String, dynamic> contentAttrs;
   final bool forward;
 
   EasyDeleteOperation({
-    required super.path,
-    required super.node,
-    required this.cursorPosition,
-    required this.len,
+    required super.selection,
+    required super.metadata,
+    this.contentAttrs = const <String, dynamic>{},
     this.forward = false,
     this.deletedContent,
-    super.nextSelection,
-    super.previousSelection,
   });
 
   @override
@@ -171,12 +133,12 @@ class EasyDeleteOperation extends EasyOperation {
   @override
   EasyInsertOperation invert() {
     return EasyInsertOperation(
-      path: path,
-      node: node,
       data: deletedContent!,
-      cursorPosition: cursorPosition,
-      nextSelection: nextSelection,
-      previousSelection: previousSelection,
+      metadata: metadata,
+      selection: selection,
+      attributes: EasyAttributeStyles.fromJson(
+        contentAttrs,
+      ),
     );
   }
 
@@ -185,13 +147,11 @@ class EasyDeleteOperation extends EasyOperation {
     if (deletedContent != null) {
       return DeltaNode.replace(
         data: deletedContent!,
-        start: cursorPosition,
-        len: len,
+        selection: selection,
       );
     }
     return DeltaNode.delete(
-      start: cursorPosition,
-      len: len,
+      selection: selection,
     );
   }
 
@@ -199,12 +159,22 @@ class EasyDeleteOperation extends EasyOperation {
   Map<String, dynamic> toJson() {
     return <String, dynamic>{
       'id': id,
-      'path': path,
-      'node': node,
-      'len': len,
+      'metadata': metadata,
+      'selection': selection,
       'forward': forward,
       'removed': deletedContent,
-      'cursorPosition': cursorPosition,
     };
   }
+}
+
+class OperationMetadata {
+  /// Represents the old state of a node
+  ///
+  /// Tipically used when require retrieving the state
+  /// of a removed node
+  final Map<String, dynamic> oldState;
+
+  OperationMetadata({
+    required this.oldState,
+  });
 }

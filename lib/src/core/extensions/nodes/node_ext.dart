@@ -62,7 +62,7 @@ extension NodeExt on Node {
       isEmbedLine || value != null && value is TextFragment;
 
   /// Whether this [Node] supports is fully empty
-  bool get isBlankOrEmpty => isEmbedLine ? !hasEmbed : isBlankText;
+  bool get isBlankOrEmpty => isEmbedLine ? !hasEmbed : isStrictlyBlankText;
 
   /// Whether this [Node] is [Embed]
   bool get isEmbedBlock => type == EmbedKeys.key;
@@ -155,10 +155,10 @@ extension NodeUtilities on Node {
       children: children.map((Node e) => e.deepCopy()).toList(),
       canModifyChildrenLength: canAddOrRemovedChildren,
     )
-      ..path = path
-      ..deepPath = <int>[...deepPath]
-      ..text = text
-      ..dataLength = dataLength
+      ..path = _path
+      ..deepPath = _deepPath
+      ..text = _text
+      ..dataLength = _dataLength
       .._offset = _offset;
   }
 

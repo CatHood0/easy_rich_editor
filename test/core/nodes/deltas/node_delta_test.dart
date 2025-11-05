@@ -40,7 +40,7 @@ void main() {
             ),
           ],
         ),
-        Node.embedBlock(data: {'image': 'path.jpg'}),
+        Node.embedBlock(data: <String, String>{'image': 'path.jpg'}),
         Node.block(
           children: <Node>[
             Node.lineBlock(
@@ -77,10 +77,10 @@ void main() {
     const String text = '-aaaaaa- ';
     document.applyDelta(
       DeltaNode.insert(
-        insert: text,
-        start: 4,
-        styles: EasyAttributeStyles.empty(),
-      ),
+          insert: text,
+          start: 4,
+          styles: EasyAttributeStyles.empty(),
+          path: <int>[0, 0]),
     );
     final List<NodeValueLocation> values = document.queryValue(text);
     expect(values.length, equals(1));
@@ -99,10 +99,7 @@ void main() {
       )),
     );
     document.applyDelta(
-      DeltaNode.delete(
-        start: 4,
-        len: text.length,
-      ),
+      DeltaNode.delete(start: 4, len: text.length, path: <int>[0, 0]),
     );
 
     final List<NodeValueLocation> values2 = document.queryValue(text);
@@ -118,6 +115,11 @@ void main() {
         data: text,
         start: 22,
         len: 10,
+        selection: NodeSelection.sameNode(
+          path: <int>[],
+          startOffset: 22,
+          endOffset: 32,
+        ),
       ),
     );
     expect(result.executed, isTrue);

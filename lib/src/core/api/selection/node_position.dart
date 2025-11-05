@@ -1,7 +1,6 @@
 import 'dart:ui';
 
 import 'package:easy_rich_editor/easy_rich_editor.dart';
-import 'package:easy_rich_editor/src/core/api/document/path/path.dart';
 
 ///
 class NodePosition {
@@ -25,17 +24,21 @@ class NodePosition {
   /// ```
   final int posOffset;
 
+  /// The [id] of the node at this position
+  final String id;
+
   final TextAffinity? affinity;
 
-  /// The position where [node] is
-  ///
-  /// Tipically is null only during testing phase
-  final Node? node;
+  NodePosition.invalid()
+      : path = invalidaPath,
+        posOffset = -1,
+        id = "",
+        affinity = null;
 
   NodePosition({
     required this.path,
     required this.posOffset,
-    this.node,
+    required this.id,
     this.affinity,
   });
 
@@ -43,11 +46,12 @@ class NodePosition {
     NodeDepthPath? path,
     TextAffinity? affinity,
     int? posOffset,
+    String? id,
     Node? node,
   }) {
     return NodePosition(
       path: path ?? this.path,
-      node: node ?? this.node,
+      id: id ?? this.id,
       affinity: affinity ?? this.affinity,
       posOffset: posOffset ?? this.posOffset,
     );
@@ -75,21 +79,22 @@ class NodePosition {
           path == other.path &&
           affinity == other.affinity;
     }
-    return this == other;
+    return this == other && id == other.id;
   }
 
   @override
   bool operator ==(covariant NodePosition other) {
     return posOffset == other.posOffset &&
         path == other.path &&
-        node == other.node &&
-        affinity == other.affinity;
+        affinity == other.affinity &&
+        id == other.id;
   }
 
   @override
-  int get hashCode => Object.hashAllUnordered([
+  int get hashCode => Object.hash(
         path,
         posOffset,
         affinity,
-      ]);
+        id,
+      );
 }

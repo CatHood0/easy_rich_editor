@@ -4,6 +4,8 @@ extension NodeOffsetExt on Node {
   /// Offset in characters of this node relative to [parent] node.
   ///
   /// To get offset of this node in the Tree see [globalOffset].
+  //TODO: should we just allow offset caching for non blocks
+  //  since we will use paths as direct access and offsets for relative modifications
   int get offset {
     if (_offset != null) return _offset!;
 

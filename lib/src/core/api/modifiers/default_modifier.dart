@@ -354,7 +354,9 @@ class DefaultNodeModifier extends NodeModifier {
       // |                        | < End Cursor pos (or if the
       // |                            cursor is after node range)
       // |----------------------------|
-      if (node.isBlockNode && node.isSelectingNode(start, len)) {
+      if (node.isBlockNode &&
+          node.isSelectingNode(start, len) &&
+          removeEntireNodeWhenEmpty) {
         node
           ..clearBlock()
           ..unlink();
@@ -443,7 +445,8 @@ class DefaultNodeModifier extends NodeModifier {
         // and, if the ends exceeds
         // the length of this node
         // then must be deleted
-        end >= node.dataLength) {
+        end >= node.dataLength &&
+        removeEntireNodeWhenEmpty) {
       final Node block = node.jumpToParentExceptRoot()!;
       // we need access to the direct node
       block.jumpToParent()
@@ -483,7 +486,7 @@ class DefaultNodeModifier extends NodeModifier {
       computeParentCache: computeParentCache,
     );
 
-    if (node.isBlank) {
+    if (node.isBlank && removeEntireNodeWhenEmpty) {
       final Node block = node.jumpToParentExceptRoot()!;
       // we need access to the direct node
       block.jumpToParent()
@@ -918,6 +921,8 @@ class DefaultNodeModifier extends NodeModifier {
   /// - [delta]: The delta operation containing change information
   /// - [removedIfRequired]: If true, allows node removal when entire content is deleted
   /// - [transformOffsetWhenRequired]: If true, transforms offsets when delegating to child nodes
+  //TODO: we need to fix the old version of the API
+  // where we were using offsets, instead paths
   @override
   DeltaChangeResult receiveDelta(
     Node node,
@@ -926,16 +931,11 @@ class DefaultNodeModifier extends NodeModifier {
     bool transformOffsetWhenRequired = true,
   }) {
     if (node.isRootOwner) {
-      final NodeCursorPosLocation location = node.queryPosition(delta.start);
-      if (location.notFoundLocation || location.node == null) {
-        return DeltaChangeResult.noExecution();
-      }
+      final Node? location = node.queryPath(delta.selection.startPath);
+      if (location == null) return DeltaChangeResult.noExecution();
       return receiveDelta(
-        location.node!,
-        delta.transformRanges(
-          location.node!.offset,
-          decrease: true,
-        ),
+        node,
+        delta,
         removedIfRequired: true,
         transformOffsetWhenRequired: transformOffsetWhenRequired,
       );
@@ -949,22 +949,13 @@ class DefaultNodeModifier extends NodeModifier {
               'receiveDelta or any of the other methods');
     }
 
-    final int lineStartOffset = node.offset;
-    int lineEndOffset = node.endOffset;
     if (node.isBlockNode) {
-      // for block nodes, dataLength has 1 extra pos point
-      // so, to validate as the range correctly, we need to
-      // decrease that value to its original one
-      lineEndOffset = lineEndOffset.prev;
       if (delta.isDeletion &&
-          delta.isSelectingEntireRanges(
-            lineStartOffset,
-            lineEndOffset,
-            // even if the range is selecting around this node
-            // we need to check it
-            strict: false,
+          delta.selection.shareParent &&
+          node.isSelectingNode(
+            delta.start,
+            delta.end,
           )) {
-        // if we are selecting the entire block, just remove it
         node
           ..clearBlock()
           ..unlinkIfNeeded()
@@ -973,20 +964,29 @@ class DefaultNodeModifier extends NodeModifier {
           nodeId: node.id,
           removed: true,
           removedEntireNode: true,
-          newValidCursorPosition: lineStartOffset,
         );
       }
 
       // we need to find all the nodes between selection
       if (!delta.isCollapsed) {
+        node.parent?.invalidateDataOffset(noOffset: true);
+        //TODO: we need to search if the len of the delta
+        // exceeds the length of this block to apply correct
+        // deletion
+        final Node start = node
+            .queryPath(delta.selection.startPath.consumeFrom(node.deepPath))!;
+        Node? end =
+            node.queryPath(delta.selection.endPath.consumeFrom(node.deepPath));
+
+        if (end != null) {}
+        end ??= node.jumpToParent().queryPath(delta.selection.endPath);
         if (delta.isDeletion || delta.isReplace) {
           delete(
             node,
             delta.start,
-            delta.len,
+            delta.start - delta.end,
+            computeParentCache: false,
             removeEntireNodeWhenEmpty: !delta.isInsertion,
-            jumpNodeOffset: lineStartOffset,
-            computeParentCache: true,
           );
         }
         if (delta.isInsertion) {
@@ -997,15 +997,15 @@ class DefaultNodeModifier extends NodeModifier {
             // during insertion
             delta.start.limit(node.dataLength.decr.nonNegative),
             delta.inserted!,
-            jumpNodeOffset: lineStartOffset,
-            computeParentCache: true,
+            computeParentCache: false,
           );
         }
         return DeltaChangeResult(
           nodeId: node.id,
           inserted: delta.isInsertion,
-          removed: node.parent == null,
-          newValidCursorPosition: lineStartOffset,
+          removed: delta.isDeletion || delta.isReplace,
+          // was removed from the root
+          removedEntireNode: node.jumpToParentExceptRoot()?.parent == null,
         );
       }
 
@@ -1029,7 +1029,7 @@ class DefaultNodeModifier extends NodeModifier {
     }
 
     assert(
-        delta.start >= 0 && delta.end < node.dataLength.next,
+        delta.start >= 0 && delta.len < node.dataLength.next,
         'DeltaNode must have a '
         'valid range to be used into '
         '${node.type}(id: ${node.id}, '
@@ -1048,9 +1048,9 @@ class DefaultNodeModifier extends NodeModifier {
     if (node.isBlankOrEmpty &&
         delta.isCollapsed &&
         delta.isDeletion &&
-        delta.isSelectingEntireRanges(
-          lineStartOffset,
-          lineEndOffset,
+        node.isSelectingNode(
+          delta.start,
+          delta.len,
         )) {
       node
           .jumpToParent()
@@ -1068,7 +1068,6 @@ class DefaultNodeModifier extends NodeModifier {
         nodeId: node.id,
         removed: true,
         removedEntireNode: true,
-        newValidCursorPosition: lineStartOffset.decr.nonNegative,
       );
     }
 

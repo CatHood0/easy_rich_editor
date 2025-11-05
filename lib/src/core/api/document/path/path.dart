@@ -4,7 +4,8 @@ import 'package:flutter/foundation.dart';
 import '../../../../../easy_rich_editor.dart';
 
 typedef NodeDepthPath = List<int>;
-typedef FragmentPath = List<int>;
+
+const List<int> invalidaPath = <int>[];
 
 extension MinimalPathExtension on int {
   int get prev => this - 1;
@@ -21,9 +22,7 @@ extension PathExtensions on NodeDepthPath {
     return listEquals(this, other);
   }
 
-  NodeDepthPath consumeFrom(NodeDepthPath other) {
-    return sublist(other.length - 1);
-  }
+  NodeDepthPath consumeFrom(NodeDepthPath other) => sublist(other.length);
 
   NodeDepthPath consumeLast() {
     return <int>[last];
