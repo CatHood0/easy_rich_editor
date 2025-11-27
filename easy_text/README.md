@@ -33,7 +33,7 @@ Take in account that every `EasyText` instance must be linked/inserted into an `
   // Set every EasyText instance its own parent list
   // to allow search of siblings
   final instance = EasyText.fromStr(text: 'Hello 🎂✨ World 🌈');
-  final LinkedList list = EasyTextList.easy(instance);
+  final EasyTextList list = EasyTextList.easy(instance);
   assert(instance.isLinked, 'instance must be linked to a list');
 ```
 

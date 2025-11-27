@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## 1.0.6 - 11 / 27 / 2025
+
+### Added 
+
+* implemented `getByType<T>` in `EasyAttributeStyles` to get attributes by a type easily.
+
 ## 1.0.5 - 09 / 24 / 2025
 
 ### Fixes

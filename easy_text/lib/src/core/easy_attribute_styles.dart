@@ -60,6 +60,17 @@ class EasyAttributeStyles {
         },
       );
 
+  /// Returns the attribute that match with the type assigned
+  EasyAttribute? getByType<T extends EasyAttribute>({
+    bool Function(EasyAttribute)? filter,
+  }) {
+    bool easyFilter(EasyAttribute attr) => true;
+    filter ??= easyFilter;
+    return attributes.values.firstWhereOrNull(
+      (EasyAttribute<Object?> a) => a is T && filter!(a),
+    );
+  }
+
   /// Merge the [attribute] into these style container
   /// and removes it if the value is [null] or [false]
   void merge(EasyAttribute attribute, {bool autoRemoveExclusives = true}) {
