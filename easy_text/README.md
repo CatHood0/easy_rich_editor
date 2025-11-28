@@ -22,7 +22,7 @@ Add `EasyText` to your `pubspec.yaml`:
 
 ```yaml
 dependencies:
-  easy_attribution_text: <lastes_version> 
+  easy_attribution_text: <latest_version> 
 ```
 
 ## Quick Start

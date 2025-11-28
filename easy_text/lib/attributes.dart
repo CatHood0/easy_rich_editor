@@ -7,6 +7,7 @@ export 'src/core/attributes/builtin/inline/bold_attr.dart';
 export 'src/core/attributes/builtin/inline/italic_attr.dart';
 export 'src/core/attributes/builtin/inline/strike_attr.dart';
 export 'src/core/attributes/builtin/inline/underline_attr.dart';
+export 'src/core/attributes/builtin/inline/link_attr.dart';
 export 'src/core/attributes/builtin/inline/bg_color_attr.dart';
 export 'src/core/attributes/builtin/inline/color_attr.dart';
 export 'src/core/attributes/builtin/inline/script_attr.dart';
