@@ -1,6 +1,5 @@
 import 'package:collection/collection.dart';
 import '../../../attributes.dart';
-import 'builtin/inline/link_attr.dart';
 
 part 'abstractions.dart';
 
@@ -108,7 +107,7 @@ abstract class EasyAttribute<T extends Object?> {
       'height': DimensionsAttribute.height(),
       'style': DimensionsAttribute.both(),
       'indent': indentation,
-      'unchecked': ListAttribute.todo(),
+      'unchecked': ListAttribute.todo(false),
       'checked': ListAttribute.todo(true),
       // from AppFlowy
       'h1': h1,

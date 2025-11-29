@@ -1,5 +1,6 @@
 library;
 
+export 'src/extensions/styles_extensions.dart';
 // Core -> Attributes
 export 'src/core/attributes/attribute.dart';
 // Core -> Attributes -> Builtins -> Inlines
