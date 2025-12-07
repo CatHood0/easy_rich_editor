@@ -14,7 +14,6 @@ A easy and powerful text processing and styling library for Flutter that handles
 
 ### Rich Text Styling
 - **Inline Attributes**: Apply styles to specific text ranges (bold, italic, color, fonts)
-- **Exclusive Formatting**: Smart handling of mutually exclusive styles (headers, code blocks, lists)
 
 ## Installation
 
@@ -27,7 +26,7 @@ dependencies:
 
 ## Quick Start
 
-Take in account that every `EasyText` instance must be linked/inserted into an `EasyTextList` class. It manages insertion, deletion and positioning of every `EasyText`.
+Every `EasyText` instance must be linked/inserted into an `EasyTextList` class. It manages insertion, deletion and positioning of every `EasyText`.
 
 ```dart
   // Set every EasyText instance its own parent list

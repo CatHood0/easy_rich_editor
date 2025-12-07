@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## 1.1.0 - 12 / 07 / 2025
+
+### Changed
+* The `insert`, `delete`, and `formatRange` methods of `EasyText` now return an `EasyTextChange` object describing the affected range, the previous text, and the new text resulting from the operation (like a `Delta`).
+
+### Added
+* Helper `query` in `EasyTextList` to retrieve `EasyText` elements by specified range.
+
 ## 1.0.8 - 11 / 29 / 2025
 
 ### Added

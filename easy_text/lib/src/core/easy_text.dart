@@ -1,6 +1,5 @@
 import 'dart:collection';
 import 'dart:math' as math;
-import 'dart:math';
 
 import 'package:characters/characters.dart';
 import 'package:uuid/v4.dart';
@@ -178,15 +177,23 @@ final class EasyText extends LinkedListEntry<EasyText> {
   /// text.insert(6, 'Beautiful '); // Result: 'Hello Beautiful World'
   /// text.insert(6, 'Amazing ', style: EasyAttributeStyles.fromJson({'bold': BoldAttribute()}));
   /// ```
-  void insert(
+  EasyTextChange insert(
     int index,
     String data, [
     EasyAttributeStyles? style,
     bool ignoreMerge = false,
   ]) {
     final int length = this.length;
+    final int insertLength = data.characters.length;
     assert(
-        index >= 0 && index <= length, 'Index must be between 0 and $length');
+      index >= 0 && index <= length,
+      'Index must be '
+      'between 0 and $length',
+    );
+    final EasyTextList oldFrag = owner!.query(
+      index,
+      insertLength,
+    );
     style ??= EasyAttributeStyles.empty();
     // if both share the same attributes, just
     // insert the data at the position
@@ -197,29 +204,31 @@ final class EasyText extends LinkedListEntry<EasyText> {
     if (this.styles == style && index <= length) {
       final Characters chars = data.characters;
       if (_length != null) _length = length + chars.length;
-      _text = before(min(
-            index,
-            length,
-          )) +
+      _text = before(math.min(index, length)) +
           chars +
-          after(min(
-            index,
-            length,
-          ));
-      return;
-    }
-
-    final EasyText part = EasyText.fromStr(text: data);
-
-    if (index < length) {
-      splitAt(index)!.insertBefore(part);
+          after(math.min(index, length));
     } else {
-      insertAfter(part);
+      final EasyText part = EasyText.fromStr(text: data);
+      if (index < length) {
+        splitAt(index)!.insertBefore(part);
+      } else {
+        insertAfter(part);
+      }
+      part.format(
+        style,
+        true,
+        ignoreMerge,
+      );
     }
-    part.format(
-      style,
-      true,
-      ignoreMerge,
+    final EasyTextList newValues = owner!.query(
+      index,
+      insertLength,
+    );
+    return EasyTextChange(
+      oldValues: oldFrag,
+      newValues: newValues,
+      start: index,
+      length: insertLength,
     );
   }
 
@@ -231,13 +240,16 @@ final class EasyText extends LinkedListEntry<EasyText> {
   /// // Formats 'World' as bold
   /// text.formatRange(6, 5, EasyAttributeStyles.fromAttribute(BoldAttribute()));
   /// ```
-  void formatRange(
+  EasyTextChange? formatRange(
     int index,
     int? len,
     EasyAttributeStyles? style, {
     bool overrideStylesIfEmpty = true,
   }) {
-    if (style == null || len == null || len <= 0) return;
+    if (style == null || len == null || len <= 0) {
+      return null;
+    }
+    final EasyTextList oldValues = owner!.query(index, len);
 
     final int local = math.min<int>(length - index, len);
     final int remain = len - local;
@@ -255,6 +267,14 @@ final class EasyText extends LinkedListEntry<EasyText> {
       style,
       overrideStylesIfEmpty,
     );
+
+    final EasyTextList newValues = owner!.query(index, len);
+    return EasyTextChange(
+      start: index,
+      length: len,
+      oldValues: oldValues,
+      newValues: newValues,
+    );
   }
 
   /// Deletes [len] characters starting from the specified [index].
@@ -265,11 +285,16 @@ final class EasyText extends LinkedListEntry<EasyText> {
   /// text.delete(6, 10); // Result: 'Hello World'
   /// text.delete(0, 5);  // Result: 'World'
   /// ```
-  void delete(
+  EasyTextChange delete(
     int index,
     int len, {
     bool ignoreMerge = false,
   }) {
+    // we need to store a temporary version of the list
+    // into a variable to avoid trying to use .query
+    // when this element was already removed
+    final EasyTextList listToUse = owner!;
+    final EasyTextList oldValues = listToUse.query(index, len);
     final int length = this.length;
     assert(index < length, 'offset must be less than the length passed');
 
@@ -277,7 +302,6 @@ final class EasyText extends LinkedListEntry<EasyText> {
     final EasyText extracted = extractAt(index, local);
     final EasyText? prev = extracted.previous;
     final EasyText? next = extracted.next;
-    // removes the selected part
     extracted.unlink();
 
     final int remain = len - local;
@@ -286,6 +310,16 @@ final class EasyText extends LinkedListEntry<EasyText> {
     }
 
     if (prev != null && !ignoreMerge) prev.tryMerge();
+
+    // it will return an empty list
+    // since the exact points of the change were removed
+    final EasyTextList newValues = listToUse.query(index, 0);
+    return EasyTextChange(
+      start: index,
+      length: len,
+      oldValues: oldValues,
+      newValues: newValues,
+    );
   }
 
   /// Extract efficiently starting at [index] with specified [length].
@@ -329,6 +363,9 @@ final class EasyText extends LinkedListEntry<EasyText> {
     }
     if (!ignoreMerge) tryMerge();
   }
+
+  /// Returns the [EasyTextList] owner of this [EasyText]
+  EasyTextList? get owner => !isLinked ? null : list as EasyTextList?;
 
   /// Splits this [EasyText] at specified [offset]
   ///

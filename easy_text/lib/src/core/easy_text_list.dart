@@ -46,6 +46,39 @@ final class EasyTextList extends LinkedList<EasyText> {
     ));
   }
 
+  /// Get a sublist of texts starting from [start] index 
+  /// with the given [length].
+  EasyTextList query(int start, int length) {
+    final EasyTextList result = EasyTextList();
+    int offset = 0;
+    int remain = length;
+    for (final EasyText text in this) {
+      if (offset + text.length <= start) {
+        offset += text.length;
+        continue;
+      }
+      if (remain <= 0) break;
+      final int localStart = math.max(0, start - offset);
+      final int localEnd = math.min(
+        text.length,
+        localStart + remain,
+      );
+      if (localEnd > localStart) {
+        result.add(
+          text.copyWith(
+            text: text.text.getRange(
+              localStart,
+              localEnd,
+            ),
+          ),
+        );
+        remain -= (localEnd - localStart);
+      }
+      offset += text.length;
+    }
+    return result;
+  }
+
   /// Adds an [EasyText] entry to the end of the list and updates the text cache.
   ///
   /// If the entry already belongs to another list, it is first unlinked from
