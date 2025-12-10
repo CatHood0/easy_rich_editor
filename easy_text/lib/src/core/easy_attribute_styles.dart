@@ -23,6 +23,24 @@ class EasyAttributeStyles {
             ),
           );
 
+  /// Returns a map version of this styles but designed to invert values
+  ///
+  /// Tipically used to remove attributes during compose o merge phases
+  EasyAttributeStyles invert() {
+    return EasyAttributeStyles(
+        attributes: attributes.map<String, EasyAttribute>(
+      (
+        String k,
+        EasyAttribute<Object?> v,
+      ) =>
+          MapEntry<String, EasyAttribute>(
+        k,
+            // force null
+        v.clone(null),
+      ),
+    ));
+  }
+
   /// Whether there are available styles
   bool get isEmpty => attributes.isEmpty;
 
@@ -39,6 +57,17 @@ class EasyAttributeStyles {
   int get length => attributes.length;
 
   EasyAttribute get single => attributes.values.single;
+
+  /// Returns a new instance containing the same attributes
+  EasyAttributeStyles get deepClone {
+    return EasyAttributeStyles.fromIterable(
+      <EasyAttribute>[
+        ...values.map<EasyAttribute>(
+          (EasyAttribute<Object?> e) => e.clone(e.value),
+        )
+      ],
+    );
+  }
 
   /// Clear all the styles in this container
   EasyAttributeStyles clearAll() {
@@ -69,6 +98,20 @@ class EasyAttributeStyles {
     return attributes.values.firstWhereOrNull(
       (EasyAttribute<Object?> a) => a is T && filter!(a),
     );
+  }
+
+  /// Returns a composed version of two different styles
+  static EasyAttributeStyles compose(
+    EasyAttributeStyles a,
+    EasyAttributeStyles b, {
+    bool autoRemoveExclusives = true,
+  }) {
+    return EasyAttributeStyles(attributes: <String, EasyAttribute<Object?>>{})
+      ..mergeAll(a, autoRemoveExclusives: true)
+      ..mergeAll(
+        b,
+        autoRemoveExclusives: true,
+      );
   }
 
   /// Merge the [attribute] into these style container
@@ -107,9 +150,10 @@ class EasyAttributeStyles {
 
   /// Merge the all the styles into these style container
   /// passed and removes it if the value is [null] or [false]
-  void mergeAll(EasyAttributeStyles styles) {
+  void mergeAll(EasyAttributeStyles styles,
+      {bool autoRemoveExclusives = true}) {
     for (final EasyAttribute<Object?> attribute in styles.values) {
-      merge(attribute);
+      merge(attribute, autoRemoveExclusives: autoRemoveExclusives);
     }
   }
 

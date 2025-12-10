@@ -1,13 +1,13 @@
 import '../../../../../attributes.dart';
 
-class InlineCodeAttribute extends EasyInlineAttribute<bool> {
-  const InlineCodeAttribute([bool value = true]) : super(value: value);
+class InlineCodeAttribute extends EasyInlineAttribute<bool?> {
+  const InlineCodeAttribute([bool? value = true]) : super(value: value);
 
   @override
   String get key => 'code';
 
   @override
-  InlineCodeAttribute clone(bool value) {
+  InlineCodeAttribute clone(bool? value) {
     return InlineCodeAttribute(value);
   }
 }

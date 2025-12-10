@@ -1,9 +1,10 @@
 name: easy_attribution_text
 description: "Easily add metadata attributes to your text and modify your fragments"
-version: 1.1.0
+version: 1.1.1
+repository: https://github.com/CatHood0/easy_rich_editor/tree/Main/easy_text
 homepage: https://github.com/CatHood0/easy_rich_editor/tree/Main/easy_text
 documentation: https://github.com/CatHood0/easy_rich_editor/tree
-issue_tracker: https://github.com/CatHood0/easy_rich_editor/tree/Main/easy_text
+issue_tracker: https://github.com/CatHood0/easy_rich_editor/issues
 
 environment:
   sdk: ">=3.4.3 <4.0.0"
@@ -16,6 +17,7 @@ dependencies:
   collection: ^1.18.0
   uuid: ^4.5.1
   characters: ^1.4.0
+  dart_quill_delta: ^10.8.3
 
 dev_dependencies:
   flutter_test:

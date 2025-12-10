@@ -1,4 +1,4 @@
-import '../../../easy_text.dart';
+import 'package:dart_quill_delta/dart_quill_delta.dart';
 
 /// Represents the change maded in [insert],
 /// [delete] and [format] methods
@@ -10,14 +10,14 @@ class EasyTextChange {
   final int length;
 
   /// The old fragment before the change
-  final EasyTextList oldValues;
+  final Delta delta;
   /// The new fragment after the change
-  final EasyTextList newValues;
+  final Delta inverted;
 
   EasyTextChange({
     required this.start,
     required this.length,
-    required this.oldValues,
-    required this.newValues,
+    required this.delta,
+    required this.inverted,
   });
 }

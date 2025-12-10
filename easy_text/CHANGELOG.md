@@ -7,6 +7,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## 1.1.1 - 12 / 09 / 2025
+
+### Added
+
+* `toDelta` and `toOperation` in `EasyText` to retrieve `Delta` elements.
+* `toDelta` and `fromDelta` builders in `EasyTextList` to retrieve `Delta` elements.
+* `invert` method in `EasyAttributeStyles`.
+* `deepClone` method in `EasyAttributeStyles` to allow making a full clone of the styles.
+* `fromListJson` constructor to `EasyTextList`.
+* `fromJson` and `toJson` functions to `EasyText`.
+
+### BREAKING CHANGES
+
+* `oldValue` was replaced by `delta` in `EasyTextChange` that represents the actual operation applied.
+* `newValue` was replaced by `inverted` in `EasyTextChange` that represents the inverted operation that we made.
+* removed nullability on `len` property in `formatRange` method of `EasyText`. 
+
 ## 1.1.0 - 12 / 07 / 2025
 
 ### Changed

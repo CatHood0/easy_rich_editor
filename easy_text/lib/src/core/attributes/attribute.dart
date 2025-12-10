@@ -379,7 +379,7 @@ abstract class EasyAttribute<T extends Object?> {
   ///
   /// This method must be implemented by all subclasses to support
   /// cloning and deserialization.
-  EasyAttribute clone(T value);
+  EasyAttribute clone(T? value);
 
   @override
   bool operator ==(covariant EasyAttribute other) {

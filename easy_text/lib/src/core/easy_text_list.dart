@@ -25,6 +25,12 @@ final class EasyTextList extends LinkedList<EasyText> {
 
   EasyTextList();
 
+  EasyTextList.fromJsonList(Iterable<Map<String, dynamic>> elements) {
+    for (final Map<String, dynamic> el in elements) {
+      add(EasyText.fromJson(el));
+    }
+  }
+
   EasyTextList.from(Iterable<EasyText> iterable) {
     addAll(iterable);
   }
@@ -46,12 +52,43 @@ final class EasyTextList extends LinkedList<EasyText> {
     ));
   }
 
-  /// Get a sublist of texts starting from [start] index 
+  /// Create an [EasyTextList] from a Delta representation
+  EasyTextList.fromDelta(Delta delta) {
+    for (final Operation op in delta.toList()) {
+      if (!op.isInsert || op.data is! String) {
+        throw ArgumentError(
+          'Delta contains non-text '
+          'insert operation: $op. Delta($delta)',
+        );
+      }
+      add(
+        EasyText.fromStr(
+          text: op.data as String,
+          styles: EasyAttributeStyles.fromJson(
+            op.attributes,
+          ),
+        ),
+      );
+    }
+  }
+
+  /// Return a Delta representation of the [EasyTextList]
+  Delta toDelta() {
+    final Delta delta = Delta();
+    for (final EasyText text in this) {
+      delta.push(text.toOperation());
+    }
+    return delta;
+  }
+
+  /// Get a sublist of texts starting from [start] index
   /// with the given [length].
   EasyTextList query(int start, int length) {
     final EasyTextList result = EasyTextList();
     int offset = 0;
     int remain = length;
+    // probably i can just use extractAt, but
+    // i prefer just making this manually
     for (final EasyText text in this) {
       if (offset + text.length <= start) {
         offset += text.length;
@@ -65,12 +102,7 @@ final class EasyTextList extends LinkedList<EasyText> {
       );
       if (localEnd > localStart) {
         result.add(
-          text.copyWith(
-            text: text.text.getRange(
-              localStart,
-              localEnd,
-            ),
-          ),
+          text.copyWith(text: text.between(localStart, localEnd)),
         );
         remain -= (localEnd - localStart);
       }
@@ -83,8 +115,6 @@ final class EasyTextList extends LinkedList<EasyText> {
   ///
   /// If the entry already belongs to another list, it is first unlinked from
   /// that list. The text cache is updated to include the new entry's text.
-  ///
-  /// Throws an error if the entry is already in this list.
   @override
   void add(EasyText entry) {
     if (entry.list != null) entry.unlink();
@@ -119,6 +149,17 @@ final class EasyTextList extends LinkedList<EasyText> {
     lastIndex = index;
     return text;
   }
+
+  Map<String, dynamic> toJson() {
+    return <String, dynamic>{
+      "list": map<Map<String, dynamic>>(
+        (EasyText el) => el.toJson(),
+      ),
+    };
+  }
+
+  /// Returns the length of all [EasyText] elements in this list
+  int get textLength => toPlainText().length;
 
   /// Generates a plain text string by concatenating the text of all [EasyText]
   /// elements in the list.

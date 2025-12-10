@@ -2,6 +2,7 @@ import 'dart:collection';
 import 'dart:math' as math;
 
 import 'package:characters/characters.dart';
+import 'package:dart_quill_delta/dart_quill_delta.dart';
 import 'package:uuid/v4.dart';
 import '../../easy_text.dart';
 part '../core/easy_text_list.dart';
@@ -52,14 +53,23 @@ final class EasyText extends LinkedListEntry<EasyText> {
         styles = styles ?? EasyAttributeStyles.empty();
 
   /// Creates an empty [EasyText] instance with no content and empty styles.
-  ///
-  /// Useful as a placeholder or for initialization purposes.
   EasyText.empty({String? id})
       : styles = EasyAttributeStyles(
           attributes: <String, EasyAttribute<dynamic>>{},
         ),
         id = id ?? uuid.generate(),
         _text = Characters.empty;
+
+  /// Creates an [EasyText] instance from json
+  factory EasyText.fromJson(Map<String, dynamic> json) {
+    return EasyText(
+      id: json['id'] as String? ?? uuid.generate(),
+      text: Characters(json['text'] as String),
+      styles: EasyAttributeStyles.fromJson(
+        json['styles'] as Map<String, dynamic>,
+      ),
+    );
+  }
 
   /// Returns a substring containing characters before the specified point.
   Characters before(int point) {
@@ -98,6 +108,12 @@ final class EasyText extends LinkedListEntry<EasyText> {
   /// The characters of the upper-case version of [string].
   Characters toUpperCase() => text.toUpperCase();
 
+  /// Returns a new version of this [EasyText] element with the first letter capitalized.
+  EasyText capitalize() => !hasText
+      ? copyWith() 
+      : copyWith(
+          text: Characters('${str()[0].toUpperCase()}${str().substring(1)}'));
+
   /// Returns the [String] associated to the [Characters] instance
   String str() => '$text';
 
@@ -120,6 +136,16 @@ final class EasyText extends LinkedListEntry<EasyText> {
 
   /// Determines if this element is the last one into the list
   bool get isLast => list == null ? false : list!.last == this;
+
+  /// Returns the [Delta] equivalent version of this [EasyText]
+  Delta toDelta() {
+    return Delta()..insert(str(), styles.toJson());
+  }
+
+  /// Returns the [Operation] equivalent version of this [EasyText]
+  Operation toOperation() {
+    return Operation.insert(str(), styles.toJson());
+  }
 
   /// Overrides the last used [EasyText] instance
   void setAsLastUsed() {
@@ -183,16 +209,11 @@ final class EasyText extends LinkedListEntry<EasyText> {
     EasyAttributeStyles? style,
     bool ignoreMerge = false,
   ]) {
-    final int length = this.length;
     final int insertLength = data.characters.length;
     assert(
       index >= 0 && index <= length,
       'Index must be '
       'between 0 and $length',
-    );
-    final EasyTextList oldFrag = owner!.query(
-      index,
-      insertLength,
     );
     style ??= EasyAttributeStyles.empty();
     // if both share the same attributes, just
@@ -220,13 +241,13 @@ final class EasyText extends LinkedListEntry<EasyText> {
         ignoreMerge,
       );
     }
-    final EasyTextList newValues = owner!.query(
-      index,
-      insertLength,
-    );
     return EasyTextChange(
-      oldValues: oldFrag,
-      newValues: newValues,
+      delta: Delta()
+        ..retain(index)
+        ..insert(data, style.toJson()),
+      inverted: Delta()
+        ..retain(index)
+        ..delete(insertLength),
       start: index,
       length: insertLength,
     );
@@ -242,14 +263,13 @@ final class EasyText extends LinkedListEntry<EasyText> {
   /// ```
   EasyTextChange? formatRange(
     int index,
-    int? len,
+    int len,
     EasyAttributeStyles? style, {
     bool overrideStylesIfEmpty = true,
   }) {
-    if (style == null || len == null || len <= 0) {
+    if (style == null || len <= 0) {
       return null;
     }
-    final EasyTextList oldValues = owner!.query(index, len);
 
     final int local = math.min<int>(length - index, len);
     final int remain = len - local;
@@ -268,12 +288,19 @@ final class EasyText extends LinkedListEntry<EasyText> {
       overrideStylesIfEmpty,
     );
 
-    final EasyTextList newValues = owner!.query(index, len);
     return EasyTextChange(
       start: index,
       length: len,
-      oldValues: oldValues,
-      newValues: newValues,
+      delta: Delta()
+        ..retain(index)
+        ..retain(len, style.toJson()),
+      inverted: Delta()
+        ..retain(index)
+        ..retain(
+          len,
+          // return the equivalent style for remove
+          style.invert().toJson(),
+        ),
     );
   }
 
@@ -290,11 +317,7 @@ final class EasyText extends LinkedListEntry<EasyText> {
     int len, {
     bool ignoreMerge = false,
   }) {
-    // we need to store a temporary version of the list
-    // into a variable to avoid trying to use .query
-    // when this element was already removed
-    final EasyTextList listToUse = owner!;
-    final EasyTextList oldValues = listToUse.query(index, len);
+    final EasyTextList oldValues = owner!.query(index, len);
     final int length = this.length;
     assert(index < length, 'offset must be less than the length passed');
 
@@ -310,15 +333,21 @@ final class EasyText extends LinkedListEntry<EasyText> {
     }
 
     if (prev != null && !ignoreMerge) prev.tryMerge();
-
-    // it will return an empty list
-    // since the exact points of the change were removed
-    final EasyTextList newValues = listToUse.query(index, 0);
     return EasyTextChange(
       start: index,
       length: len,
-      oldValues: oldValues,
-      newValues: newValues,
+      delta: Delta()
+        ..retain(index)
+        ..delete(length),
+      inverted: Delta()
+        ..retain(index)
+        // since .invert method does not use inserted
+        // text in the delta, we will need to a simple trick
+        ..compose(
+          Delta.fromOperations(
+            <Operation>[...oldValues.toDelta().operations],
+          ),
+        ),
     );
   }
 
@@ -351,17 +380,32 @@ final class EasyText extends LinkedListEntry<EasyText> {
   }
 
   /// Formats this [EasyText] and optimizes it with adjacent [EasyText]s if needed.
-  void format(
-    EasyAttributeStyles? style, [
+  EasyTextChange format(
+    EasyAttributeStyles style, [
     bool overrideStylesIfEmpty = false,
     bool ignoreMerge = false,
   ]) {
-    if (style != null) {
-      overrideStylesIfEmpty && style.isEmpty
-          ? styles.clearAll()
-          : applyStyle(style);
-    }
+    final EasyAttributeStyles oldStyles =
+        // we prefer just avoid making deep clones when no required
+        !overrideStylesIfEmpty ? EasyAttributeStyles.empty() : style.deepClone;
+    overrideStylesIfEmpty && style.isEmpty
+        ? styles.clearAll()
+        : applyStyle(style);
     if (!ignoreMerge) tryMerge();
+    if (overrideStylesIfEmpty && style.isEmpty) {
+      return EasyTextChange(
+        start: 0,
+        length: length,
+        delta: Delta()..retain(length, oldStyles.invert().toJson()),
+        inverted: Delta()..retain(length, oldStyles.toJson()),
+      );
+    }
+    return EasyTextChange(
+      start: 0,
+      length: length,
+      delta: Delta()..retain(length, style.toJson()),
+      inverted: Delta()..retain(length, style.invert().toJson()),
+    );
   }
 
   /// Returns the [EasyTextList] owner of this [EasyText]
@@ -441,9 +485,17 @@ final class EasyText extends LinkedListEntry<EasyText> {
     );
   }
 
+  Map<String, dynamic> toJson() {
+    return <String, dynamic>{
+      'id': id,
+      'text': str(),
+      'styles': styles.toJson(),
+    };
+  }
+
   @override
   String toString() {
-    return 'EasyText(text: $text, styles: ${styles.toJson()})';
+    return 'EasyText(id: $id, text: "$text", styles: ${styles.toJson()})';
   }
 
   /// Whether this element is equals than the other [EasyText]
